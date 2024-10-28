@@ -92,8 +92,7 @@ class EtsFromJsonTest {
     @Test
     fun testLoadEtsFileAutoConvert() {
         val path = "/samples/source/example.ts"
-        val res = this::class.java.getResource(path)?.toURI()?.toPath()
-            ?: error("Resource not found: $path")
+        val res = getResourcePath(path)
         val etsFile = loadEtsFileAutoConvert(res)
         println("etsFile = $etsFile")
     }
