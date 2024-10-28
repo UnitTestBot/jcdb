@@ -46,7 +46,8 @@ private const val DEFAULT_NODE_EXECUTABLE = "node"
 fun generateEtsIR(
     path: Path,
     isProject: Boolean = false,
-    useArkAnalyzerTypeInference: Int? = null
+    loadEntrypoints: Boolean = true,
+    useArkAnalyzerTypeInference: Int? = null,
 ): Path {
     val arkAnalyzerDir = Path(System.getenv(ENV_VAR_ARK_ANALYZER_DIR) ?: DEFAULT_ARK_ANALYZER_DIR)
     if (!arkAnalyzerDir.exists()) {
@@ -78,7 +79,7 @@ fun generateEtsIR(
         node,
         script.pathString,
         if (isProject) "-p" else null,
-        "-e", // load entrypoints
+        if (loadEntrypoints) "-e" else null,
         useArkAnalyzerTypeInference?.let { "-t $it" },
         path.pathString,
         output.pathString,
@@ -88,8 +89,11 @@ fun generateEtsIR(
 }
 
 fun loadEtsFileAutoConvert(path: Path): EtsFile {
-    val irFilePath = generateEtsIR(path, isProject = false, useArkAnalyzerTypeInference = 2)
-
+    val irFilePath = generateEtsIR(
+        path,
+        isProject = false,
+        useArkAnalyzerTypeInference = 2
+    )
     irFilePath.inputStream().use { stream ->
         val etsFileDto = EtsFileDto.loadFromJson(stream)
         return convertToEtsFile(etsFileDto)
@@ -97,8 +101,16 @@ fun loadEtsFileAutoConvert(path: Path): EtsFile {
 }
 
 @OptIn(ExperimentalPathApi::class)
-fun loadEtsProjectAutoConvert(path: Path): EtsScene {
-    val irFolderPath = generateEtsIR(path, isProject = true, useArkAnalyzerTypeInference = 2)
+fun loadEtsProjectAutoConvert(
+    path: Path,
+    loadEntrypoints: Boolean = false,
+): EtsScene {
+    val irFolderPath = generateEtsIR(
+        path,
+        isProject = true,
+        loadEntrypoints = loadEntrypoints,
+        useArkAnalyzerTypeInference = 2,
+    )
     val files = irFolderPath
         .walk()
         .filter { it.extension == "json" }
