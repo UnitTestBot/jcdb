@@ -92,7 +92,7 @@ fun loadEtsFileAutoConvert(path: Path): EtsFile {
     val irFilePath = generateEtsIR(
         path,
         isProject = false,
-        useArkAnalyzerTypeInference = 2
+        useArkAnalyzerTypeInference = 1,
     )
     irFilePath.inputStream().use { stream ->
         val etsFileDto = EtsFileDto.loadFromJson(stream)
@@ -104,12 +104,13 @@ fun loadEtsFileAutoConvert(path: Path): EtsFile {
 fun loadEtsProjectAutoConvert(
     path: Path,
     loadEntrypoints: Boolean = false,
+    useArkAnalyzerTypeInference: Int? = 1,
 ): EtsScene {
     val irFolderPath = generateEtsIR(
         path,
         isProject = true,
         loadEntrypoints = loadEntrypoints,
-        useArkAnalyzerTypeInference = 2,
+        useArkAnalyzerTypeInference = useArkAnalyzerTypeInference,
     )
     val files = irFolderPath
         .walk()
