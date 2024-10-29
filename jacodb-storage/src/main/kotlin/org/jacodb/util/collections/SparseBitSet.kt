@@ -14,8 +14,9 @@
  *  limitations under the License.
  */
 
-package org.jacodb.impl.storage.ers.ram
+package org.jacodb.util.collections
 
+import org.jacodb.impl.storage.ers.ram.interned
 import java.util.Collections
 import java.util.NavigableMap
 import java.util.TreeMap

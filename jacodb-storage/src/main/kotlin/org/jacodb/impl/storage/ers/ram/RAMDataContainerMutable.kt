@@ -20,6 +20,8 @@ import org.jacodb.api.storage.ers.EntityId
 import org.jacodb.api.storage.ers.EntityIterable
 import org.jacodb.api.storage.ers.filterInstanceIds
 import org.jacodb.api.storage.ers.longRangeIterable
+import org.jacodb.util.collections.EmptySparseBitSet
+import org.jacodb.util.collections.SparseBitSet
 
 internal class RAMDataContainerMutable(
     private var typeIdCounter: Int, // next free type id
@@ -105,7 +107,7 @@ internal class RAMDataContainerMutable(
         }
         val blobs = HashMap<AttributeKey, AttributesImmutable>().also { map ->
             this.blobs.entries().forEach { entry ->
-                map[entry.key] = toAttributesImmutable(entry.value.entries().map { it.key to it.value })
+                map[entry.key] = entry.value.entries().map { it.key to it.value }.toAttributesImmutable()
             }
         }
         return RAMDataContainerImmutable(

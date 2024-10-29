@@ -9,6 +9,7 @@ plugins {
 
 dependencies {
     implementation(project(":jacodb-core"))
+    implementation(project(":jacodb-storage"))
     implementation(testFixtures(project(":jacodb-core")))
 
     implementation(Libs.kotlin_logging)
@@ -78,6 +79,10 @@ benchmark {
             iterations = 10
             include("GuavaCacheBenchmarks")
             include("XodusCacheBenchmarks")
+        }
+        register("ersRam") {
+            include("RAMEntityRelationshipStorageMutableBenchmarks")
+            include("RAMEntityRelationshipStorageImmutableBenchmarks")
         }
     }
 }

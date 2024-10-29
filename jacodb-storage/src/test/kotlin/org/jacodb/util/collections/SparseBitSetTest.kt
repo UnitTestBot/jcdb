@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-package org.jacodb.impl.storage.ers.ram
+package org.jacodb.util.collections
 
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
