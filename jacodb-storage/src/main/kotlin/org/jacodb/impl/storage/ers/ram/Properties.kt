@@ -118,6 +118,8 @@ internal class PropertiesMutable(
         actualIndex.beginRead().iterator().forEach {
             if (it.key < bound) {
                 result.addAll(it.value)
+            } else {
+                return@forEach
             }
         }
         return newProperties to InstanceIdCollectionEntityIterable(
@@ -140,6 +142,8 @@ internal class PropertiesMutable(
         actualIndex.beginRead().iterator().forEach {
             if (it.key <= bound) {
                 result.addAll(it.value)
+            } else {
+                return@forEach
             }
         }
         return newProperties to InstanceIdCollectionEntityIterable(
@@ -278,5 +282,5 @@ internal class PropertiesImmutable(private val attributes: AttributesImmutable) 
 }
 
 internal fun PropertiesMutable.toImmutable(): PropertiesImmutable {
-    return PropertiesImmutable(toAttributesImmutable(props.beginRead().map { it.key to it.value }))
+    return PropertiesImmutable(props.beginRead().map { it.key to it.value }.toAttributesImmutable())
 }

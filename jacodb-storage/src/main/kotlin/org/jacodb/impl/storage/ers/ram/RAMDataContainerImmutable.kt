@@ -19,6 +19,7 @@ package org.jacodb.impl.storage.ers.ram
 import org.jacodb.api.storage.ers.EntityId
 import org.jacodb.api.storage.ers.EntityIterable
 import org.jacodb.api.storage.ers.longRangeIterable
+import org.jacodb.util.collections.SparseBitSet
 
 internal class RAMDataContainerImmutable(
     // map of entity types to their type ids
