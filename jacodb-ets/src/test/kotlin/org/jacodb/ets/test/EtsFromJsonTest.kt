@@ -43,6 +43,7 @@ import org.jacodb.ets.dto.TypeDto
 import org.jacodb.ets.dto.convertToEtsFile
 import org.jacodb.ets.dto.convertToEtsMethod
 import org.jacodb.ets.model.EtsClassSignature
+import org.jacodb.ets.model.EtsFileSignature
 import org.jacodb.ets.model.EtsMethodSignature
 import org.jacodb.ets.test.utils.getResourcePath
 import org.jacodb.ets.test.utils.getResourcePathOrNull
@@ -71,7 +72,7 @@ class EtsFromJsonTest {
         }
 
         private val defaultSignature = EtsMethodSignature(
-            enclosingClass = EtsClassSignature(name = "_DEFAULT_ARK_CLASS"),
+            enclosingClass = EtsClassSignature(name = "_DEFAULT_ARK_CLASS", file = EtsFileSignature.EMPTY),
             name = "_DEFAULT_ARK_METHOD",
             parameters = emptyList(),
             returnType = EtsAnyType,
@@ -139,7 +140,7 @@ class EtsFromJsonTest {
             return@testFactory
         }
         container("load ${availableProjectNames.size} projects") {
-            for (projectName in availableProjectNames) {
+            for (projectName in availableProjectNames.sorted()) {
                 test("load $projectName") {
                     dynamicLoadEtsProject(projectName)
                 }
@@ -277,6 +278,7 @@ class EtsFromJsonTest {
             EtsMethodSignature(
                 enclosingClass = EtsClassSignature(
                     name = "_DEFAULT_ARK_CLASS",
+                    file = EtsFileSignature.EMPTY,
                 ),
                 name = "_DEFAULT_ARK_METHOD",
                 parameters = emptyList(),

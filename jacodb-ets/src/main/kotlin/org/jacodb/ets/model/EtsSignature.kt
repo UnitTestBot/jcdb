@@ -39,15 +39,19 @@ data class EtsFileSignature(
         // }
         return tmp
     }
+
+    companion object {
+        val EMPTY = EtsFileSignature("", "")
+    }
 }
 
 data class EtsNamespaceSignature(
     val name: String,
-    val file: EtsFileSignature? = null,
+    val file: EtsFileSignature,
     val namespace: EtsNamespaceSignature? = null,
 ) {
     val enclosingFile: EtsFileSignature?
-        get() = file ?: namespace?.enclosingFile
+        get() = namespace?.enclosingFile ?: file
 
     override fun toString(): String {
         // TODO: 'file' is not included in the toString() output,
@@ -62,7 +66,7 @@ data class EtsNamespaceSignature(
 
 data class EtsClassSignature(
     val name: String,
-    val file: EtsFileSignature? = null,
+    val file: EtsFileSignature,
     val namespace: EtsNamespaceSignature? = null,
 ) {
     // TODO: more manual testing is required in order to understand whether
@@ -75,7 +79,7 @@ data class EtsClassSignature(
     // }
 
     val enclosingFile: EtsFileSignature?
-        get() = file ?: namespace?.enclosingFile
+        get() = namespace?.enclosingFile ?: file
 
     override fun toString(): String {
         return if (namespace != null) {

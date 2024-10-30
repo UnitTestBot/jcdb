@@ -558,7 +558,7 @@ fun convertToEtsClass(classDto: ClassDto): EtsClass {
     val superClassSignature = classDto.superClassName?.takeIf { it != "" }?.let { name ->
         EtsClassSignature(
             name = name,
-            file = null, // TODO
+            file = EtsFileSignature.EMPTY, // TODO
             namespace = null, // TODO
         )
     }
@@ -699,7 +699,7 @@ fun convertToEtsFileSignature(file: FileSignatureDto): EtsFileSignature {
 fun convertToEtsNamespaceSignature(namespace: NamespaceSignatureDto): EtsNamespaceSignature {
     return EtsNamespaceSignature(
         name = namespace.name,
-        file = namespace.declaringFile?.let { convertToEtsFileSignature(it) },
+        file = namespace.declaringFile.let { convertToEtsFileSignature(it) },
         namespace = namespace.declaringNamespace?.let { convertToEtsNamespaceSignature(it) },
     )
 }
@@ -707,7 +707,7 @@ fun convertToEtsNamespaceSignature(namespace: NamespaceSignatureDto): EtsNamespa
 fun convertToEtsClassSignature(clazz: ClassSignatureDto): EtsClassSignature {
     return EtsClassSignature(
         name = clazz.name,
-        file = clazz.declaringFile?.let { convertToEtsFileSignature(it) },
+        file = clazz.declaringFile.let { convertToEtsFileSignature(it) },
         namespace = clazz.declaringNamespace?.let { convertToEtsNamespaceSignature(it) },
     )
 }
