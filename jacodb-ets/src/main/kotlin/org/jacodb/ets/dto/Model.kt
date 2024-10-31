@@ -54,7 +54,8 @@ data class NamespaceDto(
 @Serializable
 data class ClassDto(
     val signature: ClassSignatureDto,
-    val modifiers: List<ModifierDto>,
+    val modifiers: Int,
+    val decorators: List<DecoratorDto>,
     val typeParameters: List<TypeDto>,
     val superClassName: String?,
     val implementedInterfaceNames: List<String>,
@@ -65,29 +66,17 @@ data class ClassDto(
 @Serializable
 data class FieldDto(
     val signature: FieldSignatureDto,
-    val typeParameters: List<TypeDto>? = null, // TODO: remove
-    val modifiers: List<ModifierDto>? = null,
-    @SerialName("questionToken") val isOptional: Boolean = false, // '?'
-    @SerialName("exclamationToken") val isDefinitelyAssigned: Boolean = false, // '!'
+    val modifiers: Int,
+    val decorators: List<DecoratorDto>,
+    @SerialName("questionToken") val isOptional: Boolean, // '?'
+    @SerialName("exclamationToken") val isDefinitelyAssigned: Boolean, // '!'
 )
-
-@Serializable(with = ModifierSerializer::class)
-sealed class ModifierDto {
-    @Serializable
-    data class DecoratorItem(
-        val kind: String,
-        val content: String? = null,
-        val param: String? = null,
-    ) : ModifierDto()
-
-    @Serializable
-    data class StringItem(val modifier: String) : ModifierDto()
-}
 
 @Serializable
 data class MethodDto(
     val signature: MethodSignatureDto,
-    val modifiers: List<ModifierDto>,
+    val modifiers: Int,
+    val decorators: List<DecoratorDto>,
     val typeParameters: List<TypeDto>,
     val body: BodyDto? = null,
 )
@@ -104,7 +93,8 @@ data class ImportInfoDto(
     val importType: String,
     val importFrom: String,
     val nameBeforeAs: String? = null,
-    val modifiers: List<ModifierDto>,
+    val modifiers: Int,
+    // val decorators: List<DecoratorDto>,
     val originTsPosition: LineColPositionDto? = null,
 )
 
@@ -115,8 +105,16 @@ data class ExportInfoDto(
     val exportFrom: String? = null,
     val nameBeforeAs: String? = null,
     val isDefault: Boolean,
-    val modifiers: List<ModifierDto>,
+    val modifiers: Int,
+    // val decorators: List<DecoratorDto>,
     val originTsPosition: LineColPositionDto? = null,
+)
+
+@Serializable
+data class DecoratorDto(
+    val kind: String,
+    // val content: String? = null,
+    // val param: String? = null,
 )
 
 @Serializable

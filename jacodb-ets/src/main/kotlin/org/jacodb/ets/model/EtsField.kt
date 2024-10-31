@@ -33,8 +33,7 @@ interface EtsField {
 
 class EtsFieldImpl(
     override val signature: EtsFieldSignature,
-    val accessFlags: AccessFlags = AccessFlags(),
-    val modifiers: List<String> = emptyList(),
+    val modifiers: EtsModifiers = EtsModifiers.EMPTY,
     val isOptional: Boolean = false,  // '?'
     val isDefinitelyAssigned: Boolean = false, // '!'
 ) : EtsField {
@@ -45,11 +44,3 @@ class EtsFieldImpl(
         return signature.toString()
     }
 }
-
-data class AccessFlags(
-    var isStatic: Boolean = false,
-    var isPublic: Boolean = false,
-    var isPrivate: Boolean = false,
-    var isProtected: Boolean = false,
-    var isReadOnly: Boolean = false,
-)

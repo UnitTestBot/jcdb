@@ -27,6 +27,7 @@ import org.jacodb.ets.base.EtsReturnStmt
 import org.jacodb.ets.base.EtsUnknownType
 import org.jacodb.ets.dto.AnyTypeDto
 import org.jacodb.ets.dto.ClassSignatureDto
+import org.jacodb.ets.dto.DecoratorDto
 import org.jacodb.ets.dto.EtsMethodBuilder
 import org.jacodb.ets.dto.FieldDto
 import org.jacodb.ets.dto.FieldSignatureDto
@@ -34,7 +35,6 @@ import org.jacodb.ets.dto.FileSignatureDto
 import org.jacodb.ets.dto.LiteralTypeDto
 import org.jacodb.ets.dto.LocalDto
 import org.jacodb.ets.dto.MethodDto
-import org.jacodb.ets.dto.ModifierDto
 import org.jacodb.ets.dto.NumberTypeDto
 import org.jacodb.ets.dto.PrimitiveLiteralDto
 import org.jacodb.ets.dto.ReturnVoidStmtDto
@@ -209,7 +209,8 @@ class EtsFromJsonTest {
                 name = "x",
                 type = NumberTypeDto,
             ),
-            modifiers = emptyList(),
+            modifiers = 0,
+            decorators = emptyList(),
             isOptional = true,
             isDefinitelyAssigned = false,
         )
@@ -241,7 +242,11 @@ class EtsFromJsonTest {
              {
                "signature": {
                  "declaringClass": {
-                   "name": "_DEFAULT_ARK_CLASS"
+                   "name": "_DEFAULT_ARK_CLASS",
+                   "declaringFile": {
+                     "projectName": "TestProject",
+                     "fileName": "test.ts"
+                   }
                  },
                  "name": "_DEFAULT_ARK_METHOD",
                  "parameters": [],
@@ -249,7 +254,8 @@ class EtsFromJsonTest {
                     "_": "UnknownType"
                   }
                },
-               "modifiers": [],
+               "modifiers": 0,
+               "decorators": [],
                "typeParameters": [],
                "body": {
                  "locals": [],
@@ -278,7 +284,10 @@ class EtsFromJsonTest {
             EtsMethodSignature(
                 enclosingClass = EtsClassSignature(
                     name = "_DEFAULT_ARK_CLASS",
-                    file = EtsFileSignature.EMPTY,
+                    file = EtsFileSignature(
+                        projectName = "TestProject",
+                        fileName = "test.ts",
+                    ),
                 ),
                 name = "_DEFAULT_ARK_METHOD",
                 parameters = emptyList(),
@@ -297,42 +306,17 @@ class EtsFromJsonTest {
     }
 
     @Test
-    fun testLoadModifierFromJson() {
+    fun testLoadDecoratorFromJson() {
         val jsonString = """
             {
-              "kind": "cat",
-              "content": "Brian"
+              "kind": "cat"
             }
         """.trimIndent()
-        val modifierDto = Json.decodeFromString<ModifierDto>(jsonString)
-        println("modifierDto = $modifierDto")
-        Assertions.assertEquals(ModifierDto.DecoratorItem("cat", "Brian"), modifierDto)
-        val jsonString2 = json.encodeToString(modifierDto)
+        val decoratorDto = Json.decodeFromString<DecoratorDto>(jsonString)
+        println("decoratorDto = $decoratorDto")
+        Assertions.assertEquals(DecoratorDto("cat"), decoratorDto)
+        val jsonString2 = json.encodeToString(decoratorDto)
         println("json: $jsonString2")
-    }
-
-    @Test
-    fun testLoadListOfModifiersFromJson() {
-        val jsonString = """
-            [
-              {
-                "kind": "cat",
-                "content": "Bruce"
-              },
-              "public",
-              "static"
-            ]
-        """.trimIndent()
-        val modifiers = Json.decodeFromString<List<ModifierDto>>(jsonString)
-        println("modifiers = $modifiers")
-        Assertions.assertEquals(
-            listOf(
-                ModifierDto.DecoratorItem("cat", "Bruce"),
-                ModifierDto.StringItem("public"),
-                ModifierDto.StringItem("static"),
-            ),
-            modifiers
-        )
     }
 
     @Test

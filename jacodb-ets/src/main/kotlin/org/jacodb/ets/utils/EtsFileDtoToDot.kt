@@ -46,10 +46,20 @@ fun EtsFileDto.toDot(useLR: Boolean = false): String {
 
     fun classLabel(clazz: ClassDto): String {
         val labelLines: MutableList<String> = mutableListOf()
-        labelLines += clazz.signature.name
+        run {
+            val name = clazz.signature.name
+            val generics = if (clazz.typeParameters.isNotEmpty()) {
+                "<${clazz.typeParameters.joinToString()}>"
+            } else {
+                ""
+            }
+            labelLines += "$name$generics"
+        }
         labelLines += "Fields: (${clazz.fields.size})"
         clazz.fields.forEach { field ->
-            labelLines += "  ${field.signature.name}: ${field.signature.type}"
+            val name = field.signature.name
+            val returnType = field.signature.type
+            labelLines += "  $name: $returnType"
         }
         labelLines += "Methods: (${clazz.methods.size})"
         clazz.methods.forEach { method ->

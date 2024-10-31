@@ -111,6 +111,7 @@ import org.jacodb.ets.graph.EtsCfg
 import org.jacodb.ets.model.EtsClass
 import org.jacodb.ets.model.EtsClassImpl
 import org.jacodb.ets.model.EtsClassSignature
+import org.jacodb.ets.model.EtsDecorator
 import org.jacodb.ets.model.EtsField
 import org.jacodb.ets.model.EtsFieldImpl
 import org.jacodb.ets.model.EtsFieldSignature
@@ -122,15 +123,18 @@ import org.jacodb.ets.model.EtsMethodImpl
 import org.jacodb.ets.model.EtsMethodParameter
 import org.jacodb.ets.model.EtsMethodSignature
 import org.jacodb.ets.model.EtsMethodSubSignature
+import org.jacodb.ets.model.EtsModifiers
 import org.jacodb.ets.model.EtsNamespace
 import org.jacodb.ets.model.EtsNamespaceSignature
 
 class EtsMethodBuilder(
     signature: EtsMethodSignature,
+    typeParameters: List<EtsType> = emptyList(),
     locals: List<EtsLocal> = emptyList(),
-    modifiers: List<String> = emptyList(),
+    modifiers: EtsModifiers = EtsModifiers.EMPTY,
+    decorators: List<EtsDecorator> = emptyList(),
 ) {
-    val etsMethod = EtsMethodImpl(signature, locals, modifiers = modifiers)
+    private val etsMethod = EtsMethodImpl(signature, typeParameters, locals, modifiers, decorators)
 
     private val currentStmts: MutableList<EtsStmt> = mutableListOf()
 
@@ -548,7 +552,8 @@ fun convertToEtsClass(classDto: ClassDto): EtsClass {
         )
         return MethodDto(
             signature = signature,
-            modifiers = emptyList(),
+            modifiers = 0,
+            decorators = emptyList(),
             typeParameters = emptyList(),
             body = body,
         )
@@ -572,12 +577,20 @@ fun convertToEtsClass(classDto: ClassDto): EtsClass {
     val methods = methodDtos.map { convertToEtsMethod(it) }
     val ctor = convertToEtsMethod(ctorDto)
 
+    val typeParameters = classDto.typeParameters.map { convertToEtsType(it) }
+
+    val modifiers = EtsModifiers(classDto.modifiers)
+    val decorators = classDto.decorators.map { convertToEtsDecorator(it) }
+
     return EtsClassImpl(
         signature = signature,
         fields = fields,
         methods = methods,
         ctor = ctor,
         superClass = superClassSignature,
+        typeParameters = typeParameters,
+        modifiers = modifiers,
+        decorators = decorators,
     )
 }
 
@@ -742,17 +755,29 @@ fun convertToEtsMethodSignature(method: MethodSignatureDto): EtsMethodSignature 
 
 fun convertToEtsMethod(method: MethodDto): EtsMethod {
     val signature = convertToEtsMethodSignature(method.signature)
-    val modifiers = method.modifiers
-        .filterIsInstance<ModifierDto.StringItem>()
-        .map { it.modifier }
+    val typeParameters = method.typeParameters.map { convertToEtsType(it) }
+    val modifiers = EtsModifiers(method.modifiers)
+    val decorators = method.decorators.map { convertToEtsDecorator(it) }
     if (method.body != null) {
         val locals = method.body.locals.map {
             convertToEtsLocal(it)
         }
-        val builder = EtsMethodBuilder(signature, locals, modifiers)
+        val builder = EtsMethodBuilder(
+            signature = signature,
+            typeParameters = typeParameters,
+            locals = locals,
+            modifiers = modifiers,
+            decorators = decorators,
+        )
         return builder.build(method.body.cfg)
     } else {
-        return EtsMethodImpl(signature, locals = emptyList(), modifiers = modifiers)
+        return EtsMethodImpl(
+            signature = signature,
+            typeParameters = typeParameters,
+            locals = emptyList(),
+            modifiers = modifiers,
+            decorators = decorators,
+        )
     }
 }
 
@@ -765,10 +790,7 @@ fun convertToEtsField(field: FieldDto): EtsField {
                 type = convertToEtsType(field.signature.type),
             )
         ),
-        modifiers = field.modifiers
-            ?.filterIsInstance<ModifierDto.StringItem>()
-            ?.map { it.modifier }
-            .orEmpty(),
+        modifiers = EtsModifiers(field.modifiers),
         isOptional = field.isOptional,
         isDefinitelyAssigned = field.isDefinitelyAssigned,
     )
@@ -793,6 +815,14 @@ fun convertToEtsFile(file: EtsFileDto): EtsFile {
         signature = signature,
         classes = classes,
         namespaces = namespaces,
+    )
+}
+
+fun convertToEtsDecorator(decorator: DecoratorDto): EtsDecorator {
+    return EtsDecorator(
+        name = decorator.kind,
+        // TODO: content
+        // TODO: param
     )
 }
 

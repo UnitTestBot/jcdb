@@ -38,6 +38,7 @@ import org.jacodb.ets.model.EtsFile
 import org.jacodb.ets.model.EtsFileSignature
 import org.jacodb.ets.model.EtsMethodImpl
 import org.jacodb.ets.model.EtsMethodSignature
+import org.jacodb.ets.model.EtsModifiers
 import org.jacodb.ets.model.EtsScene
 import kotlin.test.Test
 import kotlin.test.assertEquals

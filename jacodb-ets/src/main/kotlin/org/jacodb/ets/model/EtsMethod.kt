@@ -14,6 +14,8 @@
  *  limitations under the License.
  */
 
+@file:Suppress("PropertyName")
+
 package org.jacodb.ets.model
 
 import org.jacodb.api.common.CommonMethod
@@ -21,29 +23,19 @@ import org.jacodb.ets.base.EtsLocal
 import org.jacodb.ets.base.EtsType
 import org.jacodb.ets.graph.EtsCfg
 
-// TODO: decorators
 // TODO: typeParameters
-interface EtsMethod : CommonMethod {
+interface EtsMethod : EtsBaseModel, CommonMethod {
     val signature: EtsMethodSignature
-    val cfg: EtsCfg
+    val typeParameters: List<EtsType>
     val locals: List<EtsLocal>
-    val modifiers: List<String>
+    val cfg: EtsCfg
 
     val enclosingClass: EtsClassSignature
         get() = signature.enclosingClass
 
-    val isStatic: Boolean
-        get() = modifiers.contains("StaticKeyword")
-
-    val isPrivate: Boolean
-        get() = modifiers.contains("PrivateKeyword")
-
     // If not specified, entity is public if not private and not protected
-    val isPublic: Boolean
-        get() = modifiers.contains("PublicKeyword") || (!isPrivate && !isProtected)
-
-    val isProtected: Boolean
-        get() = modifiers.contains("ProtectedKeyword")
+    override val isPublic: Boolean
+        get() = super.isPublic || (!isPrivate && !isProtected)
 
     override val name: String
         get() = signature.name
@@ -61,10 +53,12 @@ interface EtsMethod : CommonMethod {
 
 class EtsMethodImpl(
     override val signature: EtsMethodSignature,
+    override val typeParameters: List<EtsType> = emptyList(),
     override val locals: List<EtsLocal> = emptyList(),
-    override val modifiers: List<String> = emptyList(),
+    override val modifiers: EtsModifiers = EtsModifiers.EMPTY,
+    override val decorators: List<EtsDecorator> = emptyList(),
 ) : EtsMethod {
-    internal var _cfg: EtsCfg? = null
+    var _cfg: EtsCfg? = null
 
     override val cfg: EtsCfg
         get() = _cfg ?: EtsCfg.empty()

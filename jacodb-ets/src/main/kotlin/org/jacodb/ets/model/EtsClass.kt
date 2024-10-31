@@ -16,8 +16,11 @@
 
 package org.jacodb.ets.model
 
-interface EtsClass {
+import org.jacodb.ets.base.EtsType
+
+interface EtsClass : EtsBaseModel {
     val signature: EtsClassSignature
+    val typeParameters: List<EtsType>
     val fields: List<EtsField>
     val methods: List<EtsMethod>
     val ctor: EtsMethod
@@ -33,6 +36,9 @@ class EtsClassImpl(
     override val methods: List<EtsMethod>,
     override val ctor: EtsMethod,
     override val superClass: EtsClassSignature? = null,
+    override val typeParameters: List<EtsType> = emptyList(),
+    override val modifiers: EtsModifiers = EtsModifiers.EMPTY,
+    override val decorators: List<EtsDecorator> = emptyList(),
 ) : EtsClass {
     init {
         require(ctor !in methods)
