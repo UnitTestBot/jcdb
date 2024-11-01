@@ -217,27 +217,33 @@ private fun typeLub(first: TypeName, second: TypeName): TypeName {
 
     if (first == TOP || second == TOP) return TOP
 
-    if (first == NULL) {
-        return if (second.isPrimitive) TOP else second
+    if (first.isPrimitive) {
+        return primitiveTypeLub(first, second)
     }
 
-    if (second == NULL) {
-        return if (first.isPrimitive) TOP else first
-    }
-
-    if (first.isPrimitive || second.isPrimitive) {
-        if (first.typeName == PredefinedPrimitives.Int) {
-            return second
-        }
-
-        if (second.typeName == PredefinedPrimitives.Int) {
-            return first
-        }
-
-        return TOP
+    if (second.isPrimitive) {
+        return primitiveTypeLub(second, first)
     }
 
     return OBJECT_TYPE_NAME
+}
+
+private fun primitiveTypeLub(primitiveType: TypeName, other: TypeName): TypeName {
+    if (primitiveType == NULL) {
+        return if (other.isPrimitive) TOP else other
+    }
+
+    if (!other.isPrimitive) return TOP
+
+    if (primitiveType.typeName == PredefinedPrimitives.Int) {
+        return other
+    }
+
+    if (other.typeName == PredefinedPrimitives.Int) {
+        return primitiveType
+    }
+
+    return TOP
 }
 
 private fun List<*>?.parseLocals(): Array<TypeName?> {
@@ -1536,12 +1542,11 @@ class RawInstListBuilder(
             @Suppress("UNCHECKED_CAST")
             return mergeWithPresentFrames(frames as Map<AbstractInsnNode, Frame>, curInsn, localTypes, stackTypes)
         } else {
-            return mergeWithMissedFrames(frames, curInsn, localTypes, stackTypes)
+            return mergeWithMissedFrames(curInsn, localTypes, stackTypes)
         }
     }
 
     private fun mergeWithMissedFrames(
-        frames: Map<AbstractInsnNode, Frame?>,
         curNode: LabelNode,
         localTypes: Array<TypeName?>,
         stackTypes: List<TypeName>,
@@ -1638,6 +1643,8 @@ class RawInstListBuilder(
 
             type = typeLub(type, frameType)
         }
+
+        if (type == TOP) return TOP
 
         // If we have several variables types for one register we have to search right type in debug info otherwise we cannot guarantee anything
         val debugType = findLocalVariableWithInstruction(variable, curLabel)
