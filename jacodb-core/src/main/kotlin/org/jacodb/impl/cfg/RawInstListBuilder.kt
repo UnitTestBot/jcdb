@@ -210,6 +210,36 @@ private infix fun TypeName.isCompatibleWith(type: TypeName): Boolean {
     return isDWord == type.isDWord
 }
 
+private val OBJECT_TYPE_NAME = OBJECT_CLASS.typeName()
+
+private fun typeLub(first: TypeName, second: TypeName): TypeName {
+    if (first == second) return first
+
+    if (first == TOP || second == TOP) return TOP
+
+    if (first == NULL) {
+        return if (second.isPrimitive) TOP else second
+    }
+
+    if (second == NULL) {
+        return if (first.isPrimitive) TOP else first
+    }
+
+    if (first.isPrimitive || second.isPrimitive) {
+        if (first.typeName == PredefinedPrimitives.Int) {
+            return second
+        }
+
+        if (second.typeName == PredefinedPrimitives.Int) {
+            return first
+        }
+
+        return TOP
+    }
+
+    return OBJECT_TYPE_NAME
+}
+
 private fun List<*>?.parseLocals(): Array<TypeName?> {
     if (this == null || isEmpty()) return emptyArray()
 
@@ -1579,16 +1609,20 @@ class RawInstListBuilder(
         var type: TypeName? = null
         for (frame in frames) {
             val frameType = frame.stack[stackIndex].typeName
-            if (frameType == NULL) continue
 
-            if (type != null && frameType != type) {
-                type = NULL
+            if (type == null) {
+                type = frameType
                 continue
             }
 
-            type = frameType
+            type = typeLub(type, frameType)
         }
-        return type ?: NULL
+
+        check(type != null && type != TOP) {
+            "Incorrect stack types"
+        }
+
+        return type
     }
 
     private fun resolveFrameVariableType(frames: Iterable<Frame>, variable: Int, curLabel: LabelNode): TypeName? {
@@ -1597,12 +1631,12 @@ class RawInstListBuilder(
             if (!frame.hasLocal(variable)) return null
 
             val frameType = frame.getLocal(variable).typeName
-            if (type != null && type != frameType) {
-                type = NULL
+            if (type == null) {
+                type = frameType
                 continue
             }
 
-            type = frameType
+            type = typeLub(type, frameType)
         }
 
         // If we have several variables types for one register we have to search right type in debug info otherwise we cannot guarantee anything
@@ -1611,7 +1645,8 @@ class RawInstListBuilder(
                 ?.descriptor?.typeName()
 
         if (debugType != null) return debugType
-        return type ?: NULL
+
+        return type ?: error("No type")
     }
 
     private fun framesVariableSameValue(frames: Iterable<Frame>, variable: Int): JcRawSimpleValue? =
@@ -1839,7 +1874,7 @@ class RawInstListBuilder(
 
     private fun buildMethodInsnNode(insnNode: MethodInsnNode, frame: SimpleInstBuilder) = with(frame) {
         val owner = when {
-            insnNode.owner.typeName().isArray -> OBJECT_CLASS.typeName()
+            insnNode.owner.typeName().isArray -> OBJECT_TYPE_NAME
             else -> insnNode.owner.typeName()
         }
         val methodName = insnNode.name
