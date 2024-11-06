@@ -22,6 +22,8 @@ import org.jacodb.ets.base.EtsLocal
 import org.jacodb.ets.base.EtsNumberConstant
 import org.jacodb.ets.base.EtsReturnStmt
 import org.jacodb.ets.base.EtsThis
+import org.jacodb.ets.base.INSTANCE_INIT_METHOD_NAME
+import org.jacodb.ets.base.STATIC_INIT_METHOD_NAME
 import org.jacodb.ets.model.EtsFile
 import org.jacodb.ets.test.utils.loadEtsFileFromResource
 import kotlin.test.Test
@@ -82,7 +84,7 @@ class EtsFileTest {
 
         // instance initializer
         run {
-            val method = cls.methods.single { it.name == "@instance_init" }
+            val method = cls.methods.single { it.name == INSTANCE_INIT_METHOD_NAME }
             assertEquals(3, method.cfg.instructions.size)
 
             // Local("this") := ThisRef
@@ -129,7 +131,7 @@ class EtsFileTest {
 
         // static initializer
         run {
-            val method = cls.methods.single { it.name == "@static_init" }
+            val method = cls.methods.single { it.name == STATIC_INIT_METHOD_NAME }
             assertEquals(3, method.cfg.instructions.size)
 
             // Local("this") := ThisRef

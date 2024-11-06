@@ -18,7 +18,9 @@ package org.jacodb.ets.graph
 
 import mu.KotlinLogging
 import org.jacodb.api.common.analysis.ApplicationGraph
+import org.jacodb.ets.base.CONSTRUCTOR_NAME
 import org.jacodb.ets.base.EtsStmt
+import org.jacodb.ets.base.UNKNOWN_FILE_NAME
 import org.jacodb.ets.model.EtsClass
 import org.jacodb.ets.model.EtsClassSignature
 import org.jacodb.ets.model.EtsFileSignature
@@ -35,7 +37,7 @@ interface EtsApplicationGraph : ApplicationGraph<EtsMethod, EtsStmt> {
 }
 
 private fun EtsFileSignature?.isUnknown(): Boolean =
-    this == null || fileName.isBlank() || fileName == "_UnknownFileName"
+    this == null || fileName.isBlank() || fileName == UNKNOWN_FILE_NAME
 
 private fun EtsClassSignature.isUnknown(): Boolean =
     name.isBlank()
@@ -121,7 +123,7 @@ class EtsApplicationGraphImpl(
         }
 
         // Note: specific resolve for constructor:
-        if (callee.name == "constructor") {
+        if (callee.name == CONSTRUCTOR_NAME) {
             if (!callee.enclosingClass.isIdeal()) {
                 // Constructor signature is garbage. Sorry, can't do anything in such case.
                 return emptySequence()

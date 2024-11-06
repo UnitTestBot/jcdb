@@ -25,6 +25,7 @@ import org.jacodb.api.common.cfg.CommonArgument
 import org.jacodb.api.common.cfg.CommonCallExpr
 import org.jacodb.api.common.cfg.CommonExpr
 import org.jacodb.api.common.cfg.CommonValue
+import org.jacodb.ets.base.CONSTRUCTOR_NAME
 import org.jacodb.ets.base.EtsAnyType
 import org.jacodb.ets.base.EtsArrayAccess
 import org.jacodb.ets.base.EtsCallExpr
@@ -71,7 +72,7 @@ interface EtsTraits : Traits<EtsMethod, EtsStmt> {
         get() = EtsThis(EtsClassType(enclosingClass))
 
     override val EtsMethod.isConstructor: Boolean
-        get() = name == "constructor"
+        get() = name == CONSTRUCTOR_NAME
 
     override fun CommonExpr.toPathOrNull(): AccessPath? {
         check(this is EtsEntity)

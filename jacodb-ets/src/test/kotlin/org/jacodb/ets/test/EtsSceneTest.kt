@@ -16,6 +16,7 @@
 
 package org.jacodb.ets.test
 
+import org.jacodb.ets.base.CONSTRUCTOR_NAME
 import org.jacodb.ets.base.EtsArrayType
 import org.jacodb.ets.base.EtsAssignStmt
 import org.jacodb.ets.base.EtsCallStmt
@@ -76,7 +77,7 @@ class EtsSceneTest {
         val ctorCat = EtsMethodImpl(
             signature = EtsMethodSignature(
                 enclosingClass = classCatSignature,
-                name = "constructor",
+                name = CONSTRUCTOR_NAME,
                 parameters = emptyList(),
                 returnType = EtsVoidType,
             ),
@@ -152,7 +153,7 @@ class EtsSceneTest {
         val ctorBox = EtsMethodImpl(
             signature = EtsMethodSignature(
                 enclosingClass = classBoxSignature,
-                name = "constructor",
+                name = CONSTRUCTOR_NAME,
                 parameters = emptyList(),
                 returnType = EtsVoidType,
             ),

@@ -16,6 +16,7 @@
 
 package org.jacodb.ets.dto
 
+import org.jacodb.ets.base.CONSTRUCTOR_NAME
 import org.jacodb.ets.base.EtsAddExpr
 import org.jacodb.ets.base.EtsAndExpr
 import org.jacodb.ets.base.EtsAnyType
@@ -539,14 +540,14 @@ fun convertToEtsClass(classDto: ClassDto): EtsClass {
             successors = emptyList(),
             predecessors = emptyList(),
             stmts = listOf(
-                ReturnVoidStmtDto
-            )
+                ReturnVoidStmtDto,
+            ),
         )
         val cfg = CfgDto(blocks = listOf(zeroBlock))
         val body = BodyDto(locals = emptyList(), cfg = cfg)
         val signature = MethodSignatureDto(
             declaringClass = classSignatureDto,
-            name = "constructor",
+            name = CONSTRUCTOR_NAME,
             parameters = emptyList(),
             returnType = ClassTypeDto(classSignatureDto),
         )
@@ -570,7 +571,7 @@ fun convertToEtsClass(classDto: ClassDto): EtsClass {
 
     val fields = classDto.fields.map { convertToEtsField(it) }
 
-    val (methodDtos, ctorDtos) = classDto.methods.partition { it.signature.name != "constructor" }
+    val (methodDtos, ctorDtos) = classDto.methods.partition { it.signature.name != CONSTRUCTOR_NAME }
     check(ctorDtos.size <= 1) { "Class should not have multiple constructors" }
     val ctorDto = ctorDtos.firstOrNull() ?: defaultConstructorDto(classDto.signature)
 

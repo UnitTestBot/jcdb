@@ -20,6 +20,8 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import mu.KotlinLogging
+import org.jacodb.ets.base.DEFAULT_ARK_CLASS_NAME
+import org.jacodb.ets.base.DEFAULT_ARK_METHOD_NAME
 import org.jacodb.ets.base.EtsAnyType
 import org.jacodb.ets.base.EtsInstLocation
 import org.jacodb.ets.base.EtsLocal
@@ -72,8 +74,11 @@ class EtsFromJsonTest {
         }
 
         private val defaultSignature = EtsMethodSignature(
-            enclosingClass = EtsClassSignature(name = "_DEFAULT_ARK_CLASS", file = EtsFileSignature.EMPTY),
-            name = "_DEFAULT_ARK_METHOD",
+            enclosingClass = EtsClassSignature(
+                name = DEFAULT_ARK_CLASS_NAME,
+                file = EtsFileSignature.EMPTY,
+            ),
+            name = DEFAULT_ARK_METHOD_NAME,
             parameters = emptyList(),
             returnType = EtsAnyType,
         )
@@ -242,13 +247,13 @@ class EtsFromJsonTest {
              {
                "signature": {
                  "declaringClass": {
-                   "name": "_DEFAULT_ARK_CLASS",
+                   "name": "$DEFAULT_ARK_CLASS_NAME",
                    "declaringFile": {
                      "projectName": "TestProject",
                      "fileName": "test.ts"
                    }
                  },
-                 "name": "_DEFAULT_ARK_METHOD",
+                 "name": "$DEFAULT_ARK_METHOD_NAME",
                  "parameters": [],
                  "returnType": {
                     "_": "UnknownType"
@@ -283,13 +288,13 @@ class EtsFromJsonTest {
         Assertions.assertEquals(
             EtsMethodSignature(
                 enclosingClass = EtsClassSignature(
-                    name = "_DEFAULT_ARK_CLASS",
+                    name = DEFAULT_ARK_CLASS_NAME,
                     file = EtsFileSignature(
                         projectName = "TestProject",
                         fileName = "test.ts",
                     ),
                 ),
-                name = "_DEFAULT_ARK_METHOD",
+                name = DEFAULT_ARK_METHOD_NAME,
                 parameters = emptyList(),
                 returnType = EtsUnknownType,
             ),
