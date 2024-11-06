@@ -123,7 +123,6 @@ import org.jacodb.ets.model.EtsMethod
 import org.jacodb.ets.model.EtsMethodImpl
 import org.jacodb.ets.model.EtsMethodParameter
 import org.jacodb.ets.model.EtsMethodSignature
-import org.jacodb.ets.model.EtsMethodSubSignature
 import org.jacodb.ets.model.EtsModifiers
 import org.jacodb.ets.model.EtsNamespace
 import org.jacodb.ets.model.EtsNamespaceSignature
@@ -564,8 +563,7 @@ fun convertToEtsClass(classDto: ClassDto): EtsClass {
     val superClassSignature = classDto.superClassName?.takeIf { it != "" }?.let { name ->
         EtsClassSignature(
             name = name,
-            file = EtsFileSignature.EMPTY, // TODO
-            namespace = null, // TODO
+            file = EtsFileSignature.DEFAULT,
         )
     }
 
@@ -739,18 +737,16 @@ fun convertToEtsFieldSignature(field: FieldSignatureDto): EtsFieldSignature {
 fun convertToEtsMethodSignature(method: MethodSignatureDto): EtsMethodSignature {
     return EtsMethodSignature(
         enclosingClass = convertToEtsClassSignature(method.declaringClass),
-        sub = EtsMethodSubSignature(
-            name = method.name,
-            parameters = method.parameters.mapIndexed { index, param ->
-                EtsMethodParameter(
-                    index = index,
-                    name = param.name,
-                    type = convertToEtsType(param.type),
-                    isOptional = param.isOptional
-                )
-            },
-            returnType = convertToEtsType(method.returnType),
-        )
+        name = method.name,
+        parameters = method.parameters.mapIndexed { index, param ->
+            EtsMethodParameter(
+                index = index,
+                name = param.name,
+                type = convertToEtsType(param.type),
+                isOptional = param.isOptional
+            )
+        },
+        returnType = convertToEtsType(method.returnType),
     )
 }
 

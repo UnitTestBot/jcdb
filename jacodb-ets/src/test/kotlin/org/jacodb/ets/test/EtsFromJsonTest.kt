@@ -76,7 +76,7 @@ class EtsFromJsonTest {
         private val defaultSignature = EtsMethodSignature(
             enclosingClass = EtsClassSignature(
                 name = DEFAULT_ARK_CLASS_NAME,
-                file = EtsFileSignature.EMPTY,
+                file = EtsFileSignature.DEFAULT,
             ),
             name = DEFAULT_ARK_METHOD_NAME,
             parameters = emptyList(),

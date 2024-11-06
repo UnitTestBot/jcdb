@@ -18,6 +18,10 @@ package org.jacodb.ets.model
 
 import org.jacodb.api.common.CommonMethodParameter
 import org.jacodb.ets.base.EtsType
+import org.jacodb.ets.base.UNKNOWN_CLASS_NAME
+import org.jacodb.ets.base.UNKNOWN_FILE_NAME
+import org.jacodb.ets.base.UNKNOWN_NAMESPACE_NAME
+import org.jacodb.ets.base.UNKNOWN_PROJECT_NAME
 
 /**
  * Precompiled [Regex] for `.d.ts` and `.ts` file extensions.
@@ -30,18 +34,12 @@ data class EtsFileSignature(
 ) {
     override fun toString(): String {
         // Remove ".d.ts" and ".ts" file ext:
-        val tmp = fileName.replace(REGEX_TS_SUFFIX, "")
-        // TODO: projectName was omitted for now in toString(), since it disturbs the debugging output.
-        // return if (projectName.isNotBlank()) {
-        //     "@$projectName/$tmp"
-        // } else {
-        //     tmp
-        // }
-        return tmp
+        val name = fileName.replace(REGEX_TS_SUFFIX, "")
+        return "@$projectName/$name"
     }
 
     companion object {
-        val EMPTY = EtsFileSignature("", "")
+        val DEFAULT = EtsFileSignature(projectName = UNKNOWN_PROJECT_NAME, fileName = UNKNOWN_FILE_NAME)
     }
 }
 
@@ -50,17 +48,16 @@ data class EtsNamespaceSignature(
     val file: EtsFileSignature,
     val namespace: EtsNamespaceSignature? = null,
 ) {
-    val enclosingFile: EtsFileSignature?
-        get() = namespace?.enclosingFile ?: file
-
     override fun toString(): String {
-        // TODO: 'file' is not included in the toString() output,
-        //  because it only disturbs the debugging output.
         return if (namespace != null) {
             "$namespace::$name"
         } else {
-            name
+            "$file: $name"
         }
+    }
+
+    companion object {
+        val DEFAULT = EtsNamespaceSignature(name = UNKNOWN_NAMESPACE_NAME, file = EtsFileSignature.DEFAULT)
     }
 }
 
@@ -69,26 +66,16 @@ data class EtsClassSignature(
     val file: EtsFileSignature,
     val namespace: EtsNamespaceSignature? = null,
 ) {
-    // TODO: more manual testing is required in order to understand whether
-    //  the class can have both "declaring file" and "declaring namespace".
-    //  Until then, the following check is commented out:
-    // init {
-    //     require(!(file != null && namespace != null)) {
-    //         "Class cannot have both declaring file and declaring namespace"
-    //     }
-    // }
-
-    val enclosingFile: EtsFileSignature?
-        get() = namespace?.enclosingFile ?: file
-
     override fun toString(): String {
         return if (namespace != null) {
             "$namespace::$name"
-        } else if (file != null) {
-            "$name in $file"
         } else {
-            name
+            "$file: $name"
         }
+    }
+
+    companion object {
+        val DEFAULT = EtsClassSignature(name = UNKNOWN_CLASS_NAME, file = EtsFileSignature.DEFAULT)
     }
 }
 
@@ -122,31 +109,9 @@ data class EtsMethodSignature(
     val parameters: List<EtsMethodParameter>,
     val returnType: EtsType,
 ) {
-
-    constructor(
-        enclosingClass: EtsClassSignature,
-        sub: EtsMethodSubSignature,
-    ) : this(
-        enclosingClass,
-        sub.name,
-        sub.parameters,
-        sub.returnType,
-    )
-
     override fun toString(): String {
         val params = parameters.joinToString()
         return "${enclosingClass.name}::$name($params): $returnType"
-    }
-}
-
-data class EtsMethodSubSignature(
-    val name: String,
-    val parameters: List<EtsMethodParameter>,
-    val returnType: EtsType,
-) {
-    override fun toString(): String {
-        val params = parameters.joinToString()
-        return "$name($params): $returnType"
     }
 }
 

@@ -37,10 +37,8 @@ data class NamespaceSignatureDto(
     override fun toString(): String {
         return if (declaringNamespace != null) {
             "$declaringNamespace::$name"
-        } else if (declaringFile != null) {
-            "$name in $declaringFile"
         } else {
-            name
+            "$declaringFile::$name"
         }
     }
 }
@@ -54,10 +52,8 @@ data class ClassSignatureDto(
     override fun toString(): String {
         return if (declaringNamespace != null) {
             "$declaringNamespace::$name"
-        } else if (declaringFile != null) {
-            "$name in $declaringFile"
         } else {
-            name
+            "$declaringFile::$name"
         }
     }
 }
