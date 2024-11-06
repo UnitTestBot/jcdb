@@ -625,11 +625,13 @@ fun convertToEtsType(type: TypeDto): EtsType {
         BooleanTypeDto -> EtsBooleanType
 
         is ClassTypeDto -> EtsClassType(
-            classSignature = convertToEtsClassSignature(type.signature)
+            signature = convertToEtsClassSignature(type.signature),
+            typeParameters = type.typeParameters.map { convertToEtsType(it) },
         )
 
         is FunctionTypeDto -> EtsFunctionType(
-            method = convertToEtsMethodSignature(type.signature)
+            method = convertToEtsMethodSignature(type.signature),
+            typeParameters = type.typeParameters.map { convertToEtsType(it) },
         )
 
         is GenericTypeDto -> {
@@ -659,7 +661,8 @@ fun convertToEtsType(type: TypeDto): EtsType {
         )
 
         is UnclearReferenceTypeDto -> EtsUnclearRefType(
-            typeName = type.name
+            name = type.name,
+            typeParameters = type.typeParameters.map { convertToEtsType(it) },
         )
 
         UndefinedTypeDto -> EtsUndefinedType

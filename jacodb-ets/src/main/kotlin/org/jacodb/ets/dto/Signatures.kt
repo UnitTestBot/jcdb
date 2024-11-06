@@ -65,7 +65,7 @@ data class FieldSignatureDto(
     val type: TypeDto,
 ) {
     override fun toString(): String {
-        return "$name: $type"
+        return "${declaringClass.name}::$name: $type"
     }
 }
 
@@ -78,7 +78,7 @@ data class MethodSignatureDto(
 ) {
     override fun toString(): String {
         val params = parameters.joinToString()
-        return "$name($params): $returnType"
+        return "${declaringClass.name}::$name($params): $returnType"
     }
 }
 

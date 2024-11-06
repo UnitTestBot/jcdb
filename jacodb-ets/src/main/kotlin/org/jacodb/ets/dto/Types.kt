@@ -20,6 +20,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonClassDiscriminator
+import kotlin.math.sign
 
 @Serializable
 @OptIn(ExperimentalSerializationApi::class)
@@ -170,9 +171,15 @@ sealed class PrimitiveLiteralDto {
 @SerialName("ClassType")
 data class ClassTypeDto(
     val signature: ClassSignatureDto,
+    val typeParameters: List<TypeDto> = emptyList(),
 ) : TypeDto {
     override fun toString(): String {
-        return signature.toString()
+        return if (typeParameters.isNotEmpty()) {
+            val generics = typeParameters.joinToString()
+            "$signature<$generics>"
+        } else {
+            signature.toString()
+        }
     }
 }
 
@@ -180,9 +187,16 @@ data class ClassTypeDto(
 @SerialName("FunctionType")
 data class FunctionTypeDto(
     val signature: MethodSignatureDto,
+    val typeParameters: List<TypeDto> = emptyList(),
 ) : TypeDto {
     override fun toString(): String {
-        return "(${signature.parameters.joinToString()}) => ${signature.returnType}"
+        val params = signature.parameters.joinToString()
+        return if (typeParameters.isNotEmpty()) {
+            val generics = typeParameters.joinToString()
+            "${signature.name}<$generics>($params): ${signature.returnType}"
+        } else {
+            "${signature.name}($params): ${signature.returnType}"
+        }
     }
 }
 
@@ -201,9 +215,15 @@ data class ArrayTypeDto(
 @SerialName("UnclearReferenceType")
 data class UnclearReferenceTypeDto(
     val name: String,
+    val typeParameters: List<TypeDto> = emptyList(),
 ) : TypeDto {
     override fun toString(): String {
-        return name
+        return if (typeParameters.isNotEmpty()) {
+            val generics = typeParameters.joinToString()
+            "$name<$generics>"
+        } else {
+            name
+        }
     }
 }
 

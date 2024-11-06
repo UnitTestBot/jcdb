@@ -217,10 +217,16 @@ data class EtsLiteralType(
 interface EtsRefType : EtsType
 
 data class EtsClassType(
-    val classSignature: EtsClassSignature,
+    val signature: EtsClassSignature,
+    val typeParameters: List<EtsType> = emptyList(),
 ) : EtsRefType {
     override val typeName: String
-        get() = classSignature.name
+        get() = if (typeParameters.isNotEmpty()) {
+            val generics = typeParameters.joinToString()
+            "${signature.name}<$generics>"
+        } else {
+            signature.name
+        }
 
     override fun toString(): String = typeName
 
@@ -231,9 +237,15 @@ data class EtsClassType(
 
 data class EtsFunctionType(
     val method: EtsMethodSignature,
+    val typeParameters: List<EtsType> = emptyList(),
 ) : EtsRefType {
     override val typeName: String
-        get() = method.name
+        get() = if (typeParameters.isNotEmpty()) {
+            val generics = typeParameters.joinToString()
+            "${method.name}<$generics>"
+        } else {
+            method.name
+        }
 
     override fun toString(): String = typeName
 
@@ -270,8 +282,17 @@ data class EtsArrayObjectType(
 }
 
 data class EtsUnclearRefType(
-    override val typeName: String,
+    val name: String,
+    val typeParameters: List<EtsType> = emptyList(),
 ) : EtsRefType {
+    override val typeName: String
+        get() = if (typeParameters.isNotEmpty()) {
+            val generics = typeParameters.joinToString()
+            "$name<$generics>"
+        } else {
+            name
+        }
+
     override fun toString(): String = typeName
 
     override fun <R> accept(visitor: EtsType.Visitor<R>): R {
