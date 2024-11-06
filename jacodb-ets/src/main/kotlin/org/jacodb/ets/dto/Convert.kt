@@ -566,6 +566,12 @@ fun convertToEtsClass(classDto: ClassDto): EtsClass {
             file = EtsFileSignature.DEFAULT,
         )
     }
+    val implementedInterfaces = classDto.implementedInterfaceNames.map { name ->
+        EtsClassSignature(
+            name = name,
+            file = EtsFileSignature.DEFAULT,
+        )
+    }
 
     val fields = classDto.fields.map { convertToEtsField(it) }
 
@@ -587,6 +593,7 @@ fun convertToEtsClass(classDto: ClassDto): EtsClass {
         methods = methods,
         ctor = ctor,
         superClass = superClassSignature,
+        implementedInterfaces = implementedInterfaces,
         typeParameters = typeParameters,
         modifiers = modifiers,
         decorators = decorators,

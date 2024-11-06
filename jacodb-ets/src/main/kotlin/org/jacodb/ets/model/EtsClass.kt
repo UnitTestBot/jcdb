@@ -25,6 +25,7 @@ interface EtsClass : EtsBaseModel {
     val methods: List<EtsMethod>
     val ctor: EtsMethod
     val superClass: EtsClassSignature?
+    val implementedInterfaces: List<EtsClassSignature>
 
     val name: String
         get() = signature.name
@@ -36,6 +37,7 @@ class EtsClassImpl(
     override val methods: List<EtsMethod>,
     override val ctor: EtsMethod,
     override val superClass: EtsClassSignature? = null,
+    override val implementedInterfaces: List<EtsClassSignature> = emptyList(),
     override val typeParameters: List<EtsType> = emptyList(),
     override val modifiers: EtsModifiers = EtsModifiers.EMPTY,
     override val decorators: List<EtsDecorator> = emptyList(),
