@@ -72,6 +72,7 @@ tasks.register("generateTestResources") {
             "--multi",
             inputDir.relativeTo(resources).path,
             outputDir.relativeTo(resources).path,
+            "-t",
         )
         println("Running: '${cmd.joinToString(" ")}'")
         val process = ProcessBuilder(cmd).directory(resources).start()
