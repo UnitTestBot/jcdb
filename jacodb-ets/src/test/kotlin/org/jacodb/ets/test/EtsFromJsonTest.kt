@@ -93,6 +93,14 @@ class EtsFromJsonTest {
         println("etsDto = $etsDto")
         val ets = convertToEtsFile(etsDto)
         println("ets = $ets")
+
+        println("Classes: ${ets.classes.size}")
+        for (cls in ets.classes) {
+            println("= $cls with ${cls.methods.size} methods:")
+            for (method in cls.methods) {
+                println("  - $method")
+            }
+        }
     }
 
     @Test
