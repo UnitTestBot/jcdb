@@ -21,7 +21,12 @@ const val CONSTRUCTOR_NAME = "constructor"
 const val DEFAULT_ARK_CLASS_NAME = "%dflt"
 const val DEFAULT_ARK_METHOD_NAME = "%dflt"
 
+const val UNKNOWN_PROJECT_NAME = "%unk"
 const val UNKNOWN_FILE_NAME = "%unk"
+const val UNKNOWN_NAMESPACE_NAME = "%unk"
+const val UNKNOWN_CLASS_NAME = "" // TODO: consult AA/src/core/common/Const.ts
+const val UNKNOWN_FIELD_NAME = "" // TODO: consult AA/src/core/common/Const.ts
+const val UNKNOWN_METHOD_NAME = "" // TODO: consult AA/src/core/common/Const.ts
 
 const val INSTANCE_INIT_METHOD_NAME = "%instInit"
 const val STATIC_INIT_METHOD_NAME = "%statInit"
