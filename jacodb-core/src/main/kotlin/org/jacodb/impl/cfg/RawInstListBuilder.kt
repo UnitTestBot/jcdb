@@ -411,8 +411,10 @@ class RawInstListBuilder(
         updateFrame(ENTRY, initialFrame)
 
         val successors = identityMap<AbstractInsnNode, MutableList<AbstractInsnNode>>()
-        for ((node, nodePredecessors) in predecessors) {
-            nodePredecessors.forEach { predecessor ->
+        for (node in instructions) {
+            if (node == null) continue
+
+            predecessors[node]?.forEach { predecessor ->
                 val predecessorSuccessors = successors.getOrPut(predecessor, ::mutableListOf)
                 predecessorSuccessors.add(node)
             }
@@ -520,10 +522,13 @@ class RawInstListBuilder(
     // liveness of the variables on every step of the method. We cannot add them during the construction
     // because some of them are unknown at that stage (e.g. because of loops)
     private fun buildRequiredAssignments() {
-        for ((mergeInst, localAssignments) in localMergeAssignments) {
-            if (localAssignments.isEmpty()) continue
+        for ((mergeInst, unorderedLocalAssignments) in localMergeAssignments.orderByInst()) {
+            if (unorderedLocalAssignments.isEmpty()) continue
 
             val predecessors = predecessors[mergeInst] ?: continue
+
+            val localAssignments = unorderedLocalAssignments.orderByIndex()
+
             for (insn in predecessors) {
                 val insnList = instructionList(insn)
                 val frame = findFrame(insn) ?: error("No frame for inst")
@@ -537,10 +542,13 @@ class RawInstListBuilder(
             }
         }
 
-        for ((mergeInst, stackAssignments) in stackMergeAssignments) {
-            if (stackAssignments.isEmpty()) continue
+        for ((mergeInst, unorderedStackAssignments) in stackMergeAssignments.orderByInst()) {
+            if (unorderedStackAssignments.isEmpty()) continue
 
             val predecessors = predecessors[mergeInst] ?: continue
+
+            val stackAssignments = unorderedStackAssignments.orderByIndex()
+
             for (insn in predecessors) {
                 val insnList = instructionList(insn)
                 val frame = findFrame(insn) ?: error("No frame for inst")
@@ -554,6 +562,12 @@ class RawInstListBuilder(
             }
         }
     }
+
+    private fun <V> Map<AbstractInsnNode, V>.orderByInst() =
+        entries.sortedBy { instructionIndex[it.key] ?: -1 }
+
+    private fun <V> Map<Int, V>.orderByIndex() =
+        entries.sortedBy { it.key }
 
     private fun insertValueAssignment(
         insn: AbstractInsnNode,
@@ -1036,8 +1050,8 @@ class RawInstListBuilder(
             }
         }
         if (deadInstructions.isNotEmpty()) {
-            predecessors.toList().forEach { (insn, preds) ->
-                predecessors[insn] = preds.filterTo(mutableListOf()) { it !in deadInstructions }
+            predecessors.forEach { (_, preds) ->
+                preds.removeAll { it in deadInstructions }
             }
         }
 
