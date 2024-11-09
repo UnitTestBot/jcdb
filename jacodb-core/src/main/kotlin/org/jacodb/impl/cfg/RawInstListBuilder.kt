@@ -347,7 +347,7 @@ class RawInstListBuilder(
     private val methodNode: MethodNode,
     private val keepLocalVariableNames: Boolean,
 ) {
-    private val _frames = identityMap<AbstractInsnNode, Frame>()
+    private val frames = identityMap<AbstractInsnNode, Frame>()
     private val labels = identityMap<LabelNode, JcRawLabelInst>()
     private val generatedLabels = identityMap<AbstractInsnNode, MutableMap<Int, JcRawLabelInst>>()
     private val generatedVars = identityMap<AbstractInsnNode, MutableList<Any?>>()
@@ -406,9 +406,107 @@ class RawInstListBuilder(
         addAll(0, listOf(label, lineNumberWithLabel))
     }
 
+    private fun nodeId(node: AbstractInsnNode): Int =
+        if (node === ENTRY) 0 else (instructionIndex[node]!! + 1)
+
+    private fun nodeIdsCount(): Int = instructionIndex.size + 1
+
+    private fun BitSet.add(idx: Int): BitSet {
+        if (get(idx)) return this
+
+        val result = clone() as BitSet
+        result.set(idx)
+        return result
+    }
+
+    private fun BitSet.union(other: BitSet): BitSet {
+        val result = clone() as BitSet
+        result.or(other)
+        return result
+    }
+
+    private fun BitSet.contains(other: BitSet): Boolean {
+        val otherCopy = other.clone() as BitSet
+        otherCopy.andNot(this)
+        return otherCopy.isEmpty
+    }
+
+    private fun findBackEdges(
+        successors: Map<AbstractInsnNode, List<AbstractInsnNode>>
+    ): Map<AbstractInsnNode, Map<AbstractInsnNode, Unit>> {
+        val backEdges = identityMap<AbstractInsnNode, MutableMap<AbstractInsnNode, Unit>>()
+
+        val initialPath = BitSet().add(nodeId(ENTRY))
+        val nodeState = identityMap<AbstractInsnNode, BitSet>()
+
+        val unprocessed = mutableListOf<Pair<AbstractInsnNode, BitSet>>()
+        unprocessed.add(ENTRY to initialPath)
+
+        while (unprocessed.isNotEmpty()) {
+            val (node, currentPath) = unprocessed.removeLast()
+
+            val storedPath = nodeState[node]
+
+            if (storedPath != null && storedPath.contains(currentPath)) {
+                continue
+            }
+
+            val path = (storedPath?.union(currentPath) ?: currentPath).also { nodeState[node] = it }
+
+            for (successor in successors[node].orEmpty()) {
+                val updatedPath = path.add(nodeId(successor))
+                if (updatedPath !== path) {
+                    unprocessed.add(successor to updatedPath)
+                    continue
+                }
+
+                backEdges.getOrPut(node, ::identityMap)[successor] = Unit
+            }
+        }
+
+        return backEdges
+    }
+
+    private fun topSortNodes(
+        successors: Map<AbstractInsnNode, List<AbstractInsnNode>>,
+        backEdges: Map<AbstractInsnNode, Map<AbstractInsnNode, Unit>>
+    ): List<AbstractInsnNode> {
+        val result = mutableListOf<AbstractInsnNode>()
+
+        val visited = IntArray(nodeIdsCount())
+        for ((node, nodeSuccessors) in successors) {
+            val nodeBackEdges = backEdges[node].orEmpty()
+            for (successor in nodeSuccessors) {
+                if (nodeBackEdges.contains(successor)) continue
+
+                visited[nodeId(successor)]++
+            }
+        }
+
+        check(visited[nodeId(ENTRY)] == 0)
+        val unprocessed = mutableListOf<AbstractInsnNode>()
+        unprocessed.add(ENTRY)
+
+        while (unprocessed.isNotEmpty()) {
+            val node = unprocessed.removeLast()
+            result.add(node)
+
+            val nodeBackEdges = backEdges[node].orEmpty()
+            for (successor in successors[node].orEmpty()) {
+                if (nodeBackEdges.contains(successor)) continue
+
+                if (--visited[nodeId(successor)] == 0) {
+                    unprocessed.add(successor)
+                }
+            }
+        }
+
+        return result
+    }
+
     private fun buildInstructions() {
         val initialFrame = createInitialFrame()
-        updateFrame(ENTRY, initialFrame)
+        frames[ENTRY] = initialFrame
 
         val successors = identityMap<AbstractInsnNode, MutableList<AbstractInsnNode>>()
         for (node in instructions) {
@@ -420,62 +518,21 @@ class RawInstListBuilder(
             }
         }
 
-        val delayedLabelForced = identityMap<LabelNode, Boolean>()
-        val delayedLabels = mutableListOf<LabelNode>()
+        val backEdges = findBackEdges(successors)
 
-        val unprocessedNodesSet = identityMap<AbstractInsnNode, Unit>()
-        val unprocessedNodes = mutableListOf<AbstractInsnNode>()
-        unprocessedNodes.addAll(successors[ENTRY].orEmpty())
+        val orderedInsnNodes = topSortNodes(successors, backEdges)
+        for (insn in orderedInsnNodes) {
+            if (insn === ENTRY) continue
 
-        while (true) {
-            if (unprocessedNodes.isEmpty()) {
-                val delayedLabel = delayedLabels.removeLastOrNull() ?: break
+            check(insn !in frames) { "Visit instruction multiple times" }
 
-                delayedLabelForced[delayedLabel] = true
-                unprocessedNodes.add(delayedLabel)
-                continue
+            val frame = when (insn) {
+                is LabelNode -> buildLabelNode(insn)
+                is FrameNode -> buildFrameNode(insn)
+                else -> buildSimpleInstruction(insn)
             }
 
-            val insn = unprocessedNodes.removeLast()
-            unprocessedNodesSet.remove(insn)
-
-            instructionLists.remove(insn)
-
-            val currentFrame = findFrame(insn)
-
-            val resultFrame = if (insn is LabelNode) {
-                val isForced = delayedLabelForced[insn]
-                val labelFrame = if (isForced != null) {
-                    if (!isForced) continue
-
-                    buildLabelNode(insn, exitOnNullPredecessor = false)
-                } else {
-                    buildLabelNode(insn, exitOnNullPredecessor = true)
-                }
-
-                if (labelFrame == null) {
-                    delayedLabels.add(insn)
-                    delayedLabelForced[insn] = false
-                    continue
-                }
-
-                delayedLabelForced.remove(insn)
-                labelFrame
-            } else if (insn is FrameNode) {
-                buildFrameNode(insn)
-            } else {
-                buildSimpleInstruction(insn)
-            }
-
-            if (resultFrame != currentFrame) {
-                updateFrame(insn, resultFrame)
-
-                for (successor in successors[insn].orEmpty()) {
-                    if (unprocessedNodesSet.put(successor, Unit) == null) {
-                        unprocessedNodes.add(successor)
-                    }
-                }
-            }
+            frames[insn] = frame
         }
     }
 
@@ -483,7 +540,7 @@ class RawInstListBuilder(
         val predecessor = predecessors[insn]?.singleOrNull()
             ?: error("Incorrect simple node predecessor")
 
-        val predecessorFrame = findFrame(predecessor)
+        val predecessorFrame = frames[predecessor]
             ?: error("Incorrect frame processing order")
 
         val builderVars = generatedVars.getOrPut(insn, ::mutableListOf)
@@ -511,12 +568,6 @@ class RawInstListBuilder(
         return frameBuilder.currentFrame
     }
 
-    private fun findFrame(insn: AbstractInsnNode): Frame? = _frames[insn]
-
-    private fun updateFrame(insn: AbstractInsnNode, frame: Frame) {
-        _frames[insn] = frame
-    }
-
     // `localMergeAssignments` and `stackMergeAssignments` are maps of variable assignments
     // that we need to add to the instruction list after the construction process to ensure
     // liveness of the variables on every step of the method. We cannot add them during the construction
@@ -531,7 +582,7 @@ class RawInstListBuilder(
 
             for (insn in predecessors) {
                 val insnList = instructionList(insn)
-                val frame = findFrame(insn) ?: error("No frame for inst")
+                val frame = frames[insn] ?: error("No frame for inst")
 
                 for ((variable, value) in localAssignments) {
                     val frameVariable = frame.findLocal(variable)
@@ -551,7 +602,7 @@ class RawInstListBuilder(
 
             for (insn in predecessors) {
                 val insnList = instructionList(insn)
-                val frame = findFrame(insn) ?: error("No frame for inst")
+                val frame = frames[insn] ?: error("No frame for inst")
 
                 for ((index, value) in stackAssignments) {
                     val frameValue = frame.stack[index]
@@ -1461,7 +1512,7 @@ class RawInstListBuilder(
         val predecessor = predecessors[insnNode]?.singleOrNull()
             ?: error("Incorrect frame node predecessor")
 
-        val predecessorFrame = findFrame(predecessor)
+        val predecessorFrame = frames[predecessor]
             ?: error("Incorrect frame processing order")
 
         if (lastFrameState == null) {
@@ -1752,16 +1803,12 @@ class RawInstListBuilder(
         return result
     }
 
-    private fun buildLabelNode(insnNode: LabelNode, exitOnNullPredecessor: Boolean): Frame? {
+    private fun buildLabelNode(insnNode: LabelNode): Frame {
         val labelInst = label(insnNode)
         addInstruction(insnNode, labelInst)
 
         val predecessors = predecessors[insnNode].orEmpty()
-        val predecessorFrames = predecessors.map {
-            val frame = findFrame(it)
-            if (exitOnNullPredecessor && frame == null) return null
-            frame
-        }
+        val predecessorFrames = predecessors.map { frames[it] }
 
         val builderVars = generatedVars.getOrPut(insnNode, ::mutableListOf)
         val builder = InstBuilder(builderVars)
