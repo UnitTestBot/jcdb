@@ -392,7 +392,8 @@ class RawInstListBuilder(
         val localTypeRefinementExprMap = localTypeRefinement as Map<JcRawExpr, JcRawExpr>
         val localsNormalizedInstructionList = originalInstructionList.map(ExprMapper(localTypeRefinementExprMap))
 
-        return Simplifier().simplify(method.enclosingClass.classpath, localsNormalizedInstructionList)
+        val result = Simplifier().simplify(method.enclosingClass.classpath, localsNormalizedInstructionList)
+        return result
     }
 
     private fun MutableList<JcRawInst>.ensureFirstInstIsLineNumber() {
@@ -627,7 +628,9 @@ class RawInstListBuilder(
         expr: JcRawSimpleValue
     ) {
         val assignment = JcRawAssignInst(method, value, expr)
-        if (insn.isBranchingInst) {
+        if (insn.isTerminateInst) {
+            insnList.addInst(assignment, insnList.lastIndex)
+        } else if (insn.isBranchingInst) {
             val branchInstIdx = insnList.indexOfFirst { it is JcRawBranchingInst }
             val branchInst = insnList[branchInstIdx] as JcRawBranchingInst
             when (branchInst) {
@@ -655,8 +658,6 @@ class RawInstListBuilder(
                     }
                 }
             }
-        } else if (insn.isTerminateInst) {
-            insnList.addInst(assignment, insnList.lastIndex)
         } else {
             insnList.addInst(assignment)
         }
@@ -1061,33 +1062,35 @@ class RawInstListBuilder(
                 predecessors.getOrPut(insn.next, ::mutableListOf).add(insn)
             }
         }
+
         for (tryCatchBlock in methodNode.tryCatchBlocks) {
             val handlers = tryCatchHandlers.getOrPut(tryCatchBlock.handler, ::mutableListOf)
-            handlers.add(tryCatchBlock)
 
             val blockStart = tryCatchBlock.start
             val blockEnd = tryCatchBlock.end
             val handler = tryCatchBlock.handler
 
+            if (blockStart == handler) {
+                continue
+            }
+
+            handlers.add(tryCatchBlock)
+
             val handlerPreds = predecessors.getOrPut(handler, ::mutableListOf)
-            val uniqueHandlerPreds = handlerPreds.toHashSet()
 
             var current: AbstractInsnNode = blockStart
             while (current != blockEnd) {
-                predecessors[current]?.let { currentPreds ->
-                    currentPreds.filterTo(handlerPreds) { uniqueHandlerPreds.add(it) }
-                }
+                handlerPreds.add(current)
                 current = current.next ?: error("Unexpected instruction")
             }
+
+            for (startPredecessor in predecessors[blockStart].orEmpty()) {
+                if (startPredecessor.isBetween(blockStart, blockEnd)) continue
+
+                handlerPreds.add(startPredecessor)
+            }
         }
-//        for (tryCatchBlock in methodNode.tryCatchBlocks) {
-//            val blockStart = tryCatchBlock.start
-//            val blockEnd = tryCatchBlock.end
-//            val handler = tryCatchBlock.handler
-//            predecessors[handler]?.let { handlerPreds ->
-//                predecessors[handler] = handlerPreds.filterTo(mutableListOf()) { !it.isBetween(blockStart, blockEnd) }
-//            }
-//        }
+
         val deadInstructions = mutableSetOf<AbstractInsnNode>()
         for (insn in instructions) {
             val preds = predecessors[insn]
