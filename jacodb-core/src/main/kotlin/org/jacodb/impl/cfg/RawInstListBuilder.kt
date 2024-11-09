@@ -409,6 +409,19 @@ class RawInstListBuilder(
     private fun nodeId(node: AbstractInsnNode): Int = node.index + 1
     private fun nodeIdsCount(): Int = instructions.size + 1
 
+    private fun buildSuccessorsMap(): Map<AbstractInsnNode, List<AbstractInsnNode>> {
+        val successors = identityMap<AbstractInsnNode, MutableList<AbstractInsnNode>>()
+        for (node in instructions) {
+            if (node == null) continue
+
+            predecessors[node]?.forEach { predecessor ->
+                val predecessorSuccessors = successors.getOrPut(predecessor, ::mutableListOf)
+                predecessorSuccessors.add(node)
+            }
+        }
+        return successors
+    }
+
     private fun findBackEdges(
         successors: Map<AbstractInsnNode, List<AbstractInsnNode>>
     ): Map<AbstractInsnNode, Map<AbstractInsnNode, Unit>> {
@@ -483,22 +496,13 @@ class RawInstListBuilder(
     }
 
     private fun buildInstructions() {
+        val successors = buildSuccessorsMap()
+        val backEdges = findBackEdges(successors)
+        val orderedInsnNodes = topSortNodes(successors, backEdges)
+
         val initialFrame = createInitialFrame()
         frames[ENTRY] = initialFrame
 
-        val successors = identityMap<AbstractInsnNode, MutableList<AbstractInsnNode>>()
-        for (node in instructions) {
-            if (node == null) continue
-
-            predecessors[node]?.forEach { predecessor ->
-                val predecessorSuccessors = successors.getOrPut(predecessor, ::mutableListOf)
-                predecessorSuccessors.add(node)
-            }
-        }
-
-        val backEdges = findBackEdges(successors)
-
-        val orderedInsnNodes = topSortNodes(successors, backEdges)
         for (insn in orderedInsnNodes) {
             if (insn === ENTRY) continue
 
