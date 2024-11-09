@@ -354,8 +354,8 @@ class RawInstListBuilder(
 
     private val ENTRY = InsnNode(-1)
 
+    private val methodInstList = methodNode.instructions
     private val instructions = mutableListOf<AbstractInsnNode?>()
-    private val instructionIndex = identityMap<AbstractInsnNode, Int>()
 
     private val tryCatchHandlers = identityMap<AbstractInsnNode, MutableList<TryCatchBlockNode>>()
     private val predecessors = identityMap<AbstractInsnNode, MutableList<AbstractInsnNode>>()
@@ -392,8 +392,7 @@ class RawInstListBuilder(
         val localTypeRefinementExprMap = localTypeRefinement as Map<JcRawExpr, JcRawExpr>
         val localsNormalizedInstructionList = originalInstructionList.map(ExprMapper(localTypeRefinementExprMap))
 
-        val result = Simplifier().simplify(method.enclosingClass.classpath, localsNormalizedInstructionList)
-        return result
+        return Simplifier().simplify(method.enclosingClass.classpath, localsNormalizedInstructionList)
     }
 
     private fun MutableList<JcRawInst>.ensureFirstInstIsLineNumber() {
@@ -407,30 +406,8 @@ class RawInstListBuilder(
         addAll(0, listOf(label, lineNumberWithLabel))
     }
 
-    private fun nodeId(node: AbstractInsnNode): Int =
-        if (node === ENTRY) 0 else (instructionIndex[node]!! + 1)
-
-    private fun nodeIdsCount(): Int = instructionIndex.size + 1
-
-    private fun BitSet.add(idx: Int): BitSet {
-        if (get(idx)) return this
-
-        val result = clone() as BitSet
-        result.set(idx)
-        return result
-    }
-
-    private fun BitSet.union(other: BitSet): BitSet {
-        val result = clone() as BitSet
-        result.or(other)
-        return result
-    }
-
-    private fun BitSet.contains(other: BitSet): Boolean {
-        val otherCopy = other.clone() as BitSet
-        otherCopy.andNot(this)
-        return otherCopy.isEmpty
-    }
+    private fun nodeId(node: AbstractInsnNode): Int = node.index + 1
+    private fun nodeIdsCount(): Int = instructions.size + 1
 
     private fun findBackEdges(
         successors: Map<AbstractInsnNode, List<AbstractInsnNode>>
@@ -616,7 +593,7 @@ class RawInstListBuilder(
     }
 
     private fun <V> Map<AbstractInsnNode, V>.orderByInst() =
-        entries.sortedBy { instructionIndex[it.key] ?: -1 }
+        entries.sortedBy { it.key.index ?: -1 }
 
     private fun <V> Map<Int, V>.orderByIndex() =
         entries.sortedBy { it.key }
@@ -1032,7 +1009,7 @@ class RawInstListBuilder(
     }
 
     private fun buildGraph() {
-        val instructions = methodNode.instructions.toArray()
+        val instructions = methodInstList.toArray()
         instructions.firstOrNull()?.let {
             predecessors.getOrPut(it, ::mutableListOf).add(ENTRY)
         }
@@ -1109,8 +1086,7 @@ class RawInstListBuilder(
             }
         }
 
-        instructions.mapIndexedTo(this.instructions) { index, insn ->
-            instructionIndex[insn] = index
+        instructions.mapTo(this.instructions) { insn ->
             insn.takeIf { it !in deadInstructions }
         }
     }
@@ -1867,8 +1843,7 @@ class RawInstListBuilder(
     }
 
     private fun ensureLabelInitialized(node: AbstractInsnNode, label: JcRawLabelInst) {
-        val nodeIdx = instructionIndex[node] ?: error("No label node index")
-        instructions[nodeIdx] = node
+        instructions[node.index] = node
 
         val nodeInst = instructionList(node)
         if (label !in nodeInst) {
@@ -2156,9 +2131,10 @@ class RawInstListBuilder(
         methodNode.localVariables.find { it.index == variable && insn.isBetween(it.start, it.end) }
 
     private fun AbstractInsnNode.isBetween(labelStart: AbstractInsnNode, labelEnd: AbstractInsnNode): Boolean =
-        methodNode.instructions.let {
-            it.indexOf(this) in it.indexOf(labelStart)..it.indexOf(labelEnd)
-        }
+        this.index in labelStart.index..labelEnd.index
+
+    private val AbstractInsnNode.index: Int
+        get() = methodInstList.indexOf(this)
 }
 
 private data object StackMark
@@ -2186,4 +2162,24 @@ private fun <T> Array<T?>.add(index: Int, value: T): Array<T?> {
     val result = copyOf(size * 2)
     result[index] = value
     return result
+}
+
+private fun BitSet.add(idx: Int): BitSet {
+    if (get(idx)) return this
+
+    val result = clone() as BitSet
+    result.set(idx)
+    return result
+}
+
+private fun BitSet.union(other: BitSet): BitSet {
+    val result = clone() as BitSet
+    result.or(other)
+    return result
+}
+
+private fun BitSet.contains(other: BitSet): Boolean {
+    val otherCopy = other.clone() as BitSet
+    otherCopy.andNot(this)
+    return otherCopy.isEmpty
 }
