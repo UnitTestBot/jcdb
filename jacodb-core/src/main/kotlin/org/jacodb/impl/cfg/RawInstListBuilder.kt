@@ -340,8 +340,6 @@ private val Collection<TryCatchBlockNode>.commonTypeOrDefault
 
 internal fun <K, V> identityMap(): MutableMap<K, V> = IdentityHashMap()
 
-internal fun <K, V> Map<out K, V>.toIdentityMap(): Map<K, V> = toMap()
-
 class RawInstListBuilder(
     val method: JcMethod,
     private val methodNode: MethodNode,
@@ -532,7 +530,7 @@ class RawInstListBuilder(
             is IntInsnNode -> buildIntInsnNode(insn, frameBuilder)
             is InvokeDynamicInsnNode -> buildInvokeDynamicInsn(insn, frameBuilder)
             is JumpInsnNode -> buildJumpInsnNode(insn, frameBuilder)
-            is LineNumberNode -> buildLineNumberNode(insn, frameBuilder)
+            is LineNumberNode -> buildLineNumberNode(insn)
             is LdcInsnNode -> buildLdcInsnNode(insn, frameBuilder)
             is LookupSwitchInsnNode -> buildLookupSwitchInsnNode(insn, frameBuilder)
             is MethodInsnNode -> buildMethodInsnNode(insn, frameBuilder)
@@ -594,7 +592,7 @@ class RawInstListBuilder(
     }
 
     private fun <V> Map<AbstractInsnNode, V>.orderByInst() =
-        entries.sortedBy { it.key.index ?: -1 }
+        entries.sortedBy { it.key.index }
 
     private fun <V> Map<Int, V>.orderByIndex() =
         entries.sortedBy { it.key }
@@ -1356,7 +1354,7 @@ class RawInstListBuilder(
         addInstruction(insn, JcRawThrowInst(method, throwable))
     }
 
-    private fun buildFieldInsnNode(insnNode: FieldInsnNode, frame: FrameBuilder) = with(frame) {
+    private fun buildFieldInsnNode(insnNode: FieldInsnNode, frame: FrameBuilder) {
         val fieldName = insnNode.name
         val fieldType = insnNode.desc.typeName()
         val declaringClass = insnNode.owner.typeName()
@@ -1758,9 +1756,8 @@ class RawInstListBuilder(
         }
     }
 
-    private fun buildLineNumberNode(insnNode: LineNumberNode, frame: FrameBuilder) = with(frame) {
+    private fun buildLineNumberNode(insnNode: LineNumberNode) =
         addInstruction(insnNode, JcRawLineNumberInst(method, insnNode.line, labelRef(insnNode.start)))
-    }
 
     private fun ldcValue(cst: Any): JcRawSimpleValue {
         return when (cst) {
