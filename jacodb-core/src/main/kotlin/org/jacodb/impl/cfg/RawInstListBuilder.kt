@@ -2159,14 +2159,13 @@ private class GraphTopSorter(val successors: Array<IntSet?>) {
         return createTopSortFromStart(startNode)
     }
 
-    private class FinderAction(val node: Int, val isForward: Boolean)
+    private data class FinderAction(val node: Int, val isForward: Boolean)
 
     private fun findBackEdges(startNode: Int) {
         var time = 0
         val visited = BitSet(successors.size)
 
         val unprocessed = mutableListOf(FinderAction(startNode, isForward = true))
-        visited.set(startNode)
 
         while (unprocessed.isNotEmpty()) {
             val action = unprocessed.removeLast()
@@ -2176,21 +2175,25 @@ private class GraphTopSorter(val successors: Array<IntSet?>) {
                 continue
             }
 
+            if (visited.get(action.node)) continue
+            visited.set(action.node)
+
             val node = action.node
             startTime[node] = time++
             unprocessed.add(FinderAction(node, isForward = false))
 
             successors[node]?.forEach { successor ->
                 if (!visited.get(successor)) {
-                    visited.set(successor)
                     unprocessed.add(FinderAction(successor, isForward = true))
                 }
             }
         }
     }
 
-    private fun isBackEdge(edgeFrom: Int, edgeTo: Int): Boolean =
-        startTime[edgeFrom] > startTime[edgeTo] && endTime[edgeFrom] < endTime[edgeTo]
+    private fun isBackEdge(edgeFrom: Int, edgeTo: Int): Boolean {
+        if (edgeFrom == edgeTo) return true
+        return startTime[edgeFrom] > startTime[edgeTo] && endTime[edgeFrom] < endTime[edgeTo]
+    }
 
     private fun createTopSortFromStart(startNode: Int): IntArray {
         var resultPos = 0
@@ -2200,6 +2203,7 @@ private class GraphTopSorter(val successors: Array<IntSet?>) {
         for (node in successors.indices) {
             successors[node]?.forEach { successor ->
                 if (isBackEdge(node, successor)) return@forEach
+
                 currentNodeDegree[successor]++
             }
         }
@@ -2213,7 +2217,7 @@ private class GraphTopSorter(val successors: Array<IntSet?>) {
             val node = unprocessed.removeLast()
             result[resultPos++] = node
 
-            successors[node]?.forEach { successor->
+            successors[node]?.forEach { successor ->
                 if (isBackEdge(node, successor)) return@forEach
 
                 if (--currentNodeDegree[successor] == 0) {
@@ -2224,10 +2228,6 @@ private class GraphTopSorter(val successors: Array<IntSet?>) {
 
         if (resultPos != result.size) {
             result[resultPos] = END_NODE
-        }
-
-        check(currentNodeDegree.all { it == 0 }) {
-            "Top sort failed"
         }
 
         return result
