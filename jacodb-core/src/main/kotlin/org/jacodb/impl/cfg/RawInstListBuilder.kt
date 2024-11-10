@@ -340,31 +340,26 @@ private val Collection<TryCatchBlockNode>.commonTypeOrDefault
 
 internal fun <K, V> identityMap(): MutableMap<K, V> = IdentityHashMap()
 
-internal fun <K, V> Map<out K, V>.toIdentityMap(): Map<K, V> = toMap()
-
 class RawInstListBuilder(
     val method: JcMethod,
     private val methodNode: MethodNode,
     private val keepLocalVariableNames: Boolean,
 ) {
-    private val _frames = identityMap<AbstractInsnNode, Frame>()
+    private val ENTRY = InsnNode(ENTRY_NODE_OP)
+    private val methodInstList = methodNode.instructions
+    private val insnNodeGraph = IntNodeGraph(ENTRY_NODE_ID, insnNodeCount())
+
+    private val frames = arrayOfNulls<Frame>(insnNodeCount())
+    private val instructionLists = arrayOfNulls<MutableList<JcRawInst>>(insnNodeCount())
+
     private val labels = identityMap<LabelNode, JcRawLabelInst>()
-    private val generatedLabels = identityMap<AbstractInsnNode, MutableMap<Int, JcRawLabelInst>>()
-    private val generatedVars = identityMap<AbstractInsnNode, MutableList<JcRawLocalVar>>()
-
-    private val ENTRY = InsnNode(-1)
-
-    private val instructions = mutableListOf<AbstractInsnNode?>()
-    private val instructionIndex = identityMap<AbstractInsnNode, Int>()
-
     private val tryCatchHandlers = identityMap<AbstractInsnNode, MutableList<TryCatchBlockNode>>()
-    private val predecessors = identityMap<AbstractInsnNode, MutableList<AbstractInsnNode>>()
-    private val instructionLists = identityMap<AbstractInsnNode, MutableList<JcRawInst>>()
-    private val localTypeRefinement = identityMap<JcRawLocalVar, JcRawLocalVar>()
+
+    private val localTypeRefinement = hashMapOf<JcRawLocalVar, JcRawLocalVar>()
     private val blackListForTypeRefinement = listOf(TOP, NULL, UNINIT_THIS)
 
-    private val localMergeAssignments = identityMap<AbstractInsnNode, MutableMap<Int, JcRawSimpleValue>>()
-    private val stackMergeAssignments = identityMap<AbstractInsnNode, MutableMap<Int, JcRawSimpleValue>>()
+    private val localMergeAssignments = mutableListOf<LaterAssignments>()
+    private val stackMergeAssignments = mutableListOf<LaterAssignments>()
 
     private var argCounter = 0
     private var generatedLocalVarsCounter = 0
@@ -377,19 +372,17 @@ class RawInstListBuilder(
         buildRequiredGotos()
 
         val generatedInstructions = mutableListOf<JcRawInst>()
-        instructionLists[ENTRY]?.let { generatedInstructions += it }
-        for (inst in instructions) {
-            if (inst == null) continue
-            instructionLists[inst]?.let { generatedInstructions += it }
-        }
+        instructionLists.forEach { insnList -> insnList?.let { generatedInstructions += it } }
         generatedInstructions.ensureFirstInstIsLineNumber()
 
         val originalInstructionList = JcInstListImpl(generatedInstructions)
 
         // after all the frame info resolution we can refine type info for some local variables,
         // so we replace all the old versions of the variables with the type refined ones
-        val localsNormalizedInstructionList =
-            originalInstructionList.map(ExprMapper(localTypeRefinement.toIdentityMap()))
+        @Suppress("UNCHECKED_CAST")
+        val localTypeRefinementExprMap = localTypeRefinement as Map<JcRawExpr, JcRawExpr>
+        val localsNormalizedInstructionList = originalInstructionList.map(ExprMapper(localTypeRefinementExprMap))
+
         return Simplifier().simplify(method.enclosingClass.classpath, localsNormalizedInstructionList)
     }
 
@@ -404,78 +397,36 @@ class RawInstListBuilder(
         addAll(0, listOf(label, lineNumberWithLabel))
     }
 
+    private fun nodeId(node: AbstractInsnNode): Int = node.index + 1
+
+    private fun nodeById(nodeId: Int): AbstractInsnNode =
+        if (nodeId == ENTRY_NODE_ID) ENTRY else methodInstList.get(nodeId - 1)
+
+    private fun insnNodeCount(): Int = methodInstList.size() + 1
+
     private fun buildInstructions() {
-        val initialFrame = createInitialFrame()
-        updateFrame(ENTRY, initialFrame)
-
-        val successors = identityMap<AbstractInsnNode, MutableList<AbstractInsnNode>>()
-        for ((node, nodePredecessors) in predecessors) {
-            nodePredecessors.forEach { predecessor ->
-                val predecessorSuccessors = successors.getOrPut(predecessor, ::mutableListOf)
-                predecessorSuccessors.add(node)
-            }
-        }
-
-        val delayedLabelForced = identityMap<LabelNode, Boolean>()
-        val delayedLabels = mutableListOf<LabelNode>()
-
-        val unprocessedNodes = mutableListOf<AbstractInsnNode>()
-        unprocessedNodes.addAll(successors[ENTRY].orEmpty())
-
-        while (true) {
-            if (unprocessedNodes.isEmpty()) {
-                val delayedLabel = delayedLabels.removeLastOrNull() ?: break
-
-                delayedLabelForced[delayedLabel] = true
-                unprocessedNodes.add(delayedLabel)
-                continue
+        insnNodeGraph.forEachNodeIdInTopOrderWithoutBackEdges { insnNodeId ->
+            if (insnNodeId == ENTRY_NODE_ID) {
+                frames[ENTRY_NODE_ID] = createInitialFrame()
+                return@forEachNodeIdInTopOrderWithoutBackEdges
             }
 
-            val insn = unprocessedNodes.removeLast()
-            instructionLists.remove(insn)
-
-            val currentFrame = findFrame(insn)
-
-            val resultFrame = if (insn is LabelNode) {
-                val isForced = delayedLabelForced[insn]
-                val labelFrame = if (isForced != null) {
-                    if (!isForced) continue
-
-                    buildLabelNode(insn, exitOnNullPredecessor = false)
-                } else {
-                    buildLabelNode(insn, exitOnNullPredecessor = true)
-                }
-
-                if (labelFrame == null) {
-                    delayedLabels.add(insn)
-                    delayedLabelForced[insn] = false
-                    continue
-                }
-
-                delayedLabelForced.remove(insn)
-                labelFrame
-            } else if (insn is FrameNode) {
-                buildFrameNode(insn)
-            } else {
-                buildSimpleInstruction(insn)
+            val insn = nodeById(insnNodeId)
+            val frame = when (insn) {
+                is LabelNode -> buildLabelNode(insn)
+                is FrameNode -> buildFrameNode(insn)
+                else -> buildSimpleInstruction(insn)
             }
-
-            if (resultFrame != currentFrame) {
-                updateFrame(insn, resultFrame)
-                unprocessedNodes.addAll(successors[insn].orEmpty())
-            }
+            frames[insnNodeId] = frame
         }
     }
 
     private fun buildSimpleInstruction(insn: AbstractInsnNode): Frame {
-        val predecessor = predecessors[insn]?.singleOrNull()
-            ?: error("Incorrect simple node predecessor")
-
-        val predecessorFrame = findFrame(predecessor)
+        val predecessorId = insnNodeGraph.singlePredecessor(nodeId(insn))
+        val predecessorFrame = frames[predecessorId]
             ?: error("Incorrect frame processing order")
 
-        val builderVars = generatedVars.getOrPut(insn, ::mutableListOf)
-        val frameBuilder = SimpleInstBuilder(predecessorFrame, builderVars)
+        val frameBuilder = FrameBuilder(predecessorFrame)
 
         when (insn) {
             is InsnNode -> buildInsnNode(insn, frameBuilder)
@@ -484,7 +435,7 @@ class RawInstListBuilder(
             is IntInsnNode -> buildIntInsnNode(insn, frameBuilder)
             is InvokeDynamicInsnNode -> buildInvokeDynamicInsn(insn, frameBuilder)
             is JumpInsnNode -> buildJumpInsnNode(insn, frameBuilder)
-            is LineNumberNode -> buildLineNumberNode(insn, frameBuilder)
+            is LineNumberNode -> buildLineNumberNode(insn)
             is LdcInsnNode -> buildLdcInsnNode(insn, frameBuilder)
             is LookupSwitchInsnNode -> buildLookupSwitchInsnNode(insn, frameBuilder)
             is MethodInsnNode -> buildMethodInsnNode(insn, frameBuilder)
@@ -499,11 +450,13 @@ class RawInstListBuilder(
         return frameBuilder.currentFrame
     }
 
-    private fun findFrame(insn: AbstractInsnNode): Frame? = _frames[insn]
+    data class LaterAssignments(val label: LabelNode, val assignments: LinkedHashMap<Int, JcRawSimpleValue>)
 
-    private fun updateFrame(insn: AbstractInsnNode, frame: Frame) {
-        _frames[insn] = frame
-    }
+    data class LaterAssignment(
+        val insn: AbstractInsnNode,
+        val assignTo: JcRawSimpleValue,
+        val currentValue: JcRawSimpleValue
+    )
 
     // `localMergeAssignments` and `stackMergeAssignments` are maps of variable assignments
     // that we need to add to the instruction list after the construction process to ensure
@@ -511,39 +464,63 @@ class RawInstListBuilder(
     // because some of them are unknown at that stage (e.g. because of loops)
     private fun buildRequiredAssignments() {
         for ((mergeInst, localAssignments) in localMergeAssignments) {
-            if (localAssignments.isEmpty()) continue
-
-            val predecessors = predecessors[mergeInst] ?: continue
-            for (insn in predecessors) {
-                val insnList = instructionList(insn)
-                val frame = findFrame(insn) ?: error("No frame for inst")
-
-                for ((variable, value) in localAssignments) {
+            for ((variable, value) in localAssignments) {
+                val assignments = mutableListOf<LaterAssignment>()
+                insnNodeGraph.forEachPredecessor(mergeInst) { insn ->
+                    val frame = instructionFrame(insn)
                     val frameVariable = frame.findLocal(variable)
                     if (frameVariable != null && value != frameVariable) {
-                        insertValueAssignment(insn, insnList, value, frameVariable)
+                        assignments.add(LaterAssignment(insn, value, frameVariable))
                     }
                 }
+                insertLaterAssignments(assignments)
             }
         }
 
         for ((mergeInst, stackAssignments) in stackMergeAssignments) {
-            if (stackAssignments.isEmpty()) continue
-
-            val predecessors = predecessors[mergeInst] ?: continue
-            for (insn in predecessors) {
-                val insnList = instructionList(insn)
-                val frame = findFrame(insn) ?: error("No frame for inst")
-
-                for ((index, value) in stackAssignments) {
+            for ((index, value) in stackAssignments) {
+                val assignments = mutableListOf<LaterAssignment>()
+                insnNodeGraph.forEachPredecessor(mergeInst) { insn ->
+                    val frame = instructionFrame(insn)
                     val frameValue = frame.stack[index]
                     if (value != frameValue) {
-                        insertValueAssignment(insn, insnList, value, frameValue)
+                        assignments.add(LaterAssignment(insn, value, frameValue))
                     }
+                }
+                insertLaterAssignments(assignments)
+            }
+        }
+    }
+
+    private fun insertLaterAssignments(assignments: List<LaterAssignment>) {
+        for ((currentValue, assignmentGroup) in assignments.groupBy { it.currentValue }) {
+            if (assignmentGroup.size == 1) {
+                val assignment = assignmentGroup.single()
+                val insnList = instructionList(assignment.insn)
+                insertValueAssignment(assignment.insn, insnList, assignment.assignTo, currentValue)
+                continue
+            }
+
+            val groupNodeIds = BitSet(insnNodeCount())
+            for (assignment in assignmentGroup) {
+                groupNodeIds.set(nodeId(assignment.insn))
+            }
+            val startNodes = insnNodeGraph.findStartNodes(groupNodeIds)
+
+            for (assignment in assignmentGroup) {
+                val insnList = instructionList(assignment.insn)
+                val nodeId = nodeId(assignment.insn)
+
+                if (startNodes.get(nodeId) || insnList.containsAssignToValue(currentValue)) {
+                    insertValueAssignment(assignment.insn, insnList, assignment.assignTo, currentValue)
+                    continue
                 }
             }
         }
     }
+
+    private fun List<JcRawInst>.containsAssignToValue(value: JcRawSimpleValue): Boolean =
+        any { it is JcRawAssignInst && it.lhv == value }
 
     private fun insertValueAssignment(
         insn: AbstractInsnNode,
@@ -552,7 +529,9 @@ class RawInstListBuilder(
         expr: JcRawSimpleValue
     ) {
         val assignment = JcRawAssignInst(method, value, expr)
-        if (insn.isBranchingInst) {
+        if (insn.isTerminateInst) {
+            insnList.addInst(assignment, insnList.lastIndex)
+        } else if (insn.isBranchingInst) {
             val branchInstIdx = insnList.indexOfFirst { it is JcRawBranchingInst }
             val branchInst = insnList[branchInstIdx] as JcRawBranchingInst
             when (branchInst) {
@@ -580,8 +559,6 @@ class RawInstListBuilder(
                     }
                 }
             }
-        } else if (insn.isTerminateInst) {
-            insnList.addInst(assignment, insnList.lastIndex)
         } else {
             insnList.addInst(assignment)
         }
@@ -599,25 +576,25 @@ class RawInstListBuilder(
     // adds the `goto` instructions to ensure consistency in the instruction list:
     // every jump is show explicitly with some branching instruction
     private fun buildRequiredGotos() {
-        for (insn in instructions) {
-            if (insn == null) continue
+        for (insnId in instructionLists.indices) {
+            // dead instruction
+            if (instructionLists[insnId] == null) continue
 
+            val insn = nodeById(insnId)
             if (tryCatchHandlers.contains(insn)) continue
 
-            val predecessors = predecessors.getOrDefault(insn, emptyList())
-            if (predecessors.size > 1) {
-                for (predecessor in predecessors) {
-                    if (!predecessor.isBranchingInst) {
-                        val label = when (insn) {
-                            is LabelNode -> labelRef(insn)
-                            else -> {
-                                val newLabel = generateFreshLabel()
-                                addInstruction(insn, newLabel, 0)
-                                newLabel.ref
-                            }
+            if (!insnNodeGraph.hasMultiplePredecessors(insnId)) continue
+            insnNodeGraph.forEachPredecessor(insn) { predecessor ->
+                if (!predecessor.isBranchingInst) {
+                    val label = when (insn) {
+                        is LabelNode -> labelRef(insn)
+                        else -> {
+                            val newLabel = generateFreshLabel()
+                            addInstruction(insn, newLabel, 0)
+                            newLabel.ref
                         }
-                        addInstruction(predecessor, JcRawGotoInst(method, label))
                     }
+                    addInstruction(predecessor, JcRawGotoInst(method, label))
                 }
             }
         }
@@ -749,43 +726,21 @@ class RawInstListBuilder(
             copy(locals = locals, stack = stack.removeAt(stack.lastIndex)) to stack.last()
     }
 
-    private inner class SimpleInstBuilder(
-        var currentFrame: Frame,
-        val instVars: MutableList<JcRawLocalVar>,
-        var currentLocalVarIdx: Int = 0
-    ) {
-        fun nextRegister(typeName: TypeName): JcRawLocalVar {
-            if (currentLocalVarIdx < instVars.size) {
-                var currentVar = instVars[currentLocalVarIdx]
-                if (currentVar.typeName != typeName) {
-                    currentVar = currentVar.copy(typeName = typeName).also { instVars[currentLocalVarIdx] = it }
-                }
-                currentLocalVarIdx++
-                return currentVar
-            }
+    private class FrameBuilder(var currentFrame: Frame)
 
-            check(currentLocalVarIdx == instVars.size)
-            currentLocalVarIdx++
-
-            val freshVar = generateFreshLocalVar(typeName)
-            instVars.add(freshVar)
-            return freshVar
-        }
-    }
-
-    private fun SimpleInstBuilder.pop(): JcRawSimpleValue {
+    private fun FrameBuilder.pop(): JcRawSimpleValue {
         val (frame, value) = currentFrame.pop()
         currentFrame = frame
         return value
     }
 
-    private fun SimpleInstBuilder.push(value: JcRawSimpleValue) {
+    private fun FrameBuilder.push(value: JcRawSimpleValue) {
         currentFrame = currentFrame.push(value)
     }
 
-    private fun SimpleInstBuilder.peek(): JcRawSimpleValue = currentFrame.peek()
+    private fun FrameBuilder.peek(): JcRawSimpleValue = currentFrame.peek()
 
-    private fun SimpleInstBuilder.local(variable: Int): JcRawSimpleValue {
+    private fun FrameBuilder.local(variable: Int): JcRawSimpleValue {
         return currentFrame.getLocal(variable)
     }
 
@@ -801,7 +756,7 @@ class RawInstListBuilder(
         return false
     }
 
-    private fun SimpleInstBuilder.local(
+    private fun FrameBuilder.local(
         variable: Int,
         expr: JcRawSimpleValue,
         insn: AbstractInsnNode,
@@ -864,17 +819,22 @@ class RawInstListBuilder(
         return JcRawLabelInst(method, "#${generatedLabelIndex++}")
     }
 
-    private fun generateLabel(insn: AbstractInsnNode, labelId: Int): JcRawLabelInst {
-        val insnLabels = generatedLabels.getOrPut(insn, ::hashMapOf)
-        return insnLabels.getOrPut(labelId) { generateFreshLabel() }
-    }
-
     private fun generateFreshLocalVar(typeName: TypeName): JcRawLocalVar {
         val freshVarIdx = generatedLocalVarsCounter++
         return JcRawLocalVar(freshVarIdx, "$LOCAL_VAR_START_CHARACTER${freshVarIdx}", typeName)
     }
 
-    private fun instructionList(insn: AbstractInsnNode) = instructionLists.getOrPut(insn, ::mutableListOf)
+    private fun nextRegister(typeName: TypeName): JcRawLocalVar =
+        generateFreshLocalVar(typeName)
+
+    private fun instructionList(insn: AbstractInsnNode): MutableList<JcRawInst> {
+        val id = nodeId(insn)
+
+        val insnList = instructionLists[id]
+        if (insnList != null) return insnList
+
+        return mutableListOf<JcRawInst>().also { instructionLists[id] = it }
+    }
 
     private fun addInstruction(insn: AbstractInsnNode, inst: JcRawInst, index: Int? = null) {
         instructionList(insn).addInst(inst, index)
@@ -888,7 +848,10 @@ class RawInstListBuilder(
         }
     }
 
-    private fun SimpleInstBuilder.nextRegisterDeclaredVariable(
+    private fun instructionFrame(insn: AbstractInsnNode): Frame =
+        frames[nodeId(insn)] ?: error("No frame for inst")
+
+    private fun nextRegisterDeclaredVariable(
         typeName: TypeName,
         variable: Int,
         insn: AbstractInsnNode
@@ -900,21 +863,25 @@ class RawInstListBuilder(
         val lvNode = methodNode.localVariables
             .singleOrNull { it.index == variable && it.start == nextLabel }
 
-        val declaredTypeName = lvNode?.desc?.typeName()
-        val idx = nextRegister(typeName).index
-        val lvName = lvNode?.name?.takeIf { keepLocalVariableNames } ?: "$LOCAL_VAR_START_CHARACTER$idx"
+        var nextVar = nextRegister(typeName)
 
-        return if (declaredTypeName != null && !declaredTypeName.isPrimitive && !typeName.isArray) {
-            JcRawLocalVar(idx, lvName, declaredTypeName)
-        } else {
-            JcRawLocalVar(idx, lvName, typeName)
+        val lvName = lvNode?.name?.takeIf { keepLocalVariableNames }
+        if (lvName != null) {
+            nextVar = nextVar.copy(name = lvName)
         }
+
+        val declaredTypeName = lvNode?.desc?.typeName()
+        if (declaredTypeName != null && !declaredTypeName.isPrimitive && !typeName.isArray) {
+            nextVar = nextVar.copy(typeName = declaredTypeName)
+        }
+
+        return nextVar
     }
 
     private fun buildGraph() {
-        val instructions = methodNode.instructions.toArray()
+        val instructions = methodInstList.toArray()
         instructions.firstOrNull()?.let {
-            predecessors.getOrPut(it, ::mutableListOf).add(ENTRY)
+            insnNodeGraph.addPredecessor(it, ENTRY)
         }
         for (insn in instructions) {
             if (insn is LabelNode) {
@@ -922,72 +889,70 @@ class RawInstListBuilder(
             }
 
             if (insn is JumpInsnNode) {
-                predecessors.getOrPut(insn.label, ::mutableListOf).add(insn)
+                insnNodeGraph.addPredecessor(insn.label, insn)
                 if (insn.opcode != Opcodes.GOTO) {
-                    predecessors.getOrPut(insn.next, ::mutableListOf).add(insn)
+                    insnNodeGraph.addPredecessor(insn.next, insn)
                 }
             } else if (insn is TableSwitchInsnNode) {
-                predecessors.getOrPut(insn.dflt, ::mutableListOf).add(insn)
+                insnNodeGraph.addPredecessor(insn.dflt, insn)
                 insn.labels.forEach {
-                    predecessors.getOrPut(it, ::mutableListOf).add(insn)
+                    insnNodeGraph.addPredecessor(it, insn)
                 }
             } else if (insn is LookupSwitchInsnNode) {
-                predecessors.getOrPut(insn.dflt, ::mutableListOf).add(insn)
+                insnNodeGraph.addPredecessor(insn.dflt, insn)
                 insn.labels.forEach {
-                    predecessors.getOrPut(it, ::mutableListOf).add(insn)
+                    insnNodeGraph.addPredecessor(it, insn)
                 }
             } else if (insn.isTerminateInst) {
                 continue
             } else if (insn.next != null) {
-                predecessors.getOrPut(insn.next, ::mutableListOf).add(insn)
+                insnNodeGraph.addPredecessor(insn.next, insn)
             }
         }
+
         for (tryCatchBlock in methodNode.tryCatchBlocks) {
             val handlers = tryCatchHandlers.getOrPut(tryCatchBlock.handler, ::mutableListOf)
-            handlers.add(tryCatchBlock)
 
             val blockStart = tryCatchBlock.start
             val blockEnd = tryCatchBlock.end
             val handler = tryCatchBlock.handler
-            val handlerPreds = predecessors.getOrPut(handler, ::mutableListOf).toMutableSet()
+
+            if (blockStart == handler) {
+                continue
+            }
+
+            handlers.add(tryCatchBlock)
+
             var current: AbstractInsnNode = blockStart
             while (current != blockEnd) {
-                predecessors[current]?.let {
-                    handlerPreds += it
-                }
+                insnNodeGraph.addPredecessor(handler, current)
                 current = current.next ?: error("Unexpected instruction")
             }
-            predecessors[handler] = handlerPreds.toMutableList()
-        }
-//        for (tryCatchBlock in methodNode.tryCatchBlocks) {
-//            val blockStart = tryCatchBlock.start
-//            val blockEnd = tryCatchBlock.end
-//            val handler = tryCatchBlock.handler
-//            predecessors[handler]?.let { handlerPreds ->
-//                predecessors[handler] = handlerPreds.filterTo(mutableListOf()) { !it.isBetween(blockStart, blockEnd) }
-//            }
-//        }
-        val deadInstructions = mutableSetOf<AbstractInsnNode>()
-        for (insn in instructions) {
-            val preds = predecessors[insn]
-            if ((preds.isNullOrEmpty() || preds.all { it in deadInstructions })) {
-                if (insn is LabelNode) {
-                    labels.remove(insn)
-                }
 
-                deadInstructions += insn
-                predecessors -= insn
-            }
-        }
-        if (deadInstructions.isNotEmpty()) {
-            predecessors.toList().forEach { (insn, preds) ->
-                predecessors[insn] = preds.filterTo(mutableListOf()) { it !in deadInstructions }
+            insnNodeGraph.forEachPredecessor(blockStart) { startPredecessor ->
+                if (startPredecessor.isBetween(blockStart, blockEnd)) return@forEachPredecessor
+
+                insnNodeGraph.addPredecessor(handler, startPredecessor)
             }
         }
 
-        instructions.mapIndexedTo(this.instructions) { index, insn ->
-            instructionIndex[insn] = index
-            insn.takeIf { it !in deadInstructions }
+        val deadInstructionIds = insnNodeGraph.computeAndRemoveUnreachableNodes()
+        deadInstructionIds.forEach { deadInstructionId ->
+            val insn = nodeById(deadInstructionId)
+
+            if (insn is LabelNode) {
+                labels.remove(insn)
+            }
+        }
+    }
+
+    private fun IntNodeGraph.addPredecessor(insnNode: AbstractInsnNode, predecessor: AbstractInsnNode) {
+        addPredecessor(nodeId(insnNode), nodeId(predecessor))
+    }
+
+    private inline fun IntNodeGraph.forEachPredecessor(node: AbstractInsnNode, body: (AbstractInsnNode) -> Unit) {
+        forEachPredecessor(nodeId(node)) { predecessorId ->
+            body(nodeById(predecessorId))
         }
     }
 
@@ -1030,7 +995,7 @@ class RawInstListBuilder(
 
     private fun thisRef() = JcRawThis(method.enclosingClass.name.typeName())
 
-    private fun buildInsnNode(insn: InsnNode, frame: SimpleInstBuilder) = with(frame) {
+    private fun buildInsnNode(insn: InsnNode, frame: FrameBuilder) = with(frame) {
         when (insn.opcode) {
             Opcodes.NOP -> Unit
             in Opcodes.ACONST_NULL..Opcodes.DCONST_1 -> buildConstant(insn)
@@ -1052,7 +1017,7 @@ class RawInstListBuilder(
         }
     }
 
-    private fun SimpleInstBuilder.buildConstant(insn: InsnNode) {
+    private fun FrameBuilder.buildConstant(insn: InsnNode) {
         val constant = when (val opcode = insn.opcode) {
             Opcodes.ACONST_NULL -> JcRawNull()
             Opcodes.ICONST_M1 -> JcRawInt(-1)
@@ -1065,7 +1030,7 @@ class RawInstListBuilder(
         push(constant)
     }
 
-    private fun SimpleInstBuilder.buildArrayRead(insn: InsnNode) {
+    private fun FrameBuilder.buildArrayRead(insn: InsnNode) {
         val index = pop()
         val arrayRef = pop()
         val read = JcRawArrayAccess(arrayRef, index, arrayRef.typeName.elementType())
@@ -1075,7 +1040,7 @@ class RawInstListBuilder(
         push(assignment)
     }
 
-    private fun SimpleInstBuilder.buildArrayStore(insn: InsnNode) {
+    private fun FrameBuilder.buildArrayStore(insn: InsnNode) {
         val value = pop()
         val index = pop()
         val arrayRef = pop()
@@ -1088,7 +1053,7 @@ class RawInstListBuilder(
         )
     }
 
-    private fun SimpleInstBuilder.buildPop(insn: InsnNode) {
+    private fun FrameBuilder.buildPop(insn: InsnNode) {
         when (val opcode = insn.opcode) {
             Opcodes.POP -> pop()
             Opcodes.POP2 -> {
@@ -1100,7 +1065,7 @@ class RawInstListBuilder(
         }
     }
 
-    private fun SimpleInstBuilder.buildDup(insn: InsnNode) {
+    private fun FrameBuilder.buildDup(insn: InsnNode) {
         when (val opcode = insn.opcode) {
             Opcodes.DUP -> push(peek())
             Opcodes.DUP_X1 -> {
@@ -1199,14 +1164,14 @@ class RawInstListBuilder(
         }
     }
 
-    private fun SimpleInstBuilder.buildSwap() {
+    private fun FrameBuilder.buildSwap() {
         val top = pop()
         val bot = pop()
         push(top)
         push(bot)
     }
 
-    private fun SimpleInstBuilder.buildBinary(insn: InsnNode) {
+    private fun FrameBuilder.buildBinary(insn: InsnNode) {
         val rhv = pop()
         val lhv = pop()
         val resolvedType = resolveType(lhv.typeName, rhv.typeName)
@@ -1243,7 +1208,7 @@ class RawInstListBuilder(
         return left
     }
 
-    private fun SimpleInstBuilder.buildUnary(insn: InsnNode) {
+    private fun FrameBuilder.buildUnary(insn: InsnNode) {
         val operand = pop()
         val expr = when (val opcode = insn.opcode) {
             in Opcodes.INEG..Opcodes.DNEG -> {
@@ -1259,7 +1224,7 @@ class RawInstListBuilder(
         push(assignment)
     }
 
-    private fun SimpleInstBuilder.buildCast(insn: InsnNode) {
+    private fun FrameBuilder.buildCast(insn: InsnNode) {
         val operand = pop()
         val targetType = when (val opcode = insn.opcode) {
             Opcodes.I2L, Opcodes.F2L, Opcodes.D2L -> PredefinedPrimitives.Long.typeName()
@@ -1276,7 +1241,7 @@ class RawInstListBuilder(
         push(assignment)
     }
 
-    private fun SimpleInstBuilder.buildCmp(insn: InsnNode) {
+    private fun FrameBuilder.buildCmp(insn: InsnNode) {
         val rhv = pop()
         val lhv = pop()
         val expr = when (val opcode = insn.opcode) {
@@ -1290,7 +1255,7 @@ class RawInstListBuilder(
         push(assignment)
     }
 
-    private fun SimpleInstBuilder.buildReturn(insn: InsnNode) {
+    private fun FrameBuilder.buildReturn(insn: InsnNode) {
         addInstruction(
             insn, when (val opcode = insn.opcode) {
                 Opcodes.RETURN -> JcRawReturnInst(method, null)
@@ -1300,8 +1265,8 @@ class RawInstListBuilder(
         )
     }
 
-    private fun SimpleInstBuilder.buildMonitor(insn: InsnNode) {
-        val monitor = pop() as JcRawSimpleValue
+    private fun FrameBuilder.buildMonitor(insn: InsnNode) {
+        val monitor = pop()
         addInstruction(
             insn, when (val opcode = insn.opcode) {
                 Opcodes.MONITORENTER -> {
@@ -1314,12 +1279,12 @@ class RawInstListBuilder(
         )
     }
 
-    private fun SimpleInstBuilder.buildThrow(insn: InsnNode) {
+    private fun FrameBuilder.buildThrow(insn: InsnNode) {
         val throwable = pop()
         addInstruction(insn, JcRawThrowInst(method, throwable))
     }
 
-    private fun buildFieldInsnNode(insnNode: FieldInsnNode, frame: SimpleInstBuilder) = with(frame) {
+    private fun buildFieldInsnNode(insnNode: FieldInsnNode, frame: FrameBuilder) {
         val fieldName = insnNode.name
         val fieldType = insnNode.desc.typeName()
         val declaringClass = insnNode.owner.typeName()
@@ -1353,26 +1318,7 @@ class RawInstListBuilder(
         }
     }
 
-//    private fun copyLocalFromMethodArguments(curLabel: LabelNode, variable: Int, type: TypeName): JcRawSimpleValue? {
-//        val actualLocalFromDebugInfo = findLocalVariableWithInstruction(variable, curLabel)
-//        val isArg = if (actualLocalFromDebugInfo == null) {
-//            variable < argCounter
-//        } else {
-//            actualLocalFromDebugInfo.start == firstLabelOrNull
-//        }
-//
-//        if (variable < argCounter && isArg) {
-//            frames.values.forEach {
-//                val value = it.findLocal(variable)
-//                if (value != null && ((value is JcRawArgument && value.typeName isCompatibleWith type) || value is JcRawThis)) {
-//                    return value
-//                }
-//            }
-//        }
-//        return null
-//    }
-
-    private val firstLabelOrNull: AbstractInsnNode? get() = instructions.firstOrNull { it is LabelNode }
+    private val firstLabelOrNull: AbstractInsnNode? get() = methodInstList.firstOrNull { it is LabelNode }
 
     private fun buildFrameNode(insnNode: FrameNode): Frame {
         val lastFrameState = when (insnNode.type) {
@@ -1388,10 +1334,9 @@ class RawInstListBuilder(
             else -> error("Unknown frame node type: ${insnNode.type}")
         }
 
-        val predecessor = predecessors[insnNode]?.singleOrNull()
-            ?: error("Incorrect frame node predecessor")
+        val predecessorId = insnNodeGraph.singlePredecessor(nodeId(insnNode))
 
-        val predecessorFrame = findFrame(predecessor)
+        val predecessorFrame = frames[predecessorId]
             ?: error("Incorrect frame processing order")
 
         if (lastFrameState == null) {
@@ -1401,7 +1346,7 @@ class RawInstListBuilder(
         return refineWithFrameState(predecessorFrame, lastFrameState)
     }
 
-    private fun buildIincInsnNode(insnNode: IincInsnNode, frame: SimpleInstBuilder) = with(frame) {
+    private fun buildIincInsnNode(insnNode: IincInsnNode, frame: FrameBuilder) = with(frame) {
         val variable = insnNode.`var`
         val local = local(variable)
         val rhv = JcRawInt(insnNode.incr)
@@ -1417,7 +1362,7 @@ class RawInstListBuilder(
         }
     }
 
-    private fun buildIntInsnNode(insnNode: IntInsnNode, frame: SimpleInstBuilder) = with(frame) {
+    private fun buildIntInsnNode(insnNode: IntInsnNode, frame: FrameBuilder) = with(frame) {
         val operand = insnNode.operand
         when (val opcode = insnNode.opcode) {
             Opcodes.BIPUSH -> push(JcRawInt(operand))
@@ -1459,7 +1404,7 @@ class RawInstListBuilder(
         else -> error("Unknown number: $number")
     }
 
-    private fun buildInvokeDynamicInsn(insnNode: InvokeDynamicInsnNode, frame: SimpleInstBuilder) = with(frame) {
+    private fun buildInvokeDynamicInsn(insnNode: InvokeDynamicInsnNode, frame: FrameBuilder) = with(frame) {
         val desc = insnNode.desc
         val bsmArgs = insnNode.bsmArgs.map {
             when (it) {
@@ -1489,12 +1434,12 @@ class RawInstListBuilder(
         }
     }
 
-    private fun buildJumpInsnNode(insnNode: JumpInsnNode, frame: SimpleInstBuilder) = with(frame) {
+    private fun buildJumpInsnNode(insnNode: JumpInsnNode, frame: FrameBuilder) = with(frame) {
         val target = labelRef(insnNode.label)
         when (val opcode = insnNode.opcode) {
             Opcodes.GOTO -> addInstruction(insnNode, JcRawGotoInst(method, target))
             else -> {
-                val falseTarget = (insnNode.next as? LabelNode)?.let { label(it) } ?: generateLabel(insnNode, labelId = 0)
+                val falseTarget = (insnNode.next as? LabelNode)?.let { label(it) } ?: generateFreshLabel()
                 val rhv = pop()
                 val boolTypeName = PredefinedPrimitives.Boolean.typeName()
                 val expr = when (opcode) {
@@ -1525,8 +1470,8 @@ class RawInstListBuilder(
         }
     }
 
-    private fun mergeFrames(frames: Map<AbstractInsnNode, Frame?>, curInsn: LabelNode): Frame {
-        val frameSet = frames.values.filterNotNull()
+    private fun mergeFrames(frames: List<Pair<AbstractInsnNode, Frame?>>, curInsn: LabelNode): Frame {
+        val frameSet = frames.mapNotNull { it.second }
         val maxLocalVar = frameSet.minOf { it.maxLocal() }
         val maxStackIndex = frameSet.minOf { it.stack.lastIndex }
 
@@ -1540,7 +1485,7 @@ class RawInstListBuilder(
 
         if (frameSet.size == frames.size) {
             @Suppress("UNCHECKED_CAST")
-            return mergeWithPresentFrames(frames as Map<AbstractInsnNode, Frame>, curInsn, localTypes, stackTypes)
+            return mergeWithPresentFrames(frames as List<Pair<AbstractInsnNode, Frame>>, curInsn, localTypes, stackTypes)
         } else {
             return mergeWithMissedFrames(curInsn, localTypes, stackTypes)
         }
@@ -1551,33 +1496,51 @@ class RawInstListBuilder(
         localTypes: Array<TypeName?>,
         stackTypes: List<TypeName>,
     ): Frame {
-        val localMergeAssignments = localMergeAssignments.getOrPut(curNode, ::hashMapOf)
-        val stackMergeAssignments = stackMergeAssignments.getOrPut(curNode, ::hashMapOf)
-
-        val mergedLocals = Array(localTypes.size) { variable ->
-            val type = localTypes[variable] ?: return@Array null
-            if (type == TOP) return@Array null
-
-            val mergeAssignment = localMergeAssignments[variable]?.takeIf { it.typeName == type }
-            mergeAssignment ?: generateFreshLocalVar(type).also { localMergeAssignments[variable] = it }
-        }
+        val localMergeAssignments = LinkedHashMap<Int, JcRawSimpleValue>()
+        val stackMergeAssignments = LinkedHashMap<Int, JcRawSimpleValue>()
 
         val mergedStack = stackTypes.mapIndexed { index, type ->
-            val mergeAssignment = stackMergeAssignments[index]?.takeIf { it.typeName == type }
-            mergeAssignment ?: generateFreshLocalVar(type).also { stackMergeAssignments[index] = it }
+            nextRegister(type).also { stackMergeAssignments[index] = it }
+        }
+
+        val mergedLocals = Array<JcRawSimpleValue?>(localTypes.size) { variable ->
+            val type = localTypes[variable]
+            if (type == null || type == TOP) {
+                return@Array null
+            }
+
+            nextRegister(type).also { localMergeAssignments[variable] = it }
+        }
+
+        if (stackMergeAssignments.isNotEmpty()) {
+            this.stackMergeAssignments.add(LaterAssignments(curNode, stackMergeAssignments))
+        }
+
+        if (localMergeAssignments.isNotEmpty()) {
+            this.localMergeAssignments.add(LaterAssignments(curNode, localMergeAssignments))
         }
 
         return Frame(mergedLocals.trimEndNulls(), mergedStack.toPersistentList())
     }
 
     private fun mergeWithPresentFrames(
-        frames: Map<AbstractInsnNode, Frame>,
+        frames: List<Pair<AbstractInsnNode, Frame>>,
         curNode: LabelNode,
         localTypes: Array<TypeName?>,
         stackTypes: List<TypeName>,
     ): Frame {
-        val localMergeAssignments = localMergeAssignments.getOrPut(curNode, ::hashMapOf)
-        val stackMergeAssignments = stackMergeAssignments.getOrPut(curNode, ::hashMapOf)
+        val localMergeAssignments = LinkedHashMap<Int, JcRawSimpleValue>()
+        val stackMergeAssignments = LinkedHashMap<Int, JcRawSimpleValue>()
+
+        val mergedStack = stackTypes.mapIndexed { index, type ->
+            val allFramesSameValue = framesStackSameValue(frames, index)
+            if (allFramesSameValue != null) {
+                stackMergeAssignments.remove(index)
+                return@mapIndexed allFramesSameValue
+            }
+
+            nextRegister(type).also { stackMergeAssignments[index] = it }
+        }
 
         val mergedLocals = Array(localTypes.size) { variable ->
             val type = localTypes[variable]
@@ -1586,25 +1549,21 @@ class RawInstListBuilder(
                 return@Array null
             }
 
-            val allFramesSameValue = framesVariableSameValue(frames.values, variable)
+            val allFramesSameValue = framesVariableSameValue(frames, variable)
             if (allFramesSameValue != null) {
                 localMergeAssignments.remove(variable)
                 return@Array allFramesSameValue
             }
 
-            val mergeAssignment = localMergeAssignments[variable]?.takeIf { it.typeName == type }
-            mergeAssignment ?: generateFreshLocalVar(type).also { localMergeAssignments[variable] = it }
+            nextRegister(type).also { localMergeAssignments[variable] = it }
         }
 
-        val mergedStack = stackTypes.mapIndexed { index, type ->
-            val allFramesSameValue = framesStackSameValue(frames.values, index)
-            if (allFramesSameValue != null) {
-                stackMergeAssignments.remove(index)
-                return@mapIndexed allFramesSameValue
-            }
+        if (stackMergeAssignments.isNotEmpty()) {
+            this.stackMergeAssignments.add(LaterAssignments(curNode, stackMergeAssignments))
+        }
 
-            val mergeAssignment = stackMergeAssignments[index]?.takeIf { it.typeName == type }
-            mergeAssignment ?: generateFreshLocalVar(type).also { stackMergeAssignments[index] = it }
+        if (localMergeAssignments.isNotEmpty()) {
+            this.localMergeAssignments.add(LaterAssignments(curNode, localMergeAssignments))
         }
 
         return Frame(mergedLocals.trimEndNulls(), mergedStack.toPersistentList())
@@ -1656,11 +1615,11 @@ class RawInstListBuilder(
         return type ?: error("No type")
     }
 
-    private fun framesVariableSameValue(frames: Iterable<Frame>, variable: Int): JcRawSimpleValue? =
-        frames.sameOrNull { getLocal(variable) }
+    private fun framesVariableSameValue(frames: Iterable<Pair<AbstractInsnNode, Frame>>, variable: Int): JcRawSimpleValue? =
+        frames.sameOrNull { second.getLocal(variable) }
 
-    private fun framesStackSameValue(frames: Iterable<Frame>, index: Int): JcRawSimpleValue? =
-        frames.sameOrNull { stack[index] }
+    private fun framesStackSameValue(frames: Iterable<Pair<AbstractInsnNode, Frame>>, index: Int): JcRawSimpleValue? =
+        frames.sameOrNull { second.stack[index] }
 
     private inline fun <R : Any, T> Iterable<T>.sameOrNull(getter: T.() -> R): R? {
         var result: R? = null
@@ -1676,38 +1635,23 @@ class RawInstListBuilder(
         return result
     }
 
-    private fun buildLabelNode(insnNode: LabelNode, exitOnNullPredecessor: Boolean): Frame? {
+    private fun buildLabelNode(insnNode: LabelNode): Frame {
         val labelInst = label(insnNode)
         addInstruction(insnNode, labelInst)
-        val predecessors = predecessors.getOrDefault(insnNode, emptySet())
 
-        val predecessorFrames = predecessors.map {
-            val frame = findFrame(it)
-            if (exitOnNullPredecessor && frame == null) return null
-            frame
-        }
+        val predecessors = mutableListOf<AbstractInsnNode>()
+        insnNodeGraph.forEachPredecessor(insnNode) { predecessors.add(it) }
 
-        val singleFrame = predecessorFrames.singleOrNull()
-        var currentFrame = if (singleFrame != null) {
-            singleFrame
-        } else {
-            mergeFrames(predecessors.zip(predecessorFrames).toMap(), insnNode)
-        }
+        val predecessorFrames = predecessors.map { frames[nodeId(it)] }
+
+        var throwable: JcRawLocalVar? = null
 
         val catchEntries = tryCatchHandlers[insnNode].orEmpty()
         if (catchEntries.isNotEmpty()) {
-            val instVars = generatedVars.getOrPut(insnNode, ::mutableListOf)
-
-            var throwable = instVars.firstOrNull()
-            if (throwable == null) {
-                throwable = generateFreshLocalVar(catchEntries.commonTypeOrDefault.typeName())
-                instVars.add(throwable)
-            }
-
-            currentFrame = currentFrame.push(throwable)
+            throwable = nextRegister(catchEntries.commonTypeOrDefault.typeName())
 
             val entries = catchEntries.mapIndexed { index, node ->
-                buildCatchEntry(insnNode, node, index)
+                buildCatchEntry(node)
             }
 
             val catchInst = JcRawCatchInst(
@@ -1720,38 +1664,38 @@ class RawInstListBuilder(
             addInstruction(insnNode, catchInst)
         }
 
+        val singleFrame = predecessorFrames.singleOrNull()
+        var currentFrame = if (singleFrame != null) {
+            singleFrame
+        } else {
+            mergeFrames(predecessors.zip(predecessorFrames), insnNode)
+        }
+
+        if (throwable != null) {
+            currentFrame = currentFrame.push(throwable)
+        }
+
         return currentFrame
     }
 
-    private fun buildCatchEntry(insn: LabelNode, node: TryCatchBlockNode, entryIdx: Int): JcRawCatchEntry {
+    private fun buildCatchEntry(node: TryCatchBlockNode): JcRawCatchEntry {
         var startLabel = labels[node.start]
         if (startLabel == null) {
-            startLabel = generateLabel(insn, labelId = entryIdx * 2)
-            ensureLabelInitialized(node.start, startLabel)
+            startLabel = generateFreshLabel()
+            instructionList(node.start).add(startLabel)
         }
 
         var endLabel = labels[node.end]
         if (endLabel == null) {
-            endLabel = generateLabel(insn, labelId = entryIdx * 2 + 1)
-            ensureLabelInitialized(node.end, endLabel)
+            endLabel = generateFreshLabel()
+            instructionList(node.end).add(endLabel)
         }
 
         return JcRawCatchEntry(node.typeOrDefault.typeName(), startLabel.ref, endLabel.ref)
     }
 
-    private fun ensureLabelInitialized(node: AbstractInsnNode, label: JcRawLabelInst) {
-        val nodeIdx = instructionIndex[node] ?: error("No label node index")
-        instructions[nodeIdx] = node
-
-        val nodeInst = instructionList(node)
-        if (label !in nodeInst) {
-            nodeInst.add(label)
-        }
-    }
-
-    private fun buildLineNumberNode(insnNode: LineNumberNode, frame: SimpleInstBuilder) = with(frame) {
+    private fun buildLineNumberNode(insnNode: LineNumberNode) =
         addInstruction(insnNode, JcRawLineNumberInst(method, insnNode.line, labelRef(insnNode.start)))
-    }
 
     private fun ldcValue(cst: Any): JcRawSimpleValue {
         return when (cst) {
@@ -1775,7 +1719,7 @@ class RawInstListBuilder(
         }
     }
 
-    private fun buildLdcInsnNode(insnNode: LdcInsnNode, frame: SimpleInstBuilder) = with(frame) {
+    private fun buildLdcInsnNode(insnNode: LdcInsnNode, frame: FrameBuilder) = with(frame) {
         when (val cst = insnNode.cst) {
             is Int -> push(ldcValue(cst))
             is Float -> push(ldcValue(cst))
@@ -1870,7 +1814,7 @@ class RawInstListBuilder(
         }
     }
 
-    private fun buildLookupSwitchInsnNode(insnNode: LookupSwitchInsnNode, frame: SimpleInstBuilder) = with(frame) {
+    private fun buildLookupSwitchInsnNode(insnNode: LookupSwitchInsnNode, frame: FrameBuilder) = with(frame) {
         val key = pop()
         val default = labelRef(insnNode.dflt)
         val branches = insnNode.keys
@@ -1879,7 +1823,7 @@ class RawInstListBuilder(
         addInstruction(insnNode, JcRawSwitchInst(method, key, branches, default))
     }
 
-    private fun buildMethodInsnNode(insnNode: MethodInsnNode, frame: SimpleInstBuilder) = with(frame) {
+    private fun buildMethodInsnNode(insnNode: MethodInsnNode, frame: FrameBuilder) = with(frame) {
         val owner = when {
             insnNode.owner.typeName().isArray -> OBJECT_TYPE_NAME
             else -> insnNode.owner.typeName()
@@ -1943,7 +1887,7 @@ class RawInstListBuilder(
         }
     }
 
-    private fun buildMultiANewArrayInsnNode(insnNode: MultiANewArrayInsnNode, frame: SimpleInstBuilder) = with(frame) {
+    private fun buildMultiANewArrayInsnNode(insnNode: MultiANewArrayInsnNode, frame: FrameBuilder) = with(frame) {
         val dimensions = mutableListOf<JcRawValue>()
         repeat(insnNode.dims) {
             dimensions += pop()
@@ -1954,7 +1898,7 @@ class RawInstListBuilder(
         push(assignment)
     }
 
-    private fun buildTableSwitchInsnNode(insnNode: TableSwitchInsnNode, frame: SimpleInstBuilder) = with(frame) {
+    private fun buildTableSwitchInsnNode(insnNode: TableSwitchInsnNode, frame: FrameBuilder) = with(frame) {
         val index = pop()
         val default = labelRef(insnNode.dflt)
         val branches = (insnNode.min..insnNode.max)
@@ -1963,7 +1907,7 @@ class RawInstListBuilder(
         addInstruction(insnNode, JcRawSwitchInst(method, index, branches, default))
     }
 
-    private fun buildTypeInsnNode(insnNode: TypeInsnNode, frame: SimpleInstBuilder) = with(frame) {
+    private fun buildTypeInsnNode(insnNode: TypeInsnNode, frame: FrameBuilder) = with(frame) {
         val type = insnNode.desc.typeName()
         when (insnNode.opcode) {
             Opcodes.NEW -> {
@@ -2007,7 +1951,7 @@ class RawInstListBuilder(
         }
     }
 
-    private fun buildVarInsnNode(insnNode: VarInsnNode, frame: SimpleInstBuilder) = with(frame) {
+    private fun buildVarInsnNode(insnNode: VarInsnNode, frame: FrameBuilder) = with(frame) {
         val variable = insnNode.`var`
         when (insnNode.opcode) {
             in Opcodes.ISTORE..Opcodes.ASTORE -> {
@@ -2029,9 +1973,15 @@ class RawInstListBuilder(
         methodNode.localVariables.find { it.index == variable && insn.isBetween(it.start, it.end) }
 
     private fun AbstractInsnNode.isBetween(labelStart: AbstractInsnNode, labelEnd: AbstractInsnNode): Boolean =
-        methodNode.instructions.let {
-            it.indexOf(this) in it.indexOf(labelStart)..it.indexOf(labelEnd)
-        }
+        this.index in labelStart.index..labelEnd.index
+
+    private val AbstractInsnNode.index: Int
+        get() = methodInstList.indexOf(this)
+
+    companion object {
+        private const val ENTRY_NODE_ID = 0
+        private const val ENTRY_NODE_OP = -1
+    }
 }
 
 private fun <T> Array<T?>.trimEndNulls(): Array<T?> {
@@ -2057,4 +2007,285 @@ private fun <T> Array<T?>.add(index: Int, value: T): Array<T?> {
     val result = copyOf(size * 2)
     result[index] = value
     return result
+}
+
+private inline fun BitSet.forEach(body: (Int) -> Unit) {
+    var node = nextSetBit(0)
+    while (node >= 0) {
+        body(node)
+        node = nextSetBit(node + 1)
+    }
+}
+
+private class IntNodeGraph(val entryNode: Int, val nodeCount: Int) {
+    val predecessors = arrayOfNulls<IntSet?>(nodeCount)
+
+    fun addPredecessor(node: Int, predecessor: Int) {
+        val nodePredecessors = predecessors[node]
+
+        if (nodePredecessors == null) {
+            predecessors[node] = IntSet.Singleton(predecessor)
+            return
+        }
+
+        predecessors[node] = nodePredecessors.add(predecessor)
+    }
+
+    fun hasMultiplePredecessors(node: Int): Boolean =
+        predecessors[node].let { it != null && it.size > 1 }
+
+    fun singlePredecessor(node: Int): Int =
+        predecessors[node]?.singleOrNull()
+            ?: error("No single predecessor for node: $node")
+
+    inline fun forEachPredecessor(node: Int, body: (Int) -> Unit) {
+        predecessors[node]?.forEach { nodePredecessor ->
+            body(nodePredecessor)
+        }
+    }
+
+    fun computeAndRemoveUnreachableNodes(): BitSet {
+        val deadNodes = BitSet(nodeCount)
+        for (node in predecessors.indices) {
+            if (node == entryNode) continue
+
+            val preds = predecessors[node]
+            if (preds == null || preds.all { deadNodes.get(it) }) {
+                deadNodes.set(node)
+                predecessors[node] = null
+            }
+        }
+
+        if (deadNodes.isEmpty) return deadNodes
+
+        for (node in predecessors.indices) {
+            val preds = predecessors[node] ?: continue
+            predecessors[node] = preds.removeAll(deadNodes)
+        }
+
+        return deadNodes
+    }
+
+    fun findStartNodes(nodeSet: BitSet): BitSet {
+        val result = nodeSet.clone() as BitSet
+        nodeSet.forEach { node ->
+            val predecessors = predecessors[node]
+            if (predecessors != null && predecessors.all { nodeSet.get(it) }) {
+                result.clear(node)
+            }
+        }
+        return result
+    }
+
+    private fun buildSuccessorsMap(): Array<IntSet?> {
+        val successors = arrayOfNulls<IntSet?>(nodeCount)
+        for (node in predecessors.indices) {
+            val nodePredecessors = predecessors[node] ?: continue
+            nodePredecessors.forEach { predecessor ->
+                val predecessorSuccessors = successors[predecessor]
+                if (predecessorSuccessors == null) {
+                    successors[predecessor] = IntSet.Singleton(node)
+                    return@forEach
+                }
+
+                successors[predecessor] = predecessorSuccessors.add(node)
+            }
+        }
+        return successors
+    }
+
+    fun topSortNodesWithoutBackEdges(): IntArray {
+        val successors = buildSuccessorsMap()
+        val sorter = GraphTopSorter(successors)
+        return sorter.graphInTopOrder(entryNode)
+    }
+
+    inline fun forEachNodeIdInTopOrderWithoutBackEdges(body: (Int) -> Unit) {
+        val sortedNodes = topSortNodesWithoutBackEdges()
+        for (node in sortedNodes) {
+            if (node == GraphTopSorter.END_NODE) break
+            body(node)
+        }
+    }
+}
+
+private sealed class IntSet(val value: Int) {
+    abstract val size: Int
+
+    abstract fun add(element: Int): IntSet
+
+    abstract fun remove(element: Int): IntSet?
+
+    abstract fun toSet(): Set<Int>
+
+    override fun toString(): String = toSet().toString()
+
+    class Singleton(value: Int) : IntSet(value) {
+        override val size: Int get() = 1
+
+        override fun add(element: Int): IntSet {
+            if (element == value) return this
+            return Multiple(minOf(value, element), BitSet()).add(value).add(element)
+        }
+
+        override fun remove(element: Int): IntSet? {
+            if (element == value) return null
+            return this
+        }
+
+        override fun toSet(): Set<Int> = setOf(value)
+    }
+
+    class Multiple(base: Int, val offsets: BitSet) : IntSet(base) {
+        override val size: Int get() = offsets.cardinality()
+
+        override fun add(element: Int): IntSet {
+            val base = value
+
+            val offset = element - base
+            if (offset >= 0) {
+                offsets.set(offset)
+                return this
+            }
+
+            val result = Multiple(element, BitSet())
+            result.add(element)
+            offsets.forEach { result.add(base + it) }
+            return result
+        }
+
+        override fun remove(element: Int): IntSet {
+            val base = value
+
+            val offset = element - base
+            if (offset < 0) return this
+
+            if (!offsets.get(offset)) return this
+
+            offsets.clear(offset)
+
+            if (offsets.cardinality() > 1) return this
+
+            return Singleton(base + offsets.nextSetBit(0))
+        }
+
+        override fun toSet(): Set<Int> {
+            val set = mutableSetOf<Int>()
+            offsets.forEach { set.add(value + it) }
+            return set
+        }
+    }
+}
+
+private fun IntSet.singleOrNull(): Int? = (this as? IntSet.Singleton)?.value
+
+private inline fun IntSet.forEach(body: (Int) -> Unit) {
+    when (this) {
+        is IntSet.Singleton -> body(value)
+        is IntSet.Multiple -> {
+            val base = value
+            offsets.forEach { offset ->
+                body(base + offset)
+            }
+        }
+    }
+}
+
+private inline fun IntSet.all(predicate: (Int) -> Boolean): Boolean {
+    forEach { if (!predicate(it)) return false }
+    return true
+}
+
+private fun IntSet.removeAll(values: BitSet): IntSet? {
+    var result = this
+    values.forEach { result = result.remove(it) ?: return null }
+    return result
+}
+
+private class GraphTopSorter(val successors: Array<IntSet?>) {
+    private val startTime = IntArray(successors.size)
+    private val endTime = IntArray(successors.size)
+
+    fun graphInTopOrder(startNode: Int): IntArray {
+        findBackEdges(startNode)
+        return createTopSortFromStart(startNode)
+    }
+
+    private data class FinderAction(val node: Int, val isForward: Boolean)
+
+    private fun findBackEdges(startNode: Int) {
+        var time = 0
+        val visited = BitSet(successors.size)
+
+        val unprocessed = mutableListOf(FinderAction(startNode, isForward = true))
+
+        while (unprocessed.isNotEmpty()) {
+            val action = unprocessed.removeLast()
+
+            if (!action.isForward) {
+                endTime[action.node] = time++
+                continue
+            }
+
+            if (visited.get(action.node)) continue
+            visited.set(action.node)
+
+            val node = action.node
+            startTime[node] = time++
+            unprocessed.add(FinderAction(node, isForward = false))
+
+            successors[node]?.forEach { successor ->
+                if (!visited.get(successor)) {
+                    unprocessed.add(FinderAction(successor, isForward = true))
+                }
+            }
+        }
+    }
+
+    private fun isBackEdge(edgeFrom: Int, edgeTo: Int): Boolean {
+        if (edgeFrom == edgeTo) return true
+        return startTime[edgeFrom] > startTime[edgeTo] && endTime[edgeFrom] < endTime[edgeTo]
+    }
+
+    private fun createTopSortFromStart(startNode: Int): IntArray {
+        var resultPos = 0
+        val result = IntArray(successors.size)
+
+        val currentNodeDegree = IntArray(successors.size)
+        for (node in successors.indices) {
+            successors[node]?.forEach { successor ->
+                if (isBackEdge(node, successor)) return@forEach
+
+                currentNodeDegree[successor]++
+            }
+        }
+
+        check(currentNodeDegree[startNode] == 0)
+
+        val unprocessed = mutableListOf<Int>()
+        unprocessed.add(startNode)
+
+        while (unprocessed.isNotEmpty()) {
+            val node = unprocessed.removeLast()
+            result[resultPos++] = node
+
+            successors[node]?.forEach { successor ->
+                if (isBackEdge(node, successor)) return@forEach
+
+                if (--currentNodeDegree[successor] == 0) {
+                    unprocessed.add(successor)
+                }
+            }
+        }
+
+        if (resultPos != result.size) {
+            result[resultPos] = END_NODE
+        }
+
+        return result
+    }
+
+    companion object {
+        const val END_NODE = -1
+    }
 }
