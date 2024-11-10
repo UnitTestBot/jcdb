@@ -358,8 +358,8 @@ class RawInstListBuilder(
     private val localTypeRefinement = hashMapOf<JcRawLocalVar, JcRawLocalVar>()
     private val blackListForTypeRefinement = listOf(TOP, NULL, UNINIT_THIS)
 
-    private val localMergeAssignments = identityMap<AbstractInsnNode, MutableMap<Int, JcRawSimpleValue>>()
-    private val stackMergeAssignments = identityMap<AbstractInsnNode, MutableMap<Int, JcRawSimpleValue>>()
+    private val localMergeAssignments = mutableListOf<LaterAssignments>()
+    private val stackMergeAssignments = mutableListOf<LaterAssignments>()
 
     private var argCounter = 0
     private var generatedLocalVarsCounter = 0
@@ -450,52 +450,54 @@ class RawInstListBuilder(
         return frameBuilder.currentFrame
     }
 
+    data class LaterAssignments(val label: LabelNode, val assignments: LinkedHashMap<Int, JcRawSimpleValue>)
+
+    data class LaterAssignment(
+        val insn: AbstractInsnNode,
+        val assignTo: JcRawSimpleValue,
+        val currentValue: JcRawSimpleValue
+    )
+
     // `localMergeAssignments` and `stackMergeAssignments` are maps of variable assignments
     // that we need to add to the instruction list after the construction process to ensure
     // liveness of the variables on every step of the method. We cannot add them during the construction
     // because some of them are unknown at that stage (e.g. because of loops)
     private fun buildRequiredAssignments() {
-        for ((mergeInst, unorderedLocalAssignments) in localMergeAssignments.orderByInst()) {
-            if (unorderedLocalAssignments.isEmpty()) continue
-
-            val localAssignments = unorderedLocalAssignments.orderByIndex()
-            insnNodeGraph.forEachPredecessor(mergeInst) { insn ->
-                val insnList = instructionList(insn)
-                val frame = instructionFrame(insn)
-
-                for ((variable, value) in localAssignments) {
+        for ((mergeInst, localAssignments) in localMergeAssignments) {
+            for ((variable, value) in localAssignments) {
+                val assignments = mutableListOf<LaterAssignment>()
+                insnNodeGraph.forEachPredecessor(mergeInst) { insn ->
+                    val frame = instructionFrame(insn)
                     val frameVariable = frame.findLocal(variable)
                     if (frameVariable != null && value != frameVariable) {
-                        insertValueAssignment(insn, insnList, value, frameVariable)
+                        assignments.add(LaterAssignment(insn, value, frameVariable))
                     }
                 }
+                insertLaterAssignments(assignments)
             }
         }
 
-        for ((mergeInst, unorderedStackAssignments) in stackMergeAssignments.orderByInst()) {
-            if (unorderedStackAssignments.isEmpty()) continue
-
-            val stackAssignments = unorderedStackAssignments.orderByIndex()
-
-            insnNodeGraph.forEachPredecessor(mergeInst) { insn ->
-                val insnList = instructionList(insn)
-                val frame = instructionFrame(insn)
-
-                for ((index, value) in stackAssignments) {
+        for ((mergeInst, stackAssignments) in stackMergeAssignments) {
+            for ((index, value) in stackAssignments) {
+                val assignments = mutableListOf<LaterAssignment>()
+                insnNodeGraph.forEachPredecessor(mergeInst) { insn ->
+                    val frame = instructionFrame(insn)
                     val frameValue = frame.stack[index]
                     if (value != frameValue) {
-                        insertValueAssignment(insn, insnList, value, frameValue)
+                        assignments.add(LaterAssignment(insn, value, frameValue))
                     }
                 }
+                insertLaterAssignments(assignments)
             }
         }
     }
 
-    private fun <V> Map<AbstractInsnNode, V>.orderByInst() =
-        entries.sortedBy { it.key.index }
-
-    private fun <V> Map<Int, V>.orderByIndex() =
-        entries.sortedBy { it.key }
+    private fun insertLaterAssignments(assignments: List<LaterAssignment>) {
+        for (assignment in assignments) {
+            val insnList = instructionList(assignment.insn)
+            insertValueAssignment(assignment.insn, insnList, assignment.assignTo, assignment.currentValue)
+        }
+    }
 
     private fun insertValueAssignment(
         insn: AbstractInsnNode,
@@ -1471,8 +1473,8 @@ class RawInstListBuilder(
         localTypes: Array<TypeName?>,
         stackTypes: List<TypeName>,
     ): Frame {
-        val localMergeAssignments = localMergeAssignments.getOrPut(curNode, ::hashMapOf)
-        val stackMergeAssignments = stackMergeAssignments.getOrPut(curNode, ::hashMapOf)
+        val localMergeAssignments = LinkedHashMap<Int, JcRawSimpleValue>()
+        val stackMergeAssignments = LinkedHashMap<Int, JcRawSimpleValue>()
 
         val mergedStack = stackTypes.mapIndexed { index, type ->
             nextRegister(type).also { stackMergeAssignments[index] = it }
@@ -1487,6 +1489,14 @@ class RawInstListBuilder(
             nextRegister(type).also { localMergeAssignments[variable] = it }
         }
 
+        if (stackMergeAssignments.isNotEmpty()) {
+            this.stackMergeAssignments.add(LaterAssignments(curNode, stackMergeAssignments))
+        }
+
+        if (localMergeAssignments.isNotEmpty()) {
+            this.localMergeAssignments.add(LaterAssignments(curNode, localMergeAssignments))
+        }
+
         return Frame(mergedLocals.trimEndNulls(), mergedStack.toPersistentList())
     }
 
@@ -1496,8 +1506,8 @@ class RawInstListBuilder(
         localTypes: Array<TypeName?>,
         stackTypes: List<TypeName>,
     ): Frame {
-        val localMergeAssignments = localMergeAssignments.getOrPut(curNode, ::hashMapOf)
-        val stackMergeAssignments = stackMergeAssignments.getOrPut(curNode, ::hashMapOf)
+        val localMergeAssignments = LinkedHashMap<Int, JcRawSimpleValue>()
+        val stackMergeAssignments = LinkedHashMap<Int, JcRawSimpleValue>()
 
         val mergedStack = stackTypes.mapIndexed { index, type ->
             val allFramesSameValue = framesStackSameValue(frames, index)
@@ -1523,6 +1533,14 @@ class RawInstListBuilder(
             }
 
             nextRegister(type).also { localMergeAssignments[variable] = it }
+        }
+
+        if (stackMergeAssignments.isNotEmpty()) {
+            this.stackMergeAssignments.add(LaterAssignments(curNode, stackMergeAssignments))
+        }
+
+        if (localMergeAssignments.isNotEmpty()) {
+            this.localMergeAssignments.add(LaterAssignments(curNode, localMergeAssignments))
         }
 
         return Frame(mergedLocals.trimEndNulls(), mergedStack.toPersistentList())
