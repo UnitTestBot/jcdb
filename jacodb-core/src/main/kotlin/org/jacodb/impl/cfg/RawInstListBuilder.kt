@@ -493,11 +493,34 @@ class RawInstListBuilder(
     }
 
     private fun insertLaterAssignments(assignments: List<LaterAssignment>) {
-        for (assignment in assignments) {
-            val insnList = instructionList(assignment.insn)
-            insertValueAssignment(assignment.insn, insnList, assignment.assignTo, assignment.currentValue)
+        for ((currentValue, assignmentGroup) in assignments.groupBy { it.currentValue }) {
+            if (assignmentGroup.size == 1) {
+                val assignment = assignmentGroup.single()
+                val insnList = instructionList(assignment.insn)
+                insertValueAssignment(assignment.insn, insnList, assignment.assignTo, currentValue)
+                continue
+            }
+
+            val groupNodeIds = BitSet(insnNodeCount())
+            for (assignment in assignmentGroup) {
+                groupNodeIds.set(nodeId(assignment.insn))
+            }
+            val startNodes = insnNodeGraph.findStartNodes(groupNodeIds)
+
+            for (assignment in assignmentGroup) {
+                val insnList = instructionList(assignment.insn)
+                val nodeId = nodeId(assignment.insn)
+
+                if (startNodes.get(nodeId) || insnList.containsAssignToValue(currentValue)) {
+                    insertValueAssignment(assignment.insn, insnList, assignment.assignTo, currentValue)
+                    continue
+                }
+            }
         }
     }
+
+    private fun List<JcRawInst>.containsAssignToValue(value: JcRawSimpleValue): Boolean =
+        any { it is JcRawAssignInst && it.lhv == value }
 
     private fun insertValueAssignment(
         insn: AbstractInsnNode,
@@ -2041,6 +2064,17 @@ private class IntNodeGraph(val entryNode: Int, val nodeCount: Int) {
         }
 
         return deadNodes
+    }
+
+    fun findStartNodes(nodeSet: BitSet): BitSet {
+        val result = nodeSet.clone() as BitSet
+        nodeSet.forEach { node ->
+            val predecessors = predecessors[node]
+            if (predecessors != null && predecessors.all { nodeSet.get(it) }) {
+                result.clear(node)
+            }
+        }
+        return result
     }
 
     private fun buildSuccessorsMap(): Array<IntSet?> {
