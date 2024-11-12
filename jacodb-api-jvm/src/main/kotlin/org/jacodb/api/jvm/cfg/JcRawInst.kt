@@ -27,7 +27,7 @@ sealed interface JcRawInst {
     fun <T> accept(visitor: JcRawInstVisitor<T>): T
 }
 
-data class JcRawAssignInst(
+class JcRawAssignInst(
     override val owner: JcMethod,
     val lhv: JcRawValue,
     val rhv: JcRawExpr
@@ -43,7 +43,7 @@ data class JcRawAssignInst(
     }
 }
 
-data class JcRawEnterMonitorInst(
+class JcRawEnterMonitorInst(
     override val owner: JcMethod,
     val monitor: JcRawSimpleValue
 ) : JcRawInst {
@@ -57,7 +57,7 @@ data class JcRawEnterMonitorInst(
     }
 }
 
-data class JcRawExitMonitorInst(
+class JcRawExitMonitorInst(
     override val owner: JcMethod,
     val monitor: JcRawSimpleValue
 ) : JcRawInst {
@@ -71,7 +71,7 @@ data class JcRawExitMonitorInst(
     }
 }
 
-data class JcRawCallInst(
+class JcRawCallInst(
     override val owner: JcMethod,
     val callExpr: JcRawCallExpr
 ) : JcRawInst {
@@ -89,7 +89,7 @@ data class JcRawLabelRef(val name: String) {
     override fun toString() = name
 }
 
-data class JcRawLineNumberInst(override val owner: JcMethod, val lineNumber: Int, val start: JcRawLabelRef) : JcRawInst {
+class JcRawLineNumberInst(override val owner: JcMethod, val lineNumber: Int, val start: JcRawLabelRef) : JcRawInst {
 
     override val operands: List<JcRawExpr>
         get() = emptyList()
@@ -102,7 +102,7 @@ data class JcRawLineNumberInst(override val owner: JcMethod, val lineNumber: Int
 }
 
 
-data class JcRawLabelInst(
+class JcRawLabelInst(
     override val owner: JcMethod,
     val name: String
 ) : JcRawInst {
@@ -118,7 +118,7 @@ data class JcRawLabelInst(
     }
 }
 
-data class JcRawReturnInst(
+class JcRawReturnInst(
     override val owner: JcMethod,
     val returnValue: JcRawValue?
 ) : JcRawInst {
@@ -132,7 +132,7 @@ data class JcRawReturnInst(
     }
 }
 
-data class JcRawThrowInst(
+class JcRawThrowInst(
     override val owner: JcMethod,
     val throwable: JcRawValue
 ) : JcRawInst {
@@ -152,7 +152,7 @@ data class JcRawCatchEntry(
     val endExclusive: JcRawLabelRef
 )
 
-data class JcRawCatchInst(
+class JcRawCatchInst(
     override val owner: JcMethod,
     val throwable: JcRawValue,
     val handler: JcRawLabelRef,
@@ -172,7 +172,7 @@ sealed interface JcRawBranchingInst : JcRawInst {
     val successors: List<JcRawLabelRef>
 }
 
-data class JcRawGotoInst(
+class JcRawGotoInst(
     override val owner: JcMethod,
     val target: JcRawLabelRef
 ) : JcRawBranchingInst {
@@ -189,7 +189,7 @@ data class JcRawGotoInst(
     }
 }
 
-data class JcRawIfInst(
+class JcRawIfInst(
     override val owner: JcMethod,
     val condition: JcRawConditionExpr,
     val trueBranch: JcRawLabelRef,
@@ -208,7 +208,7 @@ data class JcRawIfInst(
     }
 }
 
-data class JcRawSwitchInst(
+class JcRawSwitchInst(
     override val owner: JcMethod,
     val key: JcRawValue,
     val branches: Map<JcRawValue, JcRawLabelRef>,

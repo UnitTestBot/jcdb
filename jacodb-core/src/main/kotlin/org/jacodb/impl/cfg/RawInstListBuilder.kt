@@ -544,7 +544,12 @@ class RawInstListBuilder(
                     if (branchInst.key.dependsOn(value)) {
                         val freshVar = generateFreshLocalVar(branchInst.key.typeName)
                         insnList.addInst(JcRawAssignInst(method, freshVar, branchInst.key), index = 0)
-                        insnList[branchInstIdx + 2] = branchInst.copy(key = freshVar)
+                        insnList[branchInstIdx + 2] = JcRawSwitchInst(
+                            owner = branchInst.owner,
+                            key = freshVar,
+                            branches = branchInst.branches,
+                            default = branchInst.default
+                        )
                     }
                 }
 
@@ -555,7 +560,12 @@ class RawInstListBuilder(
                         insnList.addInst(JcRawAssignInst(method, freshVar, value), index = 0)
 
                         val updatedCondition = branchInst.condition.replace(fromValue = value, toValue = freshVar)
-                        insnList[branchInstIdx + 2] = branchInst.copy(condition = updatedCondition)
+                        insnList[branchInstIdx + 2] = JcRawIfInst(
+                            owner = branchInst.owner,
+                            condition = updatedCondition,
+                            trueBranch = branchInst.trueBranch,
+                            falseBranch = branchInst.falseBranch
+                        )
                     }
                 }
             }
