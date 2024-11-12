@@ -209,7 +209,7 @@ internal class Simplifier {
         val reservedValues = hashSetOf<JcRawValue>()
         val replacedInsts = hashSetOf<JcRawInst>()
 
-        val instructionIndex = hashMapOf<JcRawInst, Int>()
+        val instructionIndex = identityMap<JcRawInst, Int>()
         val assignInstructions = mutableListOf<JcRawAssignInst>()
         val firstValueAssignment = hashMapOf<JcRawValue, JcRawAssignInst>()
 
