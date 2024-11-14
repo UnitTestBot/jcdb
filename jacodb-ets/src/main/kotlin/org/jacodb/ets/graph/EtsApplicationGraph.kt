@@ -29,6 +29,7 @@ import org.jacodb.ets.model.EtsMethodSignature
 import org.jacodb.ets.model.EtsScene
 import org.jacodb.ets.utils.callExpr
 import org.jacodb.impl.util.Maybe
+import java.util.concurrent.atomic.AtomicInteger
 
 private val logger = KotlinLogging.logger {}
 
@@ -89,7 +90,135 @@ class EtsApplicationGraphImpl(
 
     private val cacheClassWithIdealSignature: MutableMap<EtsClassSignature, Maybe<EtsClass>> = hashMapOf()
     private val cacheMethodWithIdealSignature: MutableMap<EtsMethodSignature, Maybe<EtsMethod>> = hashMapOf()
+    private val cachePartiallyMatchFailedCallees: MutableSet<EtsMethodSignature> = hashSetOf()
+    private val cachePartiallyMultipleMatchesCallees: MutableMap<EtsMethodSignature, List<EtsMethod>> = hashMapOf()
     private val cachePartiallyMatchedCallees: MutableMap<EtsMethodSignature, List<EtsMethod>> = hashMapOf()
+
+    data class CalleeStats(
+        val stmtWithNoCall: AtomicInteger = AtomicInteger(0),
+        val unknownConstructor: AtomicInteger = AtomicInteger(0),
+        val constructorOfClassNotFound: AtomicInteger = AtomicInteger(0),
+        val resolvedConstructor: AtomicInteger = AtomicInteger(0),
+        val resolvedByTotallyMatchedCache: AtomicInteger = AtomicInteger(0),
+        val cachedTotalMatchAsUnknown: AtomicInteger = AtomicInteger(0),
+        val lookupWithIdealSignatureFailed: AtomicInteger = AtomicInteger(0),
+        val resolvedByIdealSignature: AtomicInteger = AtomicInteger(0),
+        val resolvedByNeighbour: AtomicInteger = AtomicInteger(0),
+        val resolvedByPartiallyMatchedCache: AtomicInteger = AtomicInteger(0),
+        val cachedPartialMatchAsUnknown: AtomicInteger = AtomicInteger(0),
+        val noPartialMatch: AtomicInteger = AtomicInteger(0),
+        val multiplePartialMatch: AtomicInteger = AtomicInteger(0),
+        val partialMatchFound: AtomicInteger = AtomicInteger(0)
+    ) {
+        val total: Int
+            get() = listOf(
+                unknownConstructor,
+                constructorOfClassNotFound,
+                resolvedConstructor,
+                resolvedByTotallyMatchedCache,
+                cachedTotalMatchAsUnknown,
+                lookupWithIdealSignatureFailed,
+                resolvedByIdealSignature,
+                resolvedByNeighbour,
+                resolvedByPartiallyMatchedCache,
+                cachedPartialMatchAsUnknown,
+                noPartialMatch,
+                multiplePartialMatch,
+                partialMatchFound
+            ).sumOf { it.get() }
+
+        val resolved: Int
+            get() = listOf(
+                resolvedConstructor,
+                resolvedByNeighbour,
+                resolvedByIdealSignature,
+                resolvedByPartiallyMatchedCache,
+                resolvedByTotallyMatchedCache,
+                partialMatchFound
+            ).sumOf { it.get() }
+
+        val unresolved: Int
+            get() = total - resolved
+
+        val constructors: Int
+            get() = listOf(
+                unknownConstructor,
+                resolvedConstructor,
+                constructorOfClassNotFound
+            ).sumOf { it.get() }
+
+        val resolvedByCache: Int
+            get() = listOf(
+                resolvedByTotallyMatchedCache,
+                resolvedByPartiallyMatchedCache
+            ).sumOf { it.get() }
+
+        val unresolvedByCache: Int
+            get() = listOf(
+                cachedTotalMatchAsUnknown,
+                cachedPartialMatchAsUnknown
+            ).sumOf { it.get() }
+
+        val cacheHits: Int
+            get() = resolvedByCache + unresolvedByCache
+
+        val cacheMisses: Int
+            get() = total - cacheHits
+
+        private fun show(description: String, property: AtomicInteger): String {
+            if (total == 0) {
+                return "[N/A%] $description ${property.get()}"
+            }
+            val percent = 100 * property.get() / total
+            return "[$percent%] $description: ${property.get()}"
+        }
+
+        private fun show(description: String, property: Int): String {
+            if (total == 0) {
+                return "[N/A%] $description $property"
+            }
+            val percent = 100 * property / total
+            return "[$percent%] $description: $property"
+        }
+
+        override fun toString(): String {
+            return """
+                CALLEE RESOLVER STATS:
+                - Errors:
+                   not a call expression: ${stmtWithNoCall.incrementAndGet()}
+                - Constructors:
+                    ${show("unknown class signature", unknownConstructor)}
+                    ${show("classpath lookup failed", constructorOfClassNotFound)}
+                    ${show("successfully resolved", resolvedConstructor)}
+                - Perfect matches:
+                    ${show("resolved by cache", resolvedByTotallyMatchedCache)}
+                    ${show("cached as unknown", cachedTotalMatchAsUnknown)}
+                    ${show("lookup failed", lookupWithIdealSignatureFailed)}
+                    ${show("successfully resolved", resolvedByIdealSignature)}
+                - Neighbours:
+                    ${show("resolved by neighbour", resolvedByNeighbour)}
+                - Partial matches:
+                    ${show("resolved by cache", resolvedByPartiallyMatchedCache)}
+                    ${show("cached as unknown", cachedPartialMatchAsUnknown)}
+                    ${show("no partial match", noPartialMatch)}
+                    ${show("multiple partial match", multiplePartialMatch)}
+                    ${show("successfully resolved", partialMatchFound)}
+                -------------------------------------------------
+                Summary:
+                + ${show("Total", total)}
+                
+                + ${show("Resolved", resolved)}
+                + ${show("Unresolved", unresolved)}
+                
+                + ${show("Constructors", constructors)}
+                
+                + ${show("Cache hits", cacheHits)}
+                + ${show("Cache misses", cacheMisses)}
+            """.trimIndent()
+        }
+    }
+
+    val stats = CalleeStats()
 
     private fun lookupClassWithIdealSignature(signature: EtsClassSignature): Maybe<EtsClass> {
         require(signature.isIdeal())
@@ -114,7 +243,10 @@ class EtsApplicationGraphImpl(
     }
 
     override fun callees(node: EtsStmt): Sequence<EtsMethod> {
-        val expr = node.callExpr ?: return emptySequence()
+        val expr = node.callExpr ?: run {
+            stats.stmtWithNoCall.incrementAndGet()
+            return emptySequence()
+        }
         val callee = expr.method
 
         // Note: the resolving code below expects that at least the current method signature is known.
@@ -126,6 +258,7 @@ class EtsApplicationGraphImpl(
         if (callee.name == CONSTRUCTOR_NAME) {
             if (!callee.enclosingClass.isIdeal()) {
                 // Constructor signature is garbage. Sorry, can't do anything in such case.
+                stats.unknownConstructor.incrementAndGet()
                 return emptySequence()
             }
 
@@ -134,8 +267,10 @@ class EtsApplicationGraphImpl(
 
             val cls = lookupClassWithIdealSignature(callee.enclosingClass)
             if (cls.isSome) {
+                stats.resolvedConstructor.incrementAndGet()
                 return sequenceOf(cls.getOrThrow().ctor)
             } else {
+                stats.constructorOfClassNotFound.incrementAndGet()
                 return emptySequence()
             }
         }
@@ -145,8 +280,10 @@ class EtsApplicationGraphImpl(
             if (callee in cacheMethodWithIdealSignature) {
                 val resolved = cacheMethodWithIdealSignature.getValue(callee)
                 if (resolved.isSome) {
+                    stats.resolvedByTotallyMatchedCache.incrementAndGet()
                     return sequenceOf(resolved.getOrThrow())
                 } else {
+                    stats.cachedTotalMatchAsUnknown.incrementAndGet()
                     return emptySequence()
                 }
             }
@@ -162,11 +299,13 @@ class EtsApplicationGraphImpl(
             }
             if (resolved.none()) {
                 cacheMethodWithIdealSignature[callee] = Maybe.none()
+                stats.lookupWithIdealSignatureFailed.incrementAndGet()
                 return emptySequence()
             }
             val r = resolved.singleOrNull()
                 ?: error("Multiple methods with the same complete signature: ${resolved.toList()}")
             cacheMethodWithIdealSignature[callee] = Maybe.some(r)
+            stats.resolvedByIdealSignature.incrementAndGet()
             return sequenceOf(r)
         }
 
@@ -191,12 +330,18 @@ class EtsApplicationGraphImpl(
             val s = neighbors.singleOrNull()
                 ?: error("Multiple methods with the same name: $neighbors")
             cachePartiallyMatchedCallees[callee] = listOf(s)
+            stats.resolvedByNeighbour.incrementAndGet()
             return sequenceOf(s)
         }
 
         // NOTE: cache lookup MUST be performed AFTER trying to match the neighbour!
         if (callee in cachePartiallyMatchedCallees) {
-            return cachePartiallyMatchedCallees.getValue(callee).asSequence()
+            val s = cachePartiallyMatchedCallees.getValue(callee).asSequence()
+            if (s.none())
+                stats.cachedPartialMatchAsUnknown.incrementAndGet()
+            else
+                stats.resolvedByPartiallyMatchedCache.incrementAndGet()
+            return s
         }
 
         // If the neighbour match failed,
@@ -212,14 +357,17 @@ class EtsApplicationGraphImpl(
             .toList()
         if (resolved.isEmpty()) {
             cachePartiallyMatchedCallees[callee] = emptyList()
+            stats.noPartialMatch.incrementAndGet()
             return emptySequence()
         }
         val r = resolved.singleOrNull() ?: run {
             logger.warn { "Multiple methods with the same partial signature '${callee}': $resolved" }
             cachePartiallyMatchedCallees[callee] = emptyList()
+            stats.multiplePartialMatch.incrementAndGet()
             return emptySequence()
         }
         cachePartiallyMatchedCallees[callee] = listOf(r)
+        stats.partialMatchFound.incrementAndGet()
         return sequenceOf(r)
     }
 
