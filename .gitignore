@@ -1,6 +1,7 @@
 .idea/
 .gradle/
 build/
+.kotlin/
 idea-community
 *.db
 /generated/
