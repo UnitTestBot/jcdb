@@ -21,6 +21,7 @@ import org.jacodb.ets.base.EtsInstanceFieldRef
 import org.jacodb.ets.base.EtsLocal
 import org.jacodb.ets.base.EtsNumberConstant
 import org.jacodb.ets.base.EtsReturnStmt
+import org.jacodb.ets.base.EtsStaticFieldRef
 import org.jacodb.ets.base.EtsThis
 import org.jacodb.ets.base.INSTANCE_INIT_METHOD_NAME
 import org.jacodb.ets.base.STATIC_INIT_METHOD_NAME
@@ -87,7 +88,7 @@ class EtsFileTest {
             val method = cls.methods.single { it.name == INSTANCE_INIT_METHOD_NAME }
             assertEquals(3, method.cfg.instructions.size)
 
-            // Local("this") := ThisRef
+            // this := ThisRef
             run {
                 val stmt = method.cfg.instructions[0]
                 assertIs<EtsAssignStmt>(stmt)
@@ -101,7 +102,7 @@ class EtsFileTest {
                 assertEquals("Foo", rhv.type.typeName)
             }
 
-            // Local("this").x := 99
+            // this.x := 99
             run {
                 val stmt = method.cfg.instructions[1]
                 assertIs<EtsAssignStmt>(stmt)
@@ -134,7 +135,7 @@ class EtsFileTest {
             val method = cls.methods.single { it.name == STATIC_INIT_METHOD_NAME }
             assertEquals(3, method.cfg.instructions.size)
 
-            // Local("this") := ThisRef
+            // this := ThisRef
             run {
                 val stmt = method.cfg.instructions[0]
                 assertIs<EtsAssignStmt>(stmt)
@@ -148,17 +149,16 @@ class EtsFileTest {
                 assertEquals("Foo", rhv.type.typeName)
             }
 
-            // Local("this").y := 111
+            // this.y := 111
             run {
                 val stmt = method.cfg.instructions[1]
                 assertIs<EtsAssignStmt>(stmt)
 
                 val lhv = stmt.lhv
-                assertIs<EtsInstanceFieldRef>(lhv)
+                assertIs<EtsStaticFieldRef>(lhv)
 
-                val instance = lhv.instance
-                assertIs<EtsLocal>(instance)
-                assertEquals("this", instance.name)
+                val clazz = lhv.field.enclosingClass
+                assertEquals("Foo", clazz.name)
 
                 val field = lhv.field
                 assertEquals("y", field.name)
@@ -170,7 +170,97 @@ class EtsFileTest {
 
             // return
             run {
-                val stmt = method.cfg.instructions[2]
+                val stmt = method.cfg.instructions.last()
+                assertIs<EtsReturnStmt>(stmt)
+                assertEquals(null, stmt.returnValue)
+            }
+        }
+
+        // static field in instance method
+        run {
+            val method = cls.methods.single { it.name == "foo" }
+
+            // this := ThisRef
+            run {
+                val stmt = method.cfg.instructions[0]
+                assertIs<EtsAssignStmt>(stmt)
+
+                val lhv = stmt.lhv
+                assertIs<EtsLocal>(lhv)
+                assertEquals("this", lhv.name)
+
+                val rhv = stmt.rhv
+                assertIs<EtsThis>(rhv)
+                assertEquals("Foo", rhv.type.typeName)
+            }
+
+            // Foo.y := 222
+            run {
+                val stmt = method.cfg.instructions[1]
+                assertIs<EtsAssignStmt>(stmt)
+
+                val lhv = stmt.lhv
+                assertIs<EtsStaticFieldRef>(lhv)
+
+                val clazz = lhv.field.enclosingClass
+                assertEquals("Foo", clazz.name)
+
+                val field = lhv.field
+                assertEquals("y", field.name)
+
+                val rhv = stmt.rhv
+                assertIs<EtsNumberConstant>(rhv)
+                assertEquals(222.0, rhv.value)
+            }
+
+            // return
+            run {
+                val stmt = method.cfg.instructions.last()
+                assertIs<EtsReturnStmt>(stmt)
+                assertEquals(null, stmt.returnValue)
+            }
+        }
+
+        // static field in static method
+        run {
+            val method = cls.methods.single { it.name == "bar" }
+
+            // this := ThisRef
+            run {
+                val stmt = method.cfg.instructions[0]
+                assertIs<EtsAssignStmt>(stmt)
+
+                val lhv = stmt.lhv
+                assertIs<EtsLocal>(lhv)
+                assertEquals("this", lhv.name)
+
+                val rhv = stmt.rhv
+                assertIs<EtsThis>(rhv)
+                assertEquals("Foo", rhv.type.typeName)
+            }
+
+            // this.y := 333
+            run {
+                val stmt = method.cfg.instructions[1]
+                assertIs<EtsAssignStmt>(stmt)
+
+                val lhv = stmt.lhv
+                assertIs<EtsStaticFieldRef>(lhv)
+
+                val clazz = lhv.field.enclosingClass
+                assertEquals("Foo", clazz.name)
+
+                val field = lhv.field
+                assertEquals("y", field.name)
+
+                val rhv = stmt.rhv
+                assertIs<EtsNumberConstant>(rhv)
+                assertEquals(333.0, rhv.value)
+            }
+
+            // return
+            run {
+                val stmt = method.cfg.instructions.last()
                 assertIs<EtsReturnStmt>(stmt)
                 assertEquals(null, stmt.returnValue)
             }
