@@ -7,8 +7,12 @@ plugins {
 
 develocity {
     buildScan {
+        // Accept the term of use for the build scan plugin:
         termsOfUseUrl.set("https://gradle.com/help/legal-terms-of-use")
         termsOfUseAgree.set("yes")
+
+        // Publish build scans on-demand, when `--scan` option is provided:
+        publishing.onlyIf { false }
     }
 }
 
