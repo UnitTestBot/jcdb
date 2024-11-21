@@ -45,8 +45,8 @@ import org.jacodb.taint.configuration.TypeMatches
 
 // TODO: replace 'JcInt' with 'CommonInt', etc
 
-context(Traits<CommonMethod, CommonInst>)
 open class BasicConditionEvaluator(
+    val traits: Traits<CommonMethod, CommonInst>,
     internal val positionResolver: PositionResolver<Maybe<CommonValue>>,
 ) : ConditionVisitor<Boolean> {
 
@@ -78,35 +78,35 @@ open class BasicConditionEvaluator(
         error("Unexpected condition: $condition")
     }
 
-    override fun visit(condition: IsConstant): Boolean {
+    override fun visit(condition: IsConstant): Boolean = with(traits) {
         positionResolver.resolve(condition.position).onSome {
             return it.isConstant()
         }
         return false
     }
 
-    override fun visit(condition: ConstantEq): Boolean {
+    override fun visit(condition: ConstantEq): Boolean = with(traits) {
         positionResolver.resolve(condition.position).onSome { value ->
             return value.eqConstant(condition.value)
         }
         return false
     }
 
-    override fun visit(condition: ConstantLt): Boolean {
+    override fun visit(condition: ConstantLt): Boolean = with(traits) {
         positionResolver.resolve(condition.position).onSome { value ->
             return value.ltConstant(condition.value)
         }
         return false
     }
 
-    override fun visit(condition: ConstantGt): Boolean {
+    override fun visit(condition: ConstantGt): Boolean = with(traits) {
         positionResolver.resolve(condition.position).onSome { value ->
             return value.gtConstant(condition.value)
         }
         return false
     }
 
-    override fun visit(condition: ConstantMatches): Boolean {
+    override fun visit(condition: ConstantMatches): Boolean  = with(traits){
         positionResolver.resolve(condition.position).onSome { value ->
             return value.matches(condition.pattern)
         }
@@ -135,13 +135,13 @@ open class BasicConditionEvaluator(
     }
 }
 
-context(Traits<CommonMethod, CommonInst>)
 class FactAwareConditionEvaluator(
-    private val fact: Tainted,
+    traits: Traits<CommonMethod, CommonInst>,
     positionResolver: PositionResolver<Maybe<CommonValue>>,
-) : BasicConditionEvaluator(positionResolver) {
+    private val fact: Tainted,
+) : BasicConditionEvaluator(traits, positionResolver) {
 
-    override fun visit(condition: ContainsMark): Boolean {
+    override fun visit(condition: ContainsMark): Boolean = with(traits) {
         if (fact.mark != condition.mark) return false
         positionResolver.resolve(condition.position).onSome { value ->
             val variable = value.toPath()

@@ -44,7 +44,9 @@ private val logger = mu.KotlinLogging.logger {}
 
 class PandaDemoCases {
 
-    companion object : PandaStaticTraits
+    companion object {
+        private val traits = PandaStaticTraits
+    }
 
     private fun loadProject(path: String): PandaProject {
         val program = loadProgram("/$path")
@@ -78,6 +80,7 @@ class PandaDemoCases {
                 rules.ifEmpty { null }
             }
         val manager = TaintManager(
+            traits = traits,
             graph = graph,
             unitResolver = unitResolver,
             getConfigForMethod = getConfigForMethod,
@@ -112,7 +115,7 @@ class PandaDemoCases {
                             ),
                         )
                     )
-                    if (method.isConstructor && method.enclosingClass.name == "escompat.ArrayBuffer") add(
+                    if (with(traits) { method.isConstructor } && method.enclosingClass.name == "escompat.ArrayBuffer") add(
                         TaintMethodSink(
                             method = method,
                             ruleNote = "ArrayBuffer constructor",
@@ -125,6 +128,7 @@ class PandaDemoCases {
                 rules.ifEmpty { null }
             }
         val manager = TaintManager(
+            traits = traits,
             graph = graph,
             unitResolver = unitResolver,
             getConfigForMethod = getConfigForMethod,

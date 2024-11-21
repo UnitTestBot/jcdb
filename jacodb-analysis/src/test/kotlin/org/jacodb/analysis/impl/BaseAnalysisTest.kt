@@ -42,7 +42,7 @@ private val logger = mu.KotlinLogging.logger {}
 
 abstract class BaseAnalysisTest : BaseTest() {
 
-    companion object : WithGlobalDB(UnknownClasses), JcTraits {
+    companion object : WithGlobalDB(UnknownClasses) {
 
         fun getJulietClasses(
             cweNum: Int,
@@ -98,8 +98,10 @@ abstract class BaseAnalysisTest : BaseTest() {
         } else {
             super.cp
         }
-    }.also {
-        JcTraits.cp = it
+    }
+
+    val traits: JcTraits by lazy {
+        JcTraits(cp)
     }
 
     protected val graph: JcApplicationGraph by lazy {

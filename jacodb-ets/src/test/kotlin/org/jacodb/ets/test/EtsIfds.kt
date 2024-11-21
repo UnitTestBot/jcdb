@@ -53,7 +53,9 @@ private val logger = mu.KotlinLogging.logger {}
 @Disabled("Have several issues with EtsIR")
 class EtsIfds {
 
-    companion object : EtsTraits {
+    companion object {
+        private val traits = EtsTraits
+
         private const val BASE_PATH = "/etsir/samples"
 
         private fun loadSample(programName: String): EtsFile {
@@ -96,6 +98,7 @@ class EtsIfds {
                 rules.ifEmpty { null }
             }
         val manager = TaintManager(
+            traits = traits,
             graph = graph,
             unitResolver = unitResolver,
             getConfigForMethod = getConfigForMethod,
@@ -141,6 +144,7 @@ class EtsIfds {
                 rules.ifEmpty { null }
             }
         val manager = TaintManager(
+            traits = traits,
             graph = graph,
             unitResolver = unitResolver,
             getConfigForMethod = getConfigForMethod,
@@ -205,6 +209,7 @@ class EtsIfds {
                 rules.ifEmpty { null }
             }
         val manager = TaintManager(
+            traits = traits,
             graph = graph,
             unitResolver = unitResolver,
             getConfigForMethod = getConfigForMethod,
@@ -245,6 +250,7 @@ class EtsIfds {
                 rules.ifEmpty { null }
             }
         val manager = TaintManager(
+            traits = traits,
             graph = graph,
             unitResolver = unitResolver,
             getConfigForMethod = getConfigForMethod,
@@ -283,6 +289,7 @@ class EtsIfds {
                 rules.ifEmpty { null }
             }
         val manager = TaintManager(
+            traits = traits,
             graph = graph,
             unitResolver = unitResolver,
             getConfigForMethod = getConfigForMethod,
@@ -329,6 +336,7 @@ class EtsIfds {
                 rules.ifEmpty { null }
             }
         val manager = TaintManager(
+            traits = traits,
             graph = graph,
             unitResolver = unitResolver,
             getConfigForMethod = getConfigForMethod,
@@ -408,6 +416,7 @@ class EtsIfds {
                 rules.ifEmpty { null }
             }
         val manager = TaintManager(
+            traits = traits,
             graph = graph,
             unitResolver = unitResolver,
             getConfigForMethod = getConfigForMethod,

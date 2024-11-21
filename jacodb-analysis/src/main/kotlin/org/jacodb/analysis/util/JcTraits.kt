@@ -58,18 +58,10 @@ import org.jacodb.api.jvm.ext.cfg.callExpr as _callExpr
 
 /**
  * JVM-specific extensions for analysis.
- *
- * ### Usage:
- * ```
- * class MyClass {
- *     companion object : JcTraits
- * }
- * ```
  */
-interface JcTraits : Traits<JcMethod, JcInst> {
-
-    val cp: JcClasspath
-        get() = JcTraits.cp
+class JcTraits(
+    val cp: JcClasspath,
+) : Traits<JcMethod, JcInst> {
 
     override val JcMethod.thisInstance: JcThis
         get() = _thisInstance
@@ -171,11 +163,6 @@ interface JcTraits : Traits<JcMethod, JcInst> {
 
     override fun JcInst.getOperands(): List<JcExpr> {
         return operands
-    }
-
-    // Ensure that all methods are default-implemented in the interface itself:
-    companion object : JcTraits {
-        override lateinit var cp: JcClasspath
     }
 }
 

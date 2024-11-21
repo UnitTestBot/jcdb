@@ -51,13 +51,12 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
-import kotlin.time.ExperimentalTime
 import kotlin.time.TimeSource
 
 private val logger = mu.KotlinLogging.logger {}
 
-context(Traits<Method, Statement>)
 open class TaintManager<Method, Statement>(
+    val traits: Traits<Method, Statement>,
     protected val graph: ApplicationGraph<Method, Statement>,
     protected val unitResolver: UnitResolver<Method>,
     private val useBidiRunner: Boolean = false,
@@ -91,7 +90,7 @@ open class TaintManager<Method, Statement>(
                 unitResolver = unitResolver,
                 unit = unit,
                 { manager ->
-                    val analyzer = TaintAnalyzer(graph, getConfigForMethod)
+                    val analyzer = TaintAnalyzer(traits, graph, getConfigForMethod)
                     UniRunner(
                         manager = manager,
                         graph = graph,
@@ -102,7 +101,7 @@ open class TaintManager<Method, Statement>(
                     )
                 },
                 { manager ->
-                    val analyzer = BackwardTaintAnalyzer(graph)
+                    val analyzer = BackwardTaintAnalyzer(traits, graph)
                     UniRunner(
                         manager = manager,
                         graph = graph.reversed,
@@ -114,7 +113,7 @@ open class TaintManager<Method, Statement>(
                 }
             )
         } else {
-            val analyzer = TaintAnalyzer(graph, getConfigForMethod)
+            val analyzer = TaintAnalyzer(traits, graph, getConfigForMethod)
             UniRunner(
                 manager = this@TaintManager,
                 graph = graph,
@@ -151,7 +150,6 @@ open class TaintManager<Method, Statement>(
     }
 
     @JvmName("analyze") // needed for Java interop because of inline class (Duration)
-    @OptIn(ExperimentalTime::class)
     fun analyze(
         startMethods: List<Method>,
         timeout: Duration = 3600.seconds,

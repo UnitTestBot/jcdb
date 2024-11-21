@@ -62,9 +62,10 @@ data class AnalysisConfig(val analyses: Map<String, AnalysesOptions>)
 
 fun launchAnalysesByConfig(
     config: AnalysisConfig,
+    traits: JcTraits,
     graph: JcApplicationGraph,
     methods: List<JcMethod>,
-): List<List<VulnerabilityInstance<*, JcInst>>> = with(JcTraits) {
+): List<List<VulnerabilityInstance<*, JcInst>>> {
     return config.analyses.mapNotNull { (analysis, options) ->
         val unitResolver = options["UnitResolver"]?.let {
             UnitResolver.getByName(it)
@@ -72,17 +73,17 @@ fun launchAnalysesByConfig(
 
         when (analysis) {
             "NPE" -> {
-                val manager = NpeManager(graph, unitResolver)
+                val manager = NpeManager(traits, graph, unitResolver)
                 manager.analyze(methods, timeout = 60.seconds).map { it.toSarif(manager.vulnerabilityTraceGraph(it)) }
             }
 
             "Unused" -> {
-                val manager = UnusedVariableManager(graph, unitResolver)
+                val manager = UnusedVariableManager(traits, graph, unitResolver)
                 manager.analyze(methods, timeout = 60.seconds).map { it.toSarif() }
             }
 
             "SQL" -> {
-                val manager = TaintManager(graph, unitResolver)
+                val manager = TaintManager(traits, graph, unitResolver)
                 manager.analyze(methods, timeout = 60.seconds).map { it.toSarif(manager.vulnerabilityTraceGraph(it)) }
             }
 
@@ -156,7 +157,6 @@ fun main(args: Array<String>) {
         }
         jacodb.classpath(classpathAsFiles)
     }
-    JcTraits.cp = cp
 
     val startClassesAsList = startClasses.split(";")
     val startJcClasses = ConcurrentHashMap.newKeySet<JcClassOrInterface>()
@@ -169,11 +169,12 @@ fun main(args: Array<String>) {
     }).get()
     val startJcMethods = startJcClasses.flatMap { it.declaredMethods }.filter { !it.isPrivate }
 
+    val traits = JcTraits(cp)
     val graph = runBlocking {
         cp.newApplicationGraphForAnalysis()
     }
 
-    val vulnerabilities = launchAnalysesByConfig(config, graph, startJcMethods).flatten()
+    val vulnerabilities = launchAnalysesByConfig(config, traits, graph, startJcMethods).flatten()
     val report = sarifReportFromVulnerabilities(vulnerabilities)
     val prettyJson = Json {
         prettyPrint = true

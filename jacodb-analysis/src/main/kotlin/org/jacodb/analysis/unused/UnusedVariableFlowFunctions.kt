@@ -21,15 +21,14 @@ import org.jacodb.analysis.ifds.FlowFunctions
 import org.jacodb.analysis.ifds.isOnHeap
 import org.jacodb.analysis.util.Traits
 import org.jacodb.api.common.CommonMethod
-import org.jacodb.api.common.CommonProject
 import org.jacodb.api.common.analysis.ApplicationGraph
 import org.jacodb.api.common.cfg.CommonAssignInst
 import org.jacodb.api.common.cfg.CommonInst
 import org.jacodb.api.jvm.cfg.JcSpecialCallExpr
 import org.jacodb.api.jvm.cfg.JcStaticCallExpr
 
-context(Traits<Method, Statement>)
 class UnusedVariableFlowFunctions<Method, Statement>(
+    val traits: Traits<Method, Statement>,
     private val graph: ApplicationGraph<Method, Statement>,
 ) : FlowFunctions<UnusedVariableDomainFact, Method, Statement>
     where Method : CommonMethod,
@@ -50,7 +49,7 @@ class UnusedVariableFlowFunctions<Method, Statement>(
         }
 
         if (fact == UnusedVariableZeroFact) {
-            val toPath = current.lhv.toPath()
+            val toPath = with(traits) { current.lhv.toPath() }
             if (!toPath.isOnHeap) {
                 return@FlowFunction setOf(UnusedVariableZeroFact, UnusedVariable(toPath, current))
             } else {
@@ -59,9 +58,9 @@ class UnusedVariableFlowFunctions<Method, Statement>(
         }
         check(fact is UnusedVariable)
 
-        val toPath = current.lhv.toPath()
+        val toPath = with(traits) { current.lhv.toPath() }
         val default = if (toPath == fact.variable) emptySet() else setOf(fact)
-        val fromPath = current.rhv.toPathOrNull()
+        val fromPath = with(traits) { current.rhv.toPathOrNull() }
             ?: return@FlowFunction default
 
         if (fromPath.isOnHeap || toPath.isOnHeap) {
@@ -84,7 +83,7 @@ class UnusedVariableFlowFunctions<Method, Statement>(
         callStatement: Statement,
         calleeStart: Statement,
     ) = FlowFunction<UnusedVariableDomainFact> { fact ->
-        val callExpr = callStatement.getCallExpr()
+        val callExpr = with(traits) { callStatement.getCallExpr() }
             ?: error("Call statement should have non-null callExpr")
 
         if (fact == UnusedVariableZeroFact) {
@@ -95,9 +94,9 @@ class UnusedVariableFlowFunctions<Method, Statement>(
             return@FlowFunction buildSet {
                 add(UnusedVariableZeroFact)
                 val callee = graph.methodOf(calleeStart)
-                val formalParams = getArgumentsOf(callee)
+                val formalParams = traits.getArgumentsOf(callee)
                 for (formal in formalParams) {
-                    add(UnusedVariable(formal.toPath(), callStatement))
+                    add(UnusedVariable(with(traits) { formal.toPath() }, callStatement))
                 }
             }
         }

@@ -21,7 +21,6 @@ import mu.KotlinLogging
 import org.jacodb.analysis.ifds.SingletonUnitResolver
 import org.jacodb.analysis.taint.TaintAnalysisOptions
 import org.jacodb.analysis.taint.TaintManager
-import org.jacodb.analysis.util.JcTraits
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.impl.features.InMemoryHierarchy
@@ -49,8 +48,6 @@ class Ifds2UpperBoundTest : BaseAnalysisTest() {
         } else {
             super.cp
         }
-    }.also {
-        JcTraits.cp = it
     }
 
     @Test
@@ -62,7 +59,7 @@ class Ifds2UpperBoundTest : BaseAnalysisTest() {
     private inline fun <reified T> testOneMethod(methodName: String) {
         val method = cp.findClass<T>().declaredMethods.single { it.name == methodName }
         val unitResolver = SingletonUnitResolver
-        val manager = TaintManager(graph, unitResolver)
+        val manager = TaintManager(traits, graph, unitResolver)
         val sinks = manager.analyze(listOf(method), timeout = 60.seconds)
         logger.info { "Sinks: ${sinks.size}" }
         for (sink in sinks) {

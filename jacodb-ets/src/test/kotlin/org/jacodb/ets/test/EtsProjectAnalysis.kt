@@ -16,9 +16,6 @@
 
 package org.jacodb.ets.test
 
-import org.jacodb.ets.test.utils.getConfigForMethod
-import org.jacodb.ets.test.utils.loadEtsFileFromResource
-import org.jacodb.ets.test.utils.loadRules
 import org.jacodb.analysis.ifds.SingletonUnit
 import org.jacodb.analysis.ifds.UnitResolver
 import org.jacodb.analysis.taint.TaintManager
@@ -30,8 +27,11 @@ import org.jacodb.ets.graph.EtsApplicationGraphImpl
 import org.jacodb.ets.model.EtsFile
 import org.jacodb.ets.model.EtsMethod
 import org.jacodb.ets.model.EtsScene
+import org.jacodb.ets.test.utils.getConfigForMethod
 import org.jacodb.ets.test.utils.getResourcePath
 import org.jacodb.ets.test.utils.getResourceStream
+import org.jacodb.ets.test.utils.loadEtsFileFromResource
+import org.jacodb.ets.test.utils.loadRules
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIf
 import java.nio.file.Files
@@ -50,7 +50,9 @@ class EtsProjectAnalysis {
     private var totalPathEdges = 0
     private var totalSinks: MutableList<TaintVulnerability<EtsStmt>> = mutableListOf()
 
-    companion object : EtsTraits {
+    companion object {
+        private val traits = EtsTraits
+
         private const val SOURCE_PROJECT_PATH = "/projects/applications_app_samples/source/applications_app_samples/code/SuperFeature/DistributedAppDev/ArkTSDistributedCalc"
         private const val PROJECT_PATH = "/projects/applications_app_samples/etsir/ast/ArkTSDistributedCalc"
         private const val START_PATH = "/entry/src/main/ets"
@@ -140,6 +142,7 @@ class EtsProjectAnalysis {
         val graph = EtsApplicationGraphImpl(project)
         val unitResolver = UnitResolver<EtsMethod> { SingletonUnit }
         val manager = TaintManager(
+            traits = traits,
             graph = graph,
             unitResolver = unitResolver,
             getConfigForMethod = { method -> getConfigForMethod(method, rules) },

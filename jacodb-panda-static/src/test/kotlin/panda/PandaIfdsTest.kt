@@ -46,7 +46,9 @@ private val logger = mu.KotlinLogging.logger {}
 
 class PandaIfdsTest {
 
-    companion object : PandaStaticTraits
+    companion object {
+        private val traits = PandaStaticTraits
+    }
 
     private fun stdlibAvailable() = EtsStdlib.stdlibAvailable()
 
@@ -114,6 +116,7 @@ class PandaIfdsTest {
                 rules.ifEmpty { null }
             }
         val manager = TaintManager(
+            traits = traits,
             graph = graph,
             unitResolver = unitResolver,
             getConfigForMethod = getConfigForMethod,
