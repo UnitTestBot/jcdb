@@ -19,6 +19,7 @@ dependencies {
     testImplementation(testFixtures(project(":jacodb-core")))
     testImplementation(Libs.mockk)
 
+    testFixturesImplementation(Libs.kotlin_logging)
     testFixturesImplementation(Libs.junit_jupiter_api)
 }
 
