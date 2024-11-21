@@ -17,9 +17,9 @@
 package org.jacodb.impl.features
 
 import org.jacodb.api.jvm.*
-import org.jacodb.api.jvm.storage.ers.compressed
-import org.jacodb.api.jvm.storage.ers.links
-import org.jacodb.api.jvm.storage.ers.nonSearchable
+import org.jacodb.api.storage.ers.compressed
+import org.jacodb.api.storage.ers.links
+import org.jacodb.api.storage.ers.nonSearchable
 import org.jacodb.impl.asSymbolId
 import org.jacodb.impl.fs.PersistenceClassSource
 import org.jacodb.impl.fs.className
@@ -254,7 +254,7 @@ object Usages : JcFeature<UsageFeatureRequest, UsageFeatureResponse> {
                 noSqlAction = { txn ->
                     val classNameIds =
                         classNames.mapTo(mutableSetOf()) { className -> className.asSymbolId(symbolInterner) }
-                    txn.find("Callee", "calleeNameId", name.asSymbolId(symbolInterner).compressed).asSequence()
+                    txn.find("Callee", "calleeNameId", name.asSymbolId(symbolInterner).compressed)
                         .filter { callee ->
                             callee.getCompressedBlob<Long>("calleeClassId") in classNameIds &&
                                     callee.getCompressed<Long>("locationId")!! in locationIds &&

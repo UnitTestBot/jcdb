@@ -30,7 +30,7 @@ import org.jacodb.api.jvm.JcSignal
 import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.jvm.cfg.JcInstList
 import org.jacodb.api.jvm.cfg.JcRawInst
-import org.jacodb.api.jvm.storage.ers.compressed
+import org.jacodb.api.storage.ers.compressed
 import org.jacodb.approximation.TransformerIntoVirtual.transformMethodIntoVirtual
 import org.jacodb.approximation.annotation.Approximate
 import org.jacodb.impl.cfg.JcInstListImpl
@@ -93,11 +93,11 @@ object Approximations : JcFeature<Any?, Any?>, JcClassExtFeature, JcInstExtFeatu
                     },
                     noSqlAction = { txn ->
                         val valueId = persistence.findSymbolId("value")
-                        txn.find("Annotation", "nameId", approxSymbol.compressed).asSequence()
+                        txn.find("Annotation", "nameId", approxSymbol.compressed)
                             .filter { it.getCompressedBlob<Int>("refKind") == RefKind.CLASS.ordinal }
                             .flatMap { annotation ->
                                 annotation.getLink("ref").let { clazz ->
-                                    annotation.getLinks("values").asSequence().map { clazz to it }
+                                    annotation.getLinks("values").map { clazz to it }
                                 }
                             }.filter { (_, annotationValue) ->
                                 valueId == annotationValue["nameId"]

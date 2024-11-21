@@ -38,35 +38,33 @@ buildscript {
     }
 }
 
-plugins {
-    `java-test-fixtures`
-}
-
 kotlin.sourceSets["main"].kotlin {
     srcDir("src/main/jooq")
     srcDir("src/main/ers/jooq")
 }
 
 dependencies {
-    implementation(project(":jacodb-api-jvm"))
+    api(project(":jacodb-api-jvm"))
+    compileOnly(project(":jacodb-storage"))
 
     implementation(Libs.kotlin_logging)
-    implementation(Libs.kotlinx_metadata_jvm)
+    implementation(Libs.kotlin_metadata_jvm)
     implementation(Libs.kotlinx_serialization_cbor)
     implementation(Libs.jdot)
     implementation(Libs.guava)
     implementation(Libs.sqlite)
-    implementation(Libs.xodusUtils)
-    implementation(Libs.xodusEnvironment)
     implementation(Libs.hikaricp)
-    implementation(Libs.lmdb_java)
-    implementation(Libs.rocks_db)
+    implementation(Libs.xodusUtils)
 
+    testImplementation(testFixtures(project(":jacodb-storage")))
     testImplementation(Libs.javax_activation)
     testImplementation(Libs.javax_mail)
     testImplementation(Libs.joda_time)
     testImplementation(Libs.slf4j_simple)
     testImplementation(Libs.hikaricp)
+    testImplementation(Libs.xodusEnvironment)
+    testImplementation(Libs.lmdb_java)
+    testImplementation(Libs.rocks_db)
 
     testFixturesImplementation(project(":jacodb-api-jvm"))
     testFixturesImplementation(kotlin("reflect"))
@@ -74,6 +72,7 @@ dependencies {
     testFixturesImplementation(Libs.junit_jupiter)
     testFixturesImplementation(Libs.guava)
     testFixturesImplementation(Libs.jetbrains_annotations)
+    testFixturesImplementation(Libs.kotlin_logging)
     testFixturesImplementation(Libs.kotlinx_coroutines_core)
     testFixturesImplementation(Libs.jgit_test_only_lib)
     testFixturesImplementation(Libs.commons_compress_test_only_lib)

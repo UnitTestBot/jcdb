@@ -189,7 +189,7 @@ class JcRawGotoInst(
     }
 }
 
-data class JcRawIfInst(
+class JcRawIfInst(
     override val owner: JcMethod,
     val condition: JcRawConditionExpr,
     val trueBranch: JcRawLabelRef,
@@ -208,7 +208,7 @@ data class JcRawIfInst(
     }
 }
 
-data class JcRawSwitchInst(
+class JcRawSwitchInst(
     override val owner: JcMethod,
     val key: JcRawValue,
     val branches: Map<JcRawValue, JcRawLabelRef>,
@@ -692,8 +692,25 @@ data class BsmMethodTypeArg(val argumentTypes: List<TypeName>, val returnType: T
     override fun toString(): String = "(${argumentTypes.joinToString { it.typeName }}:${returnType.typeName})"
 }
 
+sealed interface BsmHandleTag {
+    enum class FieldHandle : BsmHandleTag {
+        GET_FIELD,
+        GET_STATIC,
+        PUT_FIELD,
+        PUT_STATIC,
+    }
+
+    enum class MethodHandle : BsmHandleTag {
+        INVOKE_VIRTUAL,
+        INVOKE_STATIC,
+        INVOKE_SPECIAL,
+        NEW_INVOKE_SPECIAL,
+        INVOKE_INTERFACE,
+    }
+}
+
 data class BsmHandle(
-    val tag: Int,
+    val tag: BsmHandleTag,
     val declaringClass: TypeName,
     val name: String,
     val argTypes: List<TypeName>,

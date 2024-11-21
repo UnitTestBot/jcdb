@@ -16,8 +16,13 @@
 
 package org.jacodb.impl.types
 
-import org.jacodb.api.jvm.*
-import org.jacodb.api.jvm.ext.isNullable
+import org.jacodb.api.jvm.JcField
+import org.jacodb.api.jvm.JcRefType
+import org.jacodb.api.jvm.JcSubstitutor
+import org.jacodb.api.jvm.JcType
+import org.jacodb.api.jvm.JcTypedField
+import org.jacodb.impl.bytecode.isNullable
+import org.jacodb.api.jvm.throwClassNotFound
 import org.jacodb.impl.bytecode.JcAnnotationImpl
 import org.jacodb.impl.bytecode.JcFieldImpl
 import org.jacodb.impl.types.signature.FieldResolutionImpl
@@ -44,17 +49,28 @@ class JcTypedFieldImpl(
 
     override val type: JcType by lazy {
         val typeName = field.type.typeName
-        val type = resolvedType?.let {
-            classpath.typeOf(substitutor.substitute(it))
-        } ?: classpath.findTypeOrNull(field.type.typeName)?.copyWithAnnotations(
-            (field as? JcFieldImpl)?.typeAnnotationInfos?.map {
-                JcAnnotationImpl(it, field.enclosingClass.classpath)
-            } ?: listOf()
-        ) ?: typeName.throwClassNotFound()
-
-        field.isNullable?.let {
-            (type as? JcRefType)?.copyWithNullability(it)
-        } ?: type
+        val rt = resolvedType
+        if (rt != null) {
+            classpath.typeOf(substitutor.substitute(rt))
+        } else {
+            val type = classpath.findTypeOrNull(field.type.typeName)?.copyWithAnnotations(
+                (field as? JcFieldImpl)?.typeAnnotationInfos?.map {
+                    JcAnnotationImpl(it, field.enclosingClass.classpath)
+                } ?: listOf()
+            ) ?: typeName.throwClassNotFound()
+            field.isNullable?.let {
+                (type as? JcRefType)?.copyWithNullability(it)
+            } ?: type
+        }
     }
 
+    // delegate identity to JcField
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+        return other is JcTypedFieldImpl && field == other.field
+    }
+
+    override fun hashCode(): Int = field.hashCode()
 }

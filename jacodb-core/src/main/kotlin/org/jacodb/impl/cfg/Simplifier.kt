@@ -109,7 +109,7 @@ internal class Simplifier {
             val uses = computeUseCases(instructionList)
             val (replacements, instructionsToDelete) = computeReplacements(instructionList, uses)
             instructionList = instructionList
-                .map(ExprMapper(replacements.toMap()))
+                .map(ExprMapper(replacements))
                 .filter(InstructionFilter { it !in instructionsToDelete })
         } while (replacements.isNotEmpty())
 
@@ -204,49 +204,67 @@ internal class Simplifier {
     private fun computeReplacements(
         instList: JcInstList<JcRawInst>,
         uses: Map<JcRawSimpleValue, Set<JcRawInst>>,
-    ): Pair<Map<JcRawLocalVar, JcRawValue>, Set<JcRawInst>> {
-        val replacements = mutableMapOf<JcRawLocalVar, JcRawValue>()
-        val reservedValues = mutableSetOf<JcRawValue>()
-        val replacedInsts = mutableSetOf<JcRawInst>()
+    ): Pair<Map<JcRawExpr, JcRawExpr>, Set<JcRawInst>> {
+        val replacements = hashMapOf<JcRawExpr, JcRawExpr>()
+        val reservedValues = hashSetOf<JcRawValue>()
+        val replacedInsts = hashSetOf<JcRawInst>()
 
-        for (inst in instList) {
-            if (inst is JcRawAssignInst) {
-                val lhv = inst.lhv
-                val rhv = inst.rhv
-                if (lhv is JcRawSimpleValue
-                    && rhv is JcRawLocalVar
-                    && uses.getOrDefault(rhv, emptySet()).let { it.size == 1 && it.firstOrNull() == inst }
-                    && rhv !in reservedValues
-                ) {
-                    val lhvUsage = uses.getOrDefault(lhv, emptySet()).firstOrNull()
-                    val assignInstructionToReplacement = instList.firstOrNull { it is JcRawAssignInst && it.lhv == lhv }
-                    val assignInstructionToRhv = instList.firstOrNull { it is JcRawAssignInst && it.lhv == rhv}
-                    val didNotAssignedBefore =
-                        lhvUsage == null ||
-                            assignInstructionToReplacement == null ||
-                            !instList.isBefore(assignInstructionToReplacement, lhvUsage) ||
-                            assignInstructionToRhv == null ||
-                            instList.areSequential(assignInstructionToRhv, inst)
-                    if (lhvUsage == null || !instList.isBefore(lhvUsage, inst)) {
-                        if (didNotAssignedBefore) {
-                            replacements[rhv] = lhv
-                            reservedValues += lhv
-                            replacedInsts += inst
-                        }
-                    }
-                }
+        val instructionIndex = identityMap<JcRawInst, Int>()
+        val assignInstructions = mutableListOf<JcRawAssignInst>()
+        val firstValueAssignment = hashMapOf<JcRawValue, JcRawAssignInst>()
+
+        for ((i, inst) in instList.withIndex()) {
+            instructionIndex[inst] = i
+
+            if (inst !is JcRawAssignInst) continue
+
+            assignInstructions.add(inst)
+            firstValueAssignment.putIfAbsent(inst.lhv, inst)
+        }
+
+        for (inst in assignInstructions) {
+            val lhv = inst.lhv as? JcRawSimpleValue ?: continue
+            val rhv = inst.rhv as? JcRawLocalVar ?: continue
+
+            if (rhv in reservedValues) continue
+
+            val rhvUsage = uses[rhv]?.singleOrNull() ?: continue
+            if (rhvUsage != inst) continue
+
+            val lhvUsage = uses[lhv]?.firstOrNull()
+
+            if (lhvUsage != null && isBefore(instructionIndex, lhvUsage, inst)) continue
+
+            val assignInstructionToReplacement = firstValueAssignment[lhv]
+            val assignInstructionToRhv = firstValueAssignment[rhv]
+
+            val didNotAssignedBefore =
+                lhvUsage == null ||
+                        assignInstructionToReplacement == null ||
+                        !isBefore(instructionIndex, assignInstructionToReplacement, lhvUsage) ||
+                        assignInstructionToRhv == null ||
+                        areSequential(instructionIndex, assignInstructionToRhv, inst)
+
+            if (didNotAssignedBefore) {
+                replacements[rhv] = lhv
+                reservedValues += lhv
+                replacedInsts += inst
             }
         }
 
         return replacements to replacedInsts
     }
 
-    private fun JcInstList<JcRawInst>.isBefore(one: JcRawInst, another: JcRawInst): Boolean {
-        return indexOf(one) < indexOf(another)
+    private fun isBefore(instIndex: Map<JcRawInst, Int>, one: JcRawInst, another: JcRawInst): Boolean {
+        val indexOfOne = instIndex[one] ?: error("Missed instruction: $one")
+        val indexOfAnother = instIndex[another] ?: error("Missed instruction: $another")
+        return indexOfOne < indexOfAnother
     }
 
-    private fun JcInstList<JcRawInst>.areSequential(one: JcRawInst, another: JcRawInst): Boolean {
-        return indexOf(one) + 1 == indexOf(another)
+    private fun areSequential(instIndex: Map<JcRawInst, Int>, one: JcRawInst, another: JcRawInst): Boolean {
+        val indexOfOne = instIndex[one] ?: error("Missed instruction: $one")
+        val indexOfAnother = instIndex[another] ?: error("Missed instruction: $another")
+        return indexOfOne + 1 == indexOfAnother
     }
 
     private fun computeAssignments(instList: JcInstList<JcRawInst>): Map<JcRawLocalVar, Set<JcRawExpr>> {

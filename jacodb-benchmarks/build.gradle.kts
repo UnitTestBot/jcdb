@@ -8,8 +8,8 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":jacodb-api-jvm"))
     implementation(project(":jacodb-core"))
+    implementation(project(":jacodb-storage"))
     implementation(testFixtures(project(":jacodb-core")))
 
     implementation(Libs.kotlin_logging)
@@ -20,6 +20,9 @@ dependencies {
     implementation(Libs.sootup_java_bytecode)
 
     testImplementation(Libs.kotlinx_benchmark_runtime)
+    testImplementation(Libs.xodusEnvironment)
+    testImplementation(Libs.lmdb_java)
+    testImplementation(Libs.rocks_db)
 }
 
 benchmark {
@@ -76,6 +79,10 @@ benchmark {
             iterations = 10
             include("GuavaCacheBenchmarks")
             include("XodusCacheBenchmarks")
+        }
+        register("ersRam") {
+            include("RAMEntityRelationshipStorageMutableBenchmarks")
+            include("RAMEntityRelationshipStorageImmutableBenchmarks")
         }
     }
 }

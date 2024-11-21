@@ -16,10 +16,27 @@
 
 package org.jacodb.impl
 
-import kotlinx.coroutines.*
-import org.jacodb.api.jvm.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.withContext
+import org.jacodb.api.jvm.ClassSource
+import org.jacodb.api.jvm.JcAnnotation
+import org.jacodb.api.jvm.JcArrayType
+import org.jacodb.api.jvm.JcByteCodeLocation
+import org.jacodb.api.jvm.JcClassOrInterface
+import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcClasspathExtFeature
 import org.jacodb.api.jvm.JcClasspathExtFeature.JcResolvedClassResult
 import org.jacodb.api.jvm.JcClasspathExtFeature.JcResolvedTypeResult
+import org.jacodb.api.jvm.JcClasspathFeature
+import org.jacodb.api.jvm.JcClasspathTask
+import org.jacodb.api.jvm.JcFeatureEvent
+import org.jacodb.api.jvm.JcRefType
+import org.jacodb.api.jvm.JcType
+import org.jacodb.api.jvm.PredefinedPrimitives
+import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.jvm.ext.JAVA_OBJECT
 import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.bytecode.JcClassOrInterfaceImpl
@@ -29,6 +46,7 @@ import org.jacodb.impl.features.classpaths.AbstractJcResolvedResult.JcResolvedCl
 import org.jacodb.impl.features.classpaths.AbstractJcResolvedResult.JcResolvedTypeResultImpl
 import org.jacodb.impl.features.classpaths.ClasspathCache
 import org.jacodb.impl.features.classpaths.JcUnknownClass
+import org.jacodb.impl.features.classpaths.UnknownClassMethodsAndFields
 import org.jacodb.impl.features.classpaths.UnknownClasses
 import org.jacodb.impl.features.classpaths.isResolveAllToUnknown
 import org.jacodb.impl.fs.ClassSourceImpl
@@ -50,15 +68,14 @@ class JcClasspathImpl(
     override val registeredLocations: List<RegisteredLocation> = locationsRegistrySnapshot.locations
     override val registeredLocationIds: Set<Long> = locationsRegistrySnapshot.ids
     private val classpathVfs = ClasspathVfs(globalClassVFS, locationsRegistrySnapshot)
-    private val featuresChain = run {
-        val strictFeatures = features.filter { it !is UnknownClasses }
-        val hasUnknownClasses = strictFeatures.size != features.size
-        JcFeaturesChain(
-            strictFeatures + listOfNotNull(
-                JcClasspathFeatureImpl(),
-                UnknownClasses.takeIf { hasUnknownClasses })
-        )
-    }
+    private val featuresChain = JcFeaturesChain(
+        if (!features.any { it is UnknownClasses }) {
+            features + JcClasspathFeatureImpl()
+        } else {
+            (features.filter { it !is UnknownClasses } + JcClasspathFeatureImpl() + UnknownClasses).let {
+                it.filter { it !is UnknownClassMethodsAndFields } + UnknownClassMethodsAndFields
+            }
+        })
 
     override suspend fun refreshed(closeOld: Boolean): JcClasspath {
         return db.new(this).also {

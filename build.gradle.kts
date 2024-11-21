@@ -1,5 +1,4 @@
 import org.jetbrains.dokka.gradle.DokkaTaskPartial
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 val semVer: String? by project
 val includeDokka: String? by project
@@ -26,6 +25,9 @@ allprojects {
 
     apply {
         plugin("kotlin")
+        plugin("java")
+        plugin("java-library")
+        plugin("java-test-fixtures")
         plugin("org.jetbrains.kotlin.plugin.allopen")
         plugin(Plugins.Dokka.id)
         plugin(Plugins.Licenser.id)
@@ -56,32 +58,45 @@ allprojects {
         testRuntimeOnly(Libs.guava)
     }
 
+    kotlin {
+        compilerOptions {
+            freeCompilerArgs.add("-Xsam-conversions=class")
+            freeCompilerArgs.add("-Xcontext-receivers")
+            freeCompilerArgs.add("-Xjvm-default=all")
+            allWarningsAsErrors = false
+        }
+    }
+
     tasks {
         withType<JavaCompile> {
             sourceCompatibility = "1.8"
-            targetCompatibility = "1.8"
             options.encoding = "UTF-8"
             options.compilerArgs.add("-Xlint:all")
         }
 
-        withType<KotlinCompile> {
+        compileJava {
+            targetCompatibility = "1.8"
+        }
+        compileKotlin {
             kotlinOptions {
                 jvmTarget = "1.8"
-                freeCompilerArgs += "-Xallow-result-return-type"
-                freeCompilerArgs += "-Xsam-conversions=class"
-                freeCompilerArgs += "-Xcontext-receivers"
-                freeCompilerArgs += "-Xjvm-default=all"
-                allWarningsAsErrors = false
             }
         }
 
+        compileTestJava {
+            targetCompatibility = runtimeJavaVersion()
+        }
+        compileTestFixturesJava {
+            targetCompatibility = "1.8"
+        }
         compileTestKotlin {
             kotlinOptions {
+                jvmTarget = runtimeJavaVersion()
+            }
+        }
+        compileTestFixturesKotlin {
+            kotlinOptions {
                 jvmTarget = "1.8"
-                freeCompilerArgs += "-Xallow-result-return-type"
-                freeCompilerArgs += "-Xsam-conversions=class"
-                freeCompilerArgs += "-Xcontext-receivers"
-                allWarningsAsErrors = false
             }
         }
 
@@ -154,7 +169,9 @@ if (!repoUrl.isNullOrEmpty()) {
         listOf(
             project(":jacodb-api-common"),
             project(":jacodb-api-jvm"),
+            project(":jacodb-api-storage"),
             project(":jacodb-core"),
+            project(":jacodb-storage"),
             project(":jacodb-analysis"),
             project(":jacodb-approximations"),
             project(":jacodb-taint-configuration"),
@@ -186,6 +203,13 @@ if (!repoUrl.isNullOrEmpty()) {
             publications {
                 register<MavenPublication>("jar") {
                     from(components["java"])
+                    setOf("apiElements", "runtimeElements")
+                        .flatMap { configName -> configurations[configName].hierarchy }
+                        .forEach { configuration ->
+                            configuration.dependencies.removeIf { dependency ->
+                                dependency.version.isNullOrBlank()
+                            }
+                        }
                     artifact(tasks.named("sourcesJar"))
                     artifact(tasks.named("dokkaJavadocJar"))
 
