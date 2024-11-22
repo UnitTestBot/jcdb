@@ -20,7 +20,6 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonClassDiscriminator
-import kotlin.math.sign
 
 @Serializable
 @OptIn(ExperimentalSerializationApi::class)
@@ -236,6 +235,39 @@ data class GenericTypeDto(
 ) : TypeDto {
     override fun toString(): String {
         return name + (constraint?.let { " extends $it" } ?: "") + (defaultType?.let { " = $it" } ?: "")
+    }
+}
+
+@Serializable
+@SerialName("AliasType")
+data class AliasTypeDto(
+    val name: String,
+    val originalType: TypeDto,
+    val signature: LocalSignatureDto,
+) : TypeDto {
+    override fun toString(): String {
+        return "$name = $originalType"
+    }
+}
+
+@Serializable
+@SerialName("AnnotationNamespaceType")
+data class AnnotationNamespaceTypeDto(
+    val originType: String,
+    val namespaceSignature: NamespaceSignatureDto,
+) : TypeDto {
+    override fun toString(): String {
+        return originType
+    }
+}
+
+@Serializable
+@SerialName("AnnotationTypeQueryType")
+data class AnnotationTypeQueryTypeDto(
+    val originType: String,
+) : TypeDto {
+    override fun toString(): String {
+        return originType
     }
 }
 

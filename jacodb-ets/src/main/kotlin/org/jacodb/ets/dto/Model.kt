@@ -56,7 +56,7 @@ data class ClassDto(
     val signature: ClassSignatureDto,
     val modifiers: Int,
     val decorators: List<DecoratorDto>,
-    val typeParameters: List<TypeDto>,
+    val typeParameters: List<TypeDto>? = null,
     val superClassName: String?,
     val implementedInterfaceNames: List<String>,
     val fields: List<FieldDto>,
@@ -77,7 +77,7 @@ data class MethodDto(
     val signature: MethodSignatureDto,
     val modifiers: Int,
     val decorators: List<DecoratorDto>,
-    val typeParameters: List<TypeDto>,
+    val typeParameters: List<TypeDto>? = null,
     val body: BodyDto? = null,
 )
 

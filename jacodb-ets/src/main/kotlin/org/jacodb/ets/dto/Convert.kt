@@ -582,7 +582,7 @@ fun convertToEtsClass(classDto: ClassDto): EtsClass {
     val methods = methodDtos.map { convertToEtsMethod(it) }
     val ctor = convertToEtsMethod(ctorDto)
 
-    val typeParameters = classDto.typeParameters.map { convertToEtsType(it) }
+    val typeParameters = classDto.typeParameters?.map { convertToEtsType(it) } ?: emptyList()
 
     val modifiers = EtsModifiers(classDto.modifiers)
     val decorators = classDto.decorators.map { convertToEtsDecorator(it) }
@@ -614,6 +614,10 @@ fun convertToEtsType(type: TypeDto): EtsType {
                 error("Not supported: ${type.type}")
             }
         }
+
+        is AliasTypeDto -> EtsUnknownType // TODO: EtsAliasType
+        is AnnotationNamespaceTypeDto -> EtsUnknownType // TODO: EtsAnnotationNamespaceType
+        is AnnotationTypeQueryTypeDto -> EtsUnknownType // TODO: EtsAnnotationTypeQueryType
 
         AnyTypeDto -> EtsAnyType
 
@@ -762,7 +766,7 @@ fun convertToEtsMethodSignature(method: MethodSignatureDto): EtsMethodSignature 
 
 fun convertToEtsMethod(method: MethodDto): EtsMethod {
     val signature = convertToEtsMethodSignature(method.signature)
-    val typeParameters = method.typeParameters.map { convertToEtsType(it) }
+    val typeParameters = method.typeParameters?.map { convertToEtsType(it) } ?: emptyList()
     val modifiers = EtsModifiers(method.modifiers)
     val decorators = method.decorators.map { convertToEtsDecorator(it) }
     if (method.body != null) {

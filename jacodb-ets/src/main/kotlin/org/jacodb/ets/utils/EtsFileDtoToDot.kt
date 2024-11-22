@@ -48,8 +48,9 @@ fun EtsFileDto.toDot(useLR: Boolean = false): String {
         val labelLines: MutableList<String> = mutableListOf()
         run {
             val name = clazz.signature.name
-            val generics = if (clazz.typeParameters.isNotEmpty()) {
-                "<${clazz.typeParameters.joinToString()}>"
+            val typeParameters = clazz.typeParameters.orEmpty()
+            val generics = if (typeParameters.isNotEmpty()) {
+                "<${typeParameters.joinToString()}>"
             } else {
                 ""
             }
@@ -65,8 +66,9 @@ fun EtsFileDto.toDot(useLR: Boolean = false): String {
         clazz.methods.forEach { method ->
             val name = method.signature.name
             val params = method.signature.parameters.joinToString()
-            val generics = if (method.typeParameters.isNotEmpty()) {
-                "<${method.typeParameters.joinToString()}>"
+            val typeParameters = method.typeParameters.orEmpty()
+            val generics = if (typeParameters.isNotEmpty()) {
+                "<${typeParameters.joinToString()}>"
             } else {
                 ""
             }

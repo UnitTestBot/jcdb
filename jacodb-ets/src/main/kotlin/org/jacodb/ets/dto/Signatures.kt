@@ -92,3 +92,13 @@ data class MethodParameterDto(
         return "$name: $type"
     }
 }
+
+@Serializable
+data class LocalSignatureDto(
+    val name: String,
+    val method: MethodSignatureDto,
+) {
+    override fun toString(): String {
+        return "${method}#${name}"
+    }
+}
