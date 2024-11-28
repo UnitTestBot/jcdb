@@ -22,5 +22,5 @@ class EtsScene(
     val files: List<EtsFile>,
 ) : CommonProject {
     val classes: List<EtsClass>
-        get() = files.flatMap { it.classes }
+        get() = files.flatMap { it.allClasses }
 }

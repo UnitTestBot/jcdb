@@ -20,4 +20,7 @@ class EtsNamespace(
     val signature: EtsNamespaceSignature,
     val classes: List<EtsClass>,
     val namespaces: List<EtsNamespace>,
-)
+) {
+    val allClasses: List<EtsClass>
+        get() = classes + namespaces.flatMap { it.allClasses }
+}
