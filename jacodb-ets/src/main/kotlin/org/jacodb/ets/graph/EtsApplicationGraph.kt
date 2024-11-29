@@ -230,7 +230,7 @@ class EtsApplicationGraphImpl(
 
         val matched = cp.classes
             .asSequence()
-            .filter { it.signature == signature && it.signature.file == signature.file }
+            .filter { it.signature == signature }
             .toList()
         if (matched.isEmpty()) {
             cacheClassWithIdealSignature[signature] = Maybe.none()
