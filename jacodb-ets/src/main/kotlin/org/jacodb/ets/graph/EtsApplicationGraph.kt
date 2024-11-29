@@ -338,10 +338,11 @@ class EtsApplicationGraphImpl(
         // NOTE: cache lookup MUST be performed AFTER trying to match the neighbour!
         if (callee in cachePartiallyMatchedCallees) {
             val s = cachePartiallyMatchedCallees.getValue(callee).asSequence()
-            if (s.none())
+            if (s.none()) {
                 stats.cachedPartialMatchAsUnknown.incrementAndGet()
-            else
+            } else {
                 stats.resolvedByPartiallyMatchedCache.incrementAndGet()
+            }
             return s
         }
 
