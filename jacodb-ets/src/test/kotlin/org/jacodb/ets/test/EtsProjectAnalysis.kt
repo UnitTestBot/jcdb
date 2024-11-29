@@ -51,9 +51,10 @@ class EtsProjectAnalysis {
     private var totalSinks: MutableList<TaintVulnerability<EtsStmt>> = mutableListOf()
 
     companion object {
-        private val traits = EtsTraits
+        private val traits = EtsTraits()
 
-        private const val SOURCE_PROJECT_PATH = "/projects/applications_app_samples/source/applications_app_samples/code/SuperFeature/DistributedAppDev/ArkTSDistributedCalc"
+        private const val SOURCE_PROJECT_PATH =
+            "/projects/applications_app_samples/source/applications_app_samples/code/SuperFeature/DistributedAppDev/ArkTSDistributedCalc"
         private const val PROJECT_PATH = "/projects/applications_app_samples/etsir/ast/ArkTSDistributedCalc"
         private const val START_PATH = "/entry/src/main/ets"
         private const val BASE_PATH = PROJECT_PATH
@@ -141,12 +142,13 @@ class EtsProjectAnalysis {
     private fun runAnalysis(project: EtsScene) {
         val graph = EtsApplicationGraphImpl(project)
         val unitResolver = UnitResolver<EtsMethod> { SingletonUnit }
-        val manager = TaintManager(
-            traits = traits,
-            graph = graph,
-            unitResolver = unitResolver,
-            getConfigForMethod = { method -> getConfigForMethod(method, rules) },
-        )
+        val manager = with(traits) {
+            TaintManager(
+                graph = graph,
+                unitResolver = unitResolver,
+                getConfigForMethod = { method -> getConfigForMethod(method, rules) },
+            )
+        }
         val methods = project.classes.flatMap { it.methods }
         val sinks = manager.analyze(methods, timeout = 10.seconds)
         totalPathEdges += manager.runnerForUnit.values.sumOf { it.getPathEdges().size }

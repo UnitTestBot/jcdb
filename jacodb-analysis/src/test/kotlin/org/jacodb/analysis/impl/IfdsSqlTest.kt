@@ -62,7 +62,9 @@ abstract class IfdsSqlTest : BaseAnalysisTest() {
         val method = cp.findClass<SqlInjectionExamples>().declaredMethods.single { it.name == methodName }
         val methods = listOf(method)
         val unitResolver = SingletonUnitResolver
-        val manager = TaintManager(traits, graph, unitResolver)
+        val manager = with(traits) {
+            TaintManager(graph, unitResolver)
+        }
         val sinks = manager.analyze(methods, timeout = 30.seconds)
         assertTrue(sinks.isNotEmpty())
         val sink = sinks.first()
@@ -76,7 +78,9 @@ abstract class IfdsSqlTest : BaseAnalysisTest() {
     fun `test on Juliet's CWE 89`(className: String) {
         testSingleJulietClass(className) { method ->
             val unitResolver = SingletonUnitResolver
-            val manager = TaintManager(traits, graph, unitResolver)
+            val manager = with(traits) {
+                TaintManager(graph, unitResolver)
+            }
             manager.analyze(listOf(method), timeout = 30.seconds)
         }
     }
@@ -86,7 +90,9 @@ abstract class IfdsSqlTest : BaseAnalysisTest() {
         val className = "juliet.testcases.CWE89_SQL_Injection.s01.CWE89_SQL_Injection__connect_tcp_execute_01"
         testSingleJulietClass(className) { method ->
             val unitResolver = SingletonUnitResolver
-            val manager = TaintManager(traits, graph, unitResolver)
+            val manager = with(traits) {
+                TaintManager(graph, unitResolver)
+            }
             manager.analyze(listOf(method), timeout = 30.seconds)
         }
     }
@@ -97,7 +103,9 @@ abstract class IfdsSqlTest : BaseAnalysisTest() {
         val clazz = cp.findClass(className)
         val badMethod = clazz.methods.single { it.name == "bad" }
         val unitResolver = ClassUnitResolver(true)
-        val manager = TaintManager(traits, graph, unitResolver, useBidiRunner = true)
+        val manager = with(traits) {
+            TaintManager(graph, unitResolver, useBidiRunner = true)
+        }
         val sinks = manager.analyze(listOf(badMethod), timeout = 30.seconds)
         assertTrue(sinks.isNotEmpty())
         val sink = sinks.first()

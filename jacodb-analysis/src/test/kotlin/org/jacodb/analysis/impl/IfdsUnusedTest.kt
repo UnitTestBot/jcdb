@@ -63,7 +63,9 @@ abstract class IfdsUnusedTest : BaseAnalysisTest() {
     fun `test on Juliet's CWE 563`(className: String) {
         testSingleJulietClass(className) { method ->
             val unitResolver = SingletonUnitResolver
-            val manager = UnusedVariableManager(traits, graph, unitResolver)
+            val manager = with(traits) {
+                UnusedVariableManager(graph, unitResolver)
+            }
             manager.analyze(listOf(method), timeout = 30.seconds)
         }
     }
@@ -75,19 +77,18 @@ abstract class IfdsUnusedTest : BaseAnalysisTest() {
         val clazz = cp.findClass(className)
         val badMethod = clazz.methods.single { it.name == "bad" }
         val unitResolver = SingletonUnitResolver
-        val manager = UnusedVariableManager(traits, graph, unitResolver)
+        val manager = with(traits) {
+            UnusedVariableManager(graph, unitResolver)
+        }
         val sinks = manager.analyze(listOf(badMethod), timeout = 30.seconds)
         Assertions.assertTrue(sinks.isNotEmpty())
     }
 }
 
-
 class IfdsUnusedSqlTest : IfdsUnusedTest() {
-
     companion object : WithDB(Usages, InMemoryHierarchy)
 }
 
 class IfdsUnusedRAMTest : IfdsUnusedTest() {
-
     companion object : WithRAMDB(Usages, InMemoryHierarchy)
 }

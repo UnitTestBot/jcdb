@@ -60,7 +60,7 @@ import org.jacodb.api.jvm.ext.cfg.callExpr as _callExpr
  * JVM-specific extensions for analysis.
  */
 class JcTraits(
-    val cp: JcClasspath,
+    val cp: JcClasspath
 ) : Traits<JcMethod, JcInst> {
 
     override val JcMethod.thisInstance: JcThis

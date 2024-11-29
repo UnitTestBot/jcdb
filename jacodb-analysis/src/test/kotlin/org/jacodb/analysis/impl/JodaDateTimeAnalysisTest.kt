@@ -16,16 +16,12 @@
 
 package org.jacodb.analysis.impl
 
-import kotlinx.coroutines.runBlocking
 import org.jacodb.analysis.ifds.SingletonUnitResolver
 import org.jacodb.analysis.npe.NpeManager
 import org.jacodb.analysis.taint.TaintManager
 import org.jacodb.analysis.unused.UnusedVariableManager
-import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.ext.findClass
-import org.jacodb.taint.configuration.TaintConfigurationFeature
 import org.jacodb.testing.WithGlobalDB
-import org.jacodb.testing.allClasspath
 import org.joda.time.DateTime
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds
@@ -36,24 +32,14 @@ class JodaDateTimeAnalysisTest : BaseAnalysisTest() {
 
     companion object : WithGlobalDB()
 
-    override val cp: JcClasspath = runBlocking {
-        val configFileName = "config_small.json"
-        val configResource = this.javaClass.getResourceAsStream("/$configFileName")
-        if (configResource != null) {
-            val configJson = configResource.bufferedReader().readText()
-            val configurationFeature = TaintConfigurationFeature.fromJson(configJson)
-            db.classpath(allClasspath, listOf(configurationFeature) + classpathFeatures)
-        } else {
-            super.cp
-        }
-    }
-
     @Test
     fun `test taint analysis`() {
         val clazz = cp.findClass<DateTime>()
         val methods = clazz.declaredMethods
         val unitResolver = SingletonUnitResolver
-        val manager = TaintManager(traits, graph, unitResolver)
+        val manager = with(traits) {
+            TaintManager(graph, unitResolver)
+        }
         val sinks = manager.analyze(methods, timeout = 60.seconds)
         logger.info { "Vulnerabilities found: ${sinks.size}" }
     }
@@ -63,7 +49,9 @@ class JodaDateTimeAnalysisTest : BaseAnalysisTest() {
         val clazz = cp.findClass<DateTime>()
         val methods = clazz.declaredMethods
         val unitResolver = SingletonUnitResolver
-        val manager = NpeManager(traits, graph, unitResolver)
+        val manager = with(traits) {
+            NpeManager(graph, unitResolver)
+        }
         val sinks = manager.analyze(methods, timeout = 60.seconds)
         logger.info { "Vulnerabilities found: ${sinks.size}" }
     }
@@ -73,7 +61,9 @@ class JodaDateTimeAnalysisTest : BaseAnalysisTest() {
         val clazz = cp.findClass<DateTime>()
         val methods = clazz.declaredMethods
         val unitResolver = SingletonUnitResolver
-        val manager = UnusedVariableManager(traits, graph, unitResolver)
+        val manager = with(traits) {
+            UnusedVariableManager(graph, unitResolver)
+        }
         val sinks = manager.analyze(methods, timeout = 60.seconds)
         logger.info { "Unused variables found: ${sinks.size}" }
     }

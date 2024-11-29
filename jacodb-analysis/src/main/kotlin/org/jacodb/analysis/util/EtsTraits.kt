@@ -26,12 +26,10 @@ import org.jacodb.api.common.cfg.CommonCallExpr
 import org.jacodb.api.common.cfg.CommonExpr
 import org.jacodb.api.common.cfg.CommonValue
 import org.jacodb.ets.base.CONSTRUCTOR_NAME
-import org.jacodb.ets.base.EtsAnyType
 import org.jacodb.ets.base.EtsArrayAccess
 import org.jacodb.ets.base.EtsCallExpr
 import org.jacodb.ets.base.EtsCastExpr
 import org.jacodb.ets.base.EtsClassType
-import org.jacodb.ets.base.EtsConstant
 import org.jacodb.ets.base.EtsEntity
 import org.jacodb.ets.base.EtsImmediate
 import org.jacodb.ets.base.EtsInstanceFieldRef
@@ -50,12 +48,7 @@ import org.jacodb.analysis.util.toPathOrNull as _toPathOrNull
 import org.jacodb.ets.utils.getOperands as _getOperands
 import org.jacodb.ets.utils.getValues as _getValues
 
-interface EtsTraits : Traits<EtsMethod, EtsStmt> {
-
-    companion object : EtsTraits {
-        // Note: unused for now
-        // lateinit var cp: EtsFile
-    }
+class EtsTraits : Traits<EtsMethod, EtsStmt> {
 
     override val CommonCallExpr.callee: EtsMethod
         get() {

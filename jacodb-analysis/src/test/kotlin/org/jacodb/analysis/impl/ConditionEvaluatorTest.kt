@@ -93,7 +93,9 @@ class ConditionEvaluatorTest {
             else -> null
         }.toMaybe()
     }
-    private val evaluator: ConditionVisitor<Boolean> = BasicConditionEvaluator(traits, positionResolver)
+    private val evaluator: ConditionVisitor<Boolean> = with(traits) {
+        BasicConditionEvaluator(positionResolver)
+    }
 
     @Test
     fun `True is true`() {
@@ -326,9 +328,9 @@ class ConditionEvaluatorTest {
     }
 
     @Test
-    fun `FactAwareConditionEvaluator supports ContainsMark`() {
-        val fact = Tainted(with(traits) { intValue.toPath() }, TaintMark("FOO"))
-        val factAwareEvaluator = FactAwareConditionEvaluator(traits, positionResolver, fact)
+    fun `FactAwareConditionEvaluator supports ContainsMark`() = with(traits) {
+        val fact = Tainted(intValue.toPath(), TaintMark("FOO"))
+        val factAwareEvaluator = FactAwareConditionEvaluator(fact, positionResolver)
         assertTrue(factAwareEvaluator.visit(ContainsMark(intArg, TaintMark("FOO"))))
         assertFalse(factAwareEvaluator.visit(ContainsMark(intArg, TaintMark("BAR"))))
         assertFalse(factAwareEvaluator.visit(ContainsMark(stringArg, TaintMark("FOO"))))

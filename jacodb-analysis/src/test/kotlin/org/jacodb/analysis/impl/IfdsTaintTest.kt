@@ -38,7 +38,9 @@ class IfdsTaintTest : BaseAnalysisTest() {
 
     private fun findSinks(method: JcMethod): List<TaintVulnerability<JcInst>> {
         val unitResolver = SingletonUnitResolver
-        val manager = TaintManager(traits, graph, unitResolver)
+        val manager = with(traits) {
+            TaintManager(graph, unitResolver)
+        }
         return manager.analyze(listOf(method), timeout = 3000.seconds)
     }
 

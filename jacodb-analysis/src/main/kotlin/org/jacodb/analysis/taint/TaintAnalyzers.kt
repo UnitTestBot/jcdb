@@ -27,6 +27,7 @@ import org.jacodb.api.common.CommonMethod
 import org.jacodb.api.common.analysis.ApplicationGraph
 import org.jacodb.api.common.cfg.CommonInst
 import org.jacodb.api.jvm.cfg.JcIfInst
+import org.jacodb.impl.cfg.util.loops
 import org.jacodb.ets.base.EtsArrayAccess
 import org.jacodb.ets.base.EtsAssignStmt
 import org.jacodb.ets.base.EtsIfStmt
@@ -34,7 +35,6 @@ import org.jacodb.ets.base.EtsNewArrayExpr
 import org.jacodb.ets.base.EtsStmt
 import org.jacodb.ets.graph.loops
 import org.jacodb.ets.utils.getOperands
-import org.jacodb.impl.cfg.util.loops
 import org.jacodb.panda.staticvm.utils.loops
 import org.jacodb.taint.configuration.TaintConfigurationItem
 import org.jacodb.taint.configuration.TaintMethodSink
@@ -42,8 +42,8 @@ import org.jacodb.panda.staticvm.cfg.PandaIfInst as StaticPandaIfInst
 
 private val logger = mu.KotlinLogging.logger {}
 
+context(Traits<Method, Statement>)
 class TaintAnalyzer<Method, Statement>(
-    val traits: Traits<Method, Statement>,
     private val graph: ApplicationGraph<Method, Statement>,
     private val getConfigForMethod: (ForwardTaintFlowFunctions<Method, Statement>.(Method) -> List<TaintConfigurationItem>?)? = null,
 ) : Analyzer<TaintDomainFact, TaintEvent<Statement>, Method, Statement>
@@ -52,9 +52,9 @@ class TaintAnalyzer<Method, Statement>(
 
     override val flowFunctions: ForwardTaintFlowFunctions<Method, Statement> by lazy {
         if (getConfigForMethod != null) {
-            ForwardTaintFlowFunctions(traits, graph, getConfigForMethod)
+            ForwardTaintFlowFunctions(graph, getConfigForMethod)
         } else {
-            ForwardTaintFlowFunctions(traits, graph)
+            ForwardTaintFlowFunctions(graph)
         }
     }
 
@@ -70,9 +70,9 @@ class TaintAnalyzer<Method, Statement>(
         }
 
         run {
-            val callExpr = with(traits) { edge.to.statement.getCallExpr() } ?: return@run
+            val callExpr = edge.to.statement.getCallExpr() ?: return@run
 
-            val callee = with(traits) { callExpr.callee }
+            val callee = callExpr.callee
 
             val config = with(flowFunctions) { getConfigForMethod(callee) } ?: return@run
 
@@ -84,9 +84,8 @@ class TaintAnalyzer<Method, Statement>(
 
             // Determine whether 'edge.to' is a sink via config:
             val conditionEvaluator = FactAwareConditionEvaluator(
-                traits,
-                CallPositionToValueResolver(traits, edge.to.statement),
                 edge.to.fact,
+                CallPositionToValueResolver(edge.to.statement),
             )
             for (item in config.filterIsInstance<TaintMethodSink>()) {
                 if (item.condition.accept(conditionEvaluator)) {
@@ -153,7 +152,7 @@ class TaintAnalyzer<Method, Statement>(
                     val expr = statement.rhv
                     if (expr is EtsNewArrayExpr) {
                         val arg = expr.size
-                        if (with(traits) { arg.toPathOrNull() } == fact.variable) {
+                        if (arg.toPathOrNull() == fact.variable) {
                             val message = "Untrusted array size"
                             val vulnerability = TaintVulnerability(message, sink = edge.to)
                             add(NewVulnerability(vulnerability))
@@ -170,7 +169,7 @@ class TaintAnalyzer<Method, Statement>(
                     for (op in statement.getOperands()) {
                         if (op is EtsArrayAccess) {
                             val arg = op.index
-                            if (with(traits) { arg.toPathOrNull() } == fact.variable) {
+                            if (arg.toPathOrNull() == fact.variable) {
                                 val message = "Untrusted index for access array"
                                 val vulnerability = TaintVulnerability(message, sink = edge.to)
                                 add(NewVulnerability(vulnerability))
@@ -190,15 +189,15 @@ class TaintAnalyzer<Method, Statement>(
     }
 }
 
+context(Traits<Method, Statement>)
 class BackwardTaintAnalyzer<Method, Statement>(
-    val traits: Traits<Method, Statement>,
     private val graph: ApplicationGraph<Method, Statement>,
 ) : Analyzer<TaintDomainFact, TaintEvent<Statement>, Method, Statement>
     where Method : CommonMethod,
           Statement : CommonInst {
 
     override val flowFunctions: BackwardTaintFlowFunctions<Method, Statement> by lazy {
-        BackwardTaintFlowFunctions(traits, graph)
+        BackwardTaintFlowFunctions(graph)
     }
 
     private fun isExitPoint(statement: Statement): Boolean {

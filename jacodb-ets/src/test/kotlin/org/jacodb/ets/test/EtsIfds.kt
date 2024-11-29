@@ -54,7 +54,7 @@ private val logger = mu.KotlinLogging.logger {}
 class EtsIfds {
 
     companion object {
-        private val traits = EtsTraits
+        private val traits = EtsTraits()
 
         private const val BASE_PATH = "/etsir/samples"
 
@@ -97,12 +97,13 @@ class EtsIfds {
                 }
                 rules.ifEmpty { null }
             }
-        val manager = TaintManager(
-            traits = traits,
-            graph = graph,
-            unitResolver = unitResolver,
-            getConfigForMethod = getConfigForMethod,
-        )
+        val manager = with(traits) {
+            TaintManager(
+                graph = graph,
+                unitResolver = unitResolver,
+                getConfigForMethod = getConfigForMethod,
+            )
+        }
 
         val methods = project.classes.flatMap { it.methods }.filter { it.name == "main" }
         logger.info { "Methods: ${methods.size}" }
@@ -143,12 +144,13 @@ class EtsIfds {
                 }
                 rules.ifEmpty { null }
             }
-        val manager = TaintManager(
-            traits = traits,
-            graph = graph,
-            unitResolver = unitResolver,
-            getConfigForMethod = getConfigForMethod,
-        )
+        val manager = with(traits) {
+            TaintManager(
+                graph = graph,
+                unitResolver = unitResolver,
+                getConfigForMethod = getConfigForMethod,
+            )
+        }
 
         val methods = project.classes.flatMap { it.methods }
         logger.info { "Methods: ${methods.size}" }
@@ -208,12 +210,13 @@ class EtsIfds {
                 }
                 rules.ifEmpty { null }
             }
-        val manager = TaintManager(
-            traits = traits,
-            graph = graph,
-            unitResolver = unitResolver,
-            getConfigForMethod = getConfigForMethod,
-        )
+        val manager = with(traits) {
+            TaintManager(
+                graph = graph,
+                unitResolver = unitResolver,
+                getConfigForMethod = getConfigForMethod,
+            )
+        }
 
         val goodMethod = project.classes.flatMap { it.methods }.single { it.name == "good" }
         logger.info { "good() method: $goodMethod" }
@@ -249,12 +252,13 @@ class EtsIfds {
                 }
                 rules.ifEmpty { null }
             }
-        val manager = TaintManager(
-            traits = traits,
-            graph = graph,
-            unitResolver = unitResolver,
-            getConfigForMethod = getConfigForMethod,
-        )
+        val manager = with(traits) {
+            TaintManager(
+                graph = graph,
+                unitResolver = unitResolver,
+                getConfigForMethod = getConfigForMethod,
+            )
+        }
         TaintAnalysisOptions.UNTRUSTED_LOOP_BOUND_SINK = true
 
         val methods = project.classes.flatMap { it.methods }
@@ -288,12 +292,13 @@ class EtsIfds {
                 }
                 rules.ifEmpty { null }
             }
-        val manager = TaintManager(
-            traits = traits,
-            graph = graph,
-            unitResolver = unitResolver,
-            getConfigForMethod = getConfigForMethod,
-        )
+        val manager = with(traits) {
+            TaintManager(
+                graph = graph,
+                unitResolver = unitResolver,
+                getConfigForMethod = getConfigForMethod,
+            )
+        }
         TaintAnalysisOptions.UNTRUSTED_ARRAY_SIZE_SINK = true
 
         val methods = project.classes.flatMap { it.methods }
@@ -335,12 +340,13 @@ class EtsIfds {
                 }
                 rules.ifEmpty { null }
             }
-        val manager = TaintManager(
-            traits = traits,
-            graph = graph,
-            unitResolver = unitResolver,
-            getConfigForMethod = getConfigForMethod,
-        )
+        val manager = with(traits) {
+            TaintManager(
+                graph = graph,
+                unitResolver = unitResolver,
+                getConfigForMethod = getConfigForMethod,
+            )
+        }
 
         val methods = project.classes.flatMap { it.methods }
         logger.info { "Methods: ${methods.size}" }
@@ -415,12 +421,13 @@ class EtsIfds {
                 }
                 rules.ifEmpty { null }
             }
-        val manager = TaintManager(
-            traits = traits,
-            graph = graph,
-            unitResolver = unitResolver,
-            getConfigForMethod = getConfigForMethod,
-        )
+        val manager = with(traits) {
+            TaintManager(
+                graph = graph,
+                unitResolver = unitResolver,
+                getConfigForMethod = getConfigForMethod,
+            )
+        }
 
         val methodNames = setOf(
             "getDeviceIdListWithCursor",
@@ -438,5 +445,4 @@ class EtsIfds {
         logger.info { "Sinks: $sinks" }
         Assertions.assertTrue(sinks.isNotEmpty())
     }
-
 }

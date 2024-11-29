@@ -40,15 +40,15 @@ import org.jacodb.taint.configuration.TaintMethodSink
 
 private val logger = mu.KotlinLogging.logger {}
 
+context(Traits<Method, Statement>)
 class NpeAnalyzer<Method, Statement>(
-    private val traits: Traits<Method, Statement>,
     private val graph: ApplicationGraph<Method, Statement>,
 ) : Analyzer<TaintDomainFact, TaintEvent<Statement>, Method, Statement>
     where Method : CommonMethod,
           Statement : CommonInst {
 
     override val flowFunctions: ForwardNpeFlowFunctions<Method, Statement> by lazy {
-        ForwardNpeFlowFunctions(traits, graph)
+        ForwardNpeFlowFunctions(graph)
     }
 
     private val taintConfigurationFeature: TaintConfigurationFeature?
@@ -66,7 +66,7 @@ class NpeAnalyzer<Method, Statement>(
         }
 
         if (edge.to.fact is Tainted && edge.to.fact.mark == TaintMark.NULLNESS) {
-            if (with(traits) { edge.to.fact.variable.isDereferencedAt(edge.to.statement) }) {
+            if (edge.to.fact.variable.isDereferencedAt(edge.to.statement)) {
                 val message = "NPE" // TODO
                 val vulnerability = TaintVulnerability(message, sink = edge.to)
                 logger.info {
@@ -78,8 +78,8 @@ class NpeAnalyzer<Method, Statement>(
         }
 
         run {
-            val callExpr = with(traits) { edge.to.statement.getCallExpr() } ?: return@run
-            val callee = with(traits) { callExpr.callee }
+            val callExpr = edge.to.statement.getCallExpr() ?: return@run
+            val callee = callExpr.callee
 
             val config = taintConfigurationFeature?.let { feature ->
                 if (callee is JcMethod) {
@@ -98,9 +98,8 @@ class NpeAnalyzer<Method, Statement>(
 
             // Determine whether 'edge.to' is a sink via config:
             val conditionEvaluator = FactAwareConditionEvaluator(
-                traits,
-                CallPositionToValueResolver(traits, edge.to.statement),
                 edge.to.fact,
+                CallPositionToValueResolver(edge.to.statement),
             )
             for (item in config.filterIsInstance<TaintMethodSink>()) {
                 if (item.condition.accept(conditionEvaluator)) {

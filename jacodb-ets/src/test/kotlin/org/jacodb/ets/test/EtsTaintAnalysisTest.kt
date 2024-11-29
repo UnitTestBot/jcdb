@@ -49,10 +49,9 @@ private val logger = mu.KotlinLogging.logger {}
 class EtsTaintAnalysisTest {
 
     companion object {
-        private val traits = EtsTraits
+        private val traits = EtsTraits()
 
         private const val BASE_PATH = "/samples/etsir/ast"
-
         private const val DECOMPILED_PATH = "/decompiled"
 
         private fun loadFromProject(name: String): EtsFile {
@@ -110,12 +109,13 @@ class EtsTaintAnalysisTest {
         val graph = EtsApplicationGraphImpl(project)
         val unitResolver = UnitResolver<EtsMethod> { SingletonUnit }
 
-        val manager = TaintManager(
-            traits = traits,
-            graph = graph,
-            unitResolver = unitResolver,
-            getConfigForMethod = getConfigForMethod,
-        )
+        val manager = with(traits) {
+            TaintManager(
+                graph = graph,
+                unitResolver = unitResolver,
+                getConfigForMethod = getConfigForMethod,
+            )
+        }
 
         val methods = project.classes.flatMap { it.methods }.filter { it.name == "bad" }
         logger.info { "Methods: ${methods.size}" }

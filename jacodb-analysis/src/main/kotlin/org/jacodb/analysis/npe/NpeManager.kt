@@ -30,11 +30,11 @@ import org.jacodb.api.common.cfg.CommonInst
 
 private val logger = mu.KotlinLogging.logger {}
 
+context(Traits<Method, Statement>)
 class NpeManager<Method, Statement>(
-    traits: Traits<Method, Statement>,
     graph: ApplicationGraph<Method, Statement>,
     unitResolver: UnitResolver<Method>,
-) : TaintManager<Method, Statement>(traits, graph, unitResolver, useBidiRunner = false)
+) : TaintManager<Method, Statement>(graph, unitResolver, useBidiRunner = false)
     where Method : CommonMethod,
           Statement : CommonInst {
 
@@ -43,7 +43,7 @@ class NpeManager<Method, Statement>(
     ): TaintRunner<Method, Statement> {
         check(unit !in runnerForUnit) { "Runner for $unit already exists" }
 
-        val analyzer = NpeAnalyzer(traits, graph)
+        val analyzer = NpeAnalyzer(graph)
         val runner = UniRunner(
             graph = graph,
             analyzer = analyzer,

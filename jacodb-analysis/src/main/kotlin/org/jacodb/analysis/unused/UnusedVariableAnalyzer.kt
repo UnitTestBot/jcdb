@@ -24,15 +24,15 @@ import org.jacodb.api.common.CommonMethod
 import org.jacodb.api.common.analysis.ApplicationGraph
 import org.jacodb.api.common.cfg.CommonInst
 
+context(Traits<Method, Statement>)
 class UnusedVariableAnalyzer<Method, Statement>(
-    val traits: Traits<Method, Statement>,
     private val graph: ApplicationGraph<Method, Statement>,
 ) : Analyzer<UnusedVariableDomainFact, UnusedVariableEvent<Method, Statement>, Method, Statement>
     where Method : CommonMethod,
           Statement : CommonInst {
 
     override val flowFunctions: UnusedVariableFlowFunctions<Method, Statement> by lazy {
-        UnusedVariableFlowFunctions(traits, graph)
+        UnusedVariableFlowFunctions(graph)
     }
 
     private fun isExitPoint(statement: Statement): Boolean {

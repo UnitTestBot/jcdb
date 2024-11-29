@@ -59,7 +59,9 @@ class Ifds2UpperBoundTest : BaseAnalysisTest() {
     private inline fun <reified T> testOneMethod(methodName: String) {
         val method = cp.findClass<T>().declaredMethods.single { it.name == methodName }
         val unitResolver = SingletonUnitResolver
-        val manager = TaintManager(traits, graph, unitResolver)
+        val manager = with(traits) {
+            TaintManager(graph, unitResolver)
+        }
         val sinks = manager.analyze(listOf(method), timeout = 60.seconds)
         logger.info { "Sinks: ${sinks.size}" }
         for (sink in sinks) {

@@ -199,7 +199,9 @@ abstract class IfdsNpeTest : BaseAnalysisTest() {
 
     private fun findSinks(method: JcMethod): List<TaintVulnerability<JcInst>> {
         val unitResolver = SingletonUnitResolver
-        val manager = NpeManager(traits, graph, unitResolver)
+        val manager = with(traits) {
+            NpeManager(graph, unitResolver)
+        }
         return manager.analyze(listOf(method), timeout = 30.seconds)
     }
 
