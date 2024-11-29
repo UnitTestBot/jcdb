@@ -19,7 +19,9 @@ package org.jacodb.ets.base
 import org.jacodb.api.common.CommonType
 import org.jacodb.api.common.CommonTypeName
 import org.jacodb.ets.model.EtsClassSignature
+import org.jacodb.ets.model.EtsLocalSignature
 import org.jacodb.ets.model.EtsMethodSignature
+import org.jacodb.ets.model.EtsNamespaceSignature
 
 interface EtsType : CommonType, CommonTypeName {
     override val typeName: String
@@ -46,6 +48,9 @@ interface EtsType : CommonType, CommonTypeName {
         fun visit(type: EtsArrayObjectType): R
         fun visit(type: EtsUnclearRefType): R
         fun visit(type: EtsGenericType): R
+        fun visit(type: EtsAliasType): R
+        fun visit(type: EtsAnnotationNamespaceType): R
+        fun visit(type: EtsAnnotationTypeQueryType): R
 
         interface Default<R> : Visitor<R> {
             override fun visit(type: EtsAnyType): R = defaultVisit(type)
@@ -66,6 +71,9 @@ interface EtsType : CommonType, CommonTypeName {
             override fun visit(type: EtsArrayObjectType): R = defaultVisit(type)
             override fun visit(type: EtsUnclearRefType): R = defaultVisit(type)
             override fun visit(type: EtsGenericType): R = defaultVisit(type)
+            override fun visit(type: EtsAliasType): R = defaultVisit(type)
+            override fun visit(type: EtsAnnotationNamespaceType): R = defaultVisit(type)
+            override fun visit(type: EtsAnnotationTypeQueryType): R = defaultVisit(type)
 
             fun defaultVisit(type: EtsType): R
         }
@@ -310,6 +318,54 @@ data class EtsGenericType(
 
     override fun toString(): String {
         return name + (constraint?.let { " extends $it" } ?: "") + (defaultType?.let { " = $it" } ?: "")
+    }
+
+    override fun <R> accept(visitor: EtsType.Visitor<R>): R {
+        return visitor.visit(this)
+    }
+}
+
+data class EtsAliasType(
+    val name: String,
+    val originalType: EtsType,
+    val signature: EtsLocalSignature,
+) : EtsType {
+    override val typeName: String
+        get() = name
+
+    override fun toString(): String {
+        return "$name = $originalType"
+    }
+
+    override fun <R> accept(visitor: EtsType.Visitor<R>): R {
+        return visitor.visit(this)
+    }
+}
+
+data class EtsAnnotationNamespaceType(
+    val originType: String,
+    val namespaceSignature: EtsNamespaceSignature,
+) : EtsType {
+    override val typeName: String
+        get() = originType
+
+    override fun toString(): String {
+        return originType
+    }
+
+    override fun <R> accept(visitor: EtsType.Visitor<R>): R {
+        return visitor.visit(this)
+    }
+}
+
+data class EtsAnnotationTypeQueryType(
+    val originType: String,
+) : EtsType {
+    override val typeName: String
+        get() = originType
+
+    override fun toString(): String {
+        return originType
     }
 
     override fun <R> accept(visitor: EtsType.Visitor<R>): R {

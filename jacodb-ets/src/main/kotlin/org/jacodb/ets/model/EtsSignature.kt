@@ -125,3 +125,12 @@ data class EtsMethodParameter(
         return "$name${if (isOptional) "?" else ""}: $type"
     }
 }
+
+data class EtsLocalSignature(
+    val name: String,
+    val method: EtsMethodSignature,
+) {
+    override fun toString(): String {
+        return "${method}#$name"
+    }
+}

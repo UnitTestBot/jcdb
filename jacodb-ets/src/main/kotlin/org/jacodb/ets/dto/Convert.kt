@@ -18,7 +18,10 @@ package org.jacodb.ets.dto
 
 import org.jacodb.ets.base.CONSTRUCTOR_NAME
 import org.jacodb.ets.base.EtsAddExpr
+import org.jacodb.ets.base.EtsAliasType
 import org.jacodb.ets.base.EtsAndExpr
+import org.jacodb.ets.base.EtsAnnotationNamespaceType
+import org.jacodb.ets.base.EtsAnnotationTypeQueryType
 import org.jacodb.ets.base.EtsAnyType
 import org.jacodb.ets.base.EtsArrayAccess
 import org.jacodb.ets.base.EtsArrayLiteral
@@ -119,6 +122,7 @@ import org.jacodb.ets.model.EtsFieldSignature
 import org.jacodb.ets.model.EtsFieldSubSignature
 import org.jacodb.ets.model.EtsFile
 import org.jacodb.ets.model.EtsFileSignature
+import org.jacodb.ets.model.EtsLocalSignature
 import org.jacodb.ets.model.EtsMethod
 import org.jacodb.ets.model.EtsMethodImpl
 import org.jacodb.ets.model.EtsMethodParameter
@@ -615,9 +619,21 @@ fun convertToEtsType(type: TypeDto): EtsType {
             }
         }
 
-        is AliasTypeDto -> EtsUnknownType // TODO: EtsAliasType
-        is AnnotationNamespaceTypeDto -> EtsUnknownType // TODO: EtsAnnotationNamespaceType
-        is AnnotationTypeQueryTypeDto -> EtsUnknownType // TODO: EtsAnnotationTypeQueryType
+        is AliasTypeDto -> EtsAliasType(
+            name = type.name,
+            originalType = convertToEtsType(type.originalType),
+            signature = convertToEtsLocalSignature(type.signature),
+        )
+
+        is AnnotationNamespaceTypeDto -> EtsAnnotationNamespaceType(
+            originType = type.originType,
+            namespaceSignature = convertToEtsNamespaceSignature(type.namespaceSignature),
+        )
+
+
+        is AnnotationTypeQueryTypeDto -> EtsAnnotationTypeQueryType(
+            originType = type.originType,
+        )
 
         AnyTypeDto -> EtsAnyType
 
@@ -638,18 +654,14 @@ fun convertToEtsType(type: TypeDto): EtsType {
             typeParameters = type.typeParameters.map { convertToEtsType(it) },
         )
 
-        is GenericTypeDto -> {
-            val defaultType = type.defaultType?.let { convertToEtsType(it) }
-            val constraint = type.constraint?.let { convertToEtsType(it) }
-            EtsGenericType(
-                name = type.name,
-                defaultType = defaultType,
-                constraint = constraint,
-            )
-        }
+        is GenericTypeDto -> EtsGenericType(
+            name = type.name,
+            defaultType = type.defaultType?.let { convertToEtsType(it) },
+            constraint = type.constraint?.let { convertToEtsType(it) },
+        )
 
         is LiteralTypeDto -> EtsLiteralType(
-            literalTypeName = type.literal.toString()
+            literalTypeName = type.literal.toString(),
         )
 
         NeverTypeDto -> EtsNeverType
@@ -761,6 +773,13 @@ fun convertToEtsMethodSignature(method: MethodSignatureDto): EtsMethodSignature 
             )
         },
         returnType = convertToEtsType(method.returnType),
+    )
+}
+
+fun convertToEtsLocalSignature(local: LocalSignatureDto): EtsLocalSignature {
+    return EtsLocalSignature(
+        name = local.name,
+        method = convertToEtsMethodSignature(local.method),
     )
 }
 
