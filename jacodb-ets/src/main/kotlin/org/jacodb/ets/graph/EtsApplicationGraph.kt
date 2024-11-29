@@ -109,7 +109,7 @@ class EtsApplicationGraphImpl(
         val cachedPartialMatchAsUnknown: AtomicInteger = AtomicInteger(0),
         val noPartialMatch: AtomicInteger = AtomicInteger(0),
         val multiplePartialMatch: AtomicInteger = AtomicInteger(0),
-        val partialMatchFound: AtomicInteger = AtomicInteger(0)
+        val partialMatchFound: AtomicInteger = AtomicInteger(0),
     ) {
         val total: Int
             get() = listOf(
