@@ -30,6 +30,7 @@ import org.jacodb.ets.model.EtsScene
 import org.jacodb.ets.utils.callExpr
 import org.jacodb.impl.util.Maybe
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.roundToInt
 
 private val logger = KotlinLogging.logger {}
 
@@ -169,16 +170,16 @@ class EtsApplicationGraphImpl(
             if (total == 0) {
                 return "[N/A%] $description ${property.get()}"
             }
-            val percent = 100 * property.get() / total
-            return "[$percent%] $description: ${property.get()}"
+            val percent = 100.0 * property.get() / total
+            return "[${percent.roundToInt()}%] $description: ${property.get()}"
         }
 
         private fun show(description: String, property: Int): String {
             if (total == 0) {
                 return "[N/A%] $description $property"
             }
-            val percent = 100 * property / total
-            return "[$percent%] $description: $property"
+            val percent = 100.0 * property / total
+            return "[${percent.roundToInt()}%] $description: $property"
         }
 
         override fun toString(): String {
