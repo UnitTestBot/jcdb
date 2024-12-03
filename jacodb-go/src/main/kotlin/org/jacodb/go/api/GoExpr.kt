@@ -1164,7 +1164,7 @@ data class GoGlobal(val index: Int, override val name: String, override val type
     }
 }
 
-data class GoBuiltin(val index: Int, override val name: String, override val type: GoType) : GoLocal {
+data class GoBuiltin(override val name: String, override val type: GoType) : GoLocal {
     override fun toString(): String = "builtin $name"
 
     override fun <T> accept(visitor: GoExprVisitor<T>): T {
@@ -1177,14 +1177,11 @@ data class GoBuiltin(val index: Int, override val name: String, override val typ
 
         other as GoBuiltin
 
-        if (index != other.index) return false
-        if (type != other.type) return false
-
-        return true
+        return type == other.type
     }
 
     override fun hashCode(): Int {
-        var result = index
+        var result = name.hashCode()
         result = 31 * result + type.hashCode()
         return result
     }
