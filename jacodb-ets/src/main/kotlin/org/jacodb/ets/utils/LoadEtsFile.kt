@@ -81,3 +81,27 @@ fun loadEtsFileAutoConvert(tsPath: Path): EtsFile {
         return etsFile
     }
 }
+
+fun loadEtsProjectAutoConvert(
+    path: Path,
+    loadEntrypoints: Boolean = false,
+    useArkAnalyzerTypeInference: Int? = 1,
+): EtsScene {
+    val irFolderPath = generateEtsIR(
+        path,
+        isProject = true,
+        loadEntrypoints = loadEntrypoints,
+        useArkAnalyzerTypeInference = useArkAnalyzerTypeInference,
+    )
+    val files = irFolderPath
+        .walk()
+        .filter { it.extension == "json" }
+        .map {
+            it.inputStream().use { stream ->
+                val etsFileDto = EtsFileDto.loadFromJson(stream)
+                convertToEtsFile(etsFileDto)
+            }
+        }
+        .toList()
+    return EtsScene(files)
+}

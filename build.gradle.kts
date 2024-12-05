@@ -172,11 +172,9 @@ if (!repoUrl.isNullOrEmpty()) {
             project(":jacodb-api-storage"),
             project(":jacodb-core"),
             project(":jacodb-storage"),
-            project(":jacodb-analysis"),
             project(":jacodb-approximations"),
             project(":jacodb-taint-configuration"),
             project(":jacodb-ets"),
-            project(":jacodb-panda-static"),
         )
     ) {
         tasks {
