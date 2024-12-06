@@ -16,7 +16,6 @@
 
 package org.jacodb.impl.cfg
 
-import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.cfg.AbstractFullRawExprSetCollector
 import org.jacodb.api.jvm.cfg.JcInstList
 import org.jacodb.api.jvm.cfg.JcRawAssignInst
@@ -41,7 +40,7 @@ import org.jacodb.impl.cfg.util.InstructionFilter
  * the frames merging)
  */
 internal class Simplifier {
-    fun simplify(jcClasspath: JcClasspath, instList: JcInstList<JcRawInst>): JcInstList<JcRawInst> {
+    fun simplify(instList: JcInstList<JcRawInst>): JcInstList<JcRawInst> {
         // clear the assignments that are repeated inside single basic block
         var instructionList = cleanRepeatedAssignments(instList)
 
