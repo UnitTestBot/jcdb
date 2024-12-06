@@ -49,8 +49,6 @@ private val logger = mu.KotlinLogging.logger {}
 class EtsTaintAnalysisTest {
 
     companion object {
-        private val traits = EtsTraits()
-
         private const val BASE_PATH = "/samples/etsir/ast"
         private const val DECOMPILED_PATH = "/decompiled"
 
@@ -109,7 +107,7 @@ class EtsTaintAnalysisTest {
         val graph = EtsApplicationGraphImpl(project)
         val unitResolver = UnitResolver<EtsMethod> { SingletonUnit }
 
-        val manager = with(traits) {
+        val manager = with(EtsTraits()) {
             TaintManager(
                 graph = graph,
                 unitResolver = unitResolver,

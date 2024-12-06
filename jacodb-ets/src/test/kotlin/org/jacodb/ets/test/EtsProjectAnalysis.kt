@@ -51,8 +51,6 @@ class EtsProjectAnalysis {
     private var totalSinks: MutableList<TaintVulnerability<EtsStmt>> = mutableListOf()
 
     companion object {
-        private val traits = EtsTraits()
-
         private const val SOURCE_PROJECT_PATH =
             "/projects/applications_app_samples/source/applications_app_samples/code/SuperFeature/DistributedAppDev/ArkTSDistributedCalc"
         private const val PROJECT_PATH = "/projects/applications_app_samples/etsir/ast/ArkTSDistributedCalc"
@@ -142,7 +140,7 @@ class EtsProjectAnalysis {
     private fun runAnalysis(project: EtsScene) {
         val graph = EtsApplicationGraphImpl(project)
         val unitResolver = UnitResolver<EtsMethod> { SingletonUnit }
-        val manager = with(traits) {
+        val manager = with(EtsTraits()) {
             TaintManager(
                 graph = graph,
                 unitResolver = unitResolver,
