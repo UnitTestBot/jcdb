@@ -15,7 +15,6 @@ dependencies {
     implementation(Libs.kotlinx_serialization_json)
     implementation(Libs.jdot)
 
-    testImplementation(project(":jacodb-analysis"))
     testImplementation(testFixtures(project(":jacodb-core")))
     testImplementation(Libs.mockk)
 }

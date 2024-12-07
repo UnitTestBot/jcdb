@@ -37,11 +37,11 @@ abstract class AbstractGoType : GoType {
     }
 }
 
-class NullType: GoType, AbstractGoType() {
+class NullType : GoType, AbstractGoType() {
     override val typeName = "null"
 }
 
-class LongType: GoType, AbstractGoType() {
+class LongType : GoType, AbstractGoType() {
     override val typeName = "long"
 }
 
@@ -73,8 +73,12 @@ class ChanType(
         }
 }
 
-class InterfaceType() : GoType, AbstractGoType() {
-    override val typeName = "Any"
+class InterfaceType(
+    val methods: List<String>,
+    val name: String,
+) : GoType, AbstractGoType() {
+    override val typeName: String
+        get() = name
 }
 
 class MapType(
@@ -88,6 +92,7 @@ class MapType(
 class NamedType(
     var underlyingType: GoType,
     val name: String,
+    val methods: List<String>
 ) : GoType, AbstractGoType() {
     override val typeName: String
         get() = name
