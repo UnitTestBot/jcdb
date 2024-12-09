@@ -1,7 +1,6 @@
 dependencies {
     api(project(":jacodb-api-jvm"))
     api(project(":jacodb-core"))
-    api(project(":jacodb-analysis"))
 
     implementation(Libs.slf4j_simple)
     implementation(Libs.soot_utbot_fork)
