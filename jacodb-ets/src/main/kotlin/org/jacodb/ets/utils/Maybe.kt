@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-package org.jacodb.impl.util
+package org.jacodb.ets.utils
 
 @JvmInline
 value class Maybe<out T> private constructor(

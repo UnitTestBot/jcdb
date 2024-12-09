@@ -28,7 +28,7 @@ import org.jacodb.ets.model.EtsMethod
 import org.jacodb.ets.model.EtsMethodSignature
 import org.jacodb.ets.model.EtsScene
 import org.jacodb.ets.utils.callExpr
-import org.jacodb.impl.util.Maybe
+import org.jacodb.ets.utils.Maybe
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.roundToInt
 
