@@ -14,18 +14,19 @@
  *  limitations under the License.
  */
 
-package org.jacodb.testing.storage.ers
+package org.jacodb.api.storage.ers
 
-import jetbrains.exodus.env.ReadonlyTransactionException
-import org.jacodb.impl.JcKvErsSettings
-import org.jacodb.impl.storage.ers.kv.KV_ERS_SPI
-import org.jacodb.impl.storage.kv.xodus.XODUS_KEY_VALUE_STORAGE_SPI
-import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Test
+import java.io.InputStream
+import java.io.OutputStream
 
-class XodusKVEntityRelationshipStorageTest : EntityRelationshipStorageTest() {
+/**
+ * EntityRelationshipStorage that can be dumped and loaded
+ */
+interface DumpableLoadableEntityRelationshipStorage : EntityRelationshipStorage {
 
-    override val ersSettings = JcKvErsSettings(XODUS_KEY_VALUE_STORAGE_SPI)
+    fun dump(output: OutputStream)
 
-    override val ersId = KV_ERS_SPI
+    fun load(input: InputStream)
+
+    fun load(databaseId: String): DumpableLoadableEntityRelationshipStorage? = null
 }

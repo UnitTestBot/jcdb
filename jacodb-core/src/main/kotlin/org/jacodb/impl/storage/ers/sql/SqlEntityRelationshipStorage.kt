@@ -22,6 +22,7 @@ import org.jacodb.api.storage.ers.BindingProvider
 import org.jacodb.api.storage.ers.ERSConflictingTransactionException
 import org.jacodb.api.storage.ers.EntityRelationshipStorage
 import org.jacodb.api.storage.ers.Transaction
+import org.jacodb.impl.storage.ers.EntityRelationshipStorageBase
 import org.jacodb.impl.storage.ers.decorators.withAllDecorators
 import org.jacodb.impl.storage.ers.jooq.tables.references.TYPES
 import org.jacodb.impl.storage.ers.sql.SqlErsNames.ENTITY_ID_FIELD
@@ -54,7 +55,7 @@ private fun Connection.createSQLiteDSLContext(): DSLContext {
 class SqlEntityRelationshipStorage(
     dataSource: SQLiteDataSource,
     bindingProvider: BindingProvider
-) : EntityRelationshipStorage, BindingProvider by bindingProvider {
+) : EntityRelationshipStorageBase(), BindingProvider by bindingProvider {
     private val primaryConnection: Connection = dataSource.connection
     private val jooq: DSLContext = primaryConnection.createSQLiteDSLContext()
     private val connectionPool = run {

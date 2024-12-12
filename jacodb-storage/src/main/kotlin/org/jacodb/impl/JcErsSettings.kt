@@ -19,6 +19,10 @@ package org.jacodb.impl
 import org.jacodb.api.storage.ers.ErsSettings
 import org.jacodb.impl.storage.kv.lmdb.LMDB_KEY_VALUE_STORAGE_SPI
 
+class RamErsSettings(
+    val immutableDumpsPath: String? = null
+) : ErsSettings
+
 /**
  * Id of pluggable K/V storage being passed for [org.jacodb.impl.storage.ers.kv.KVEntityRelationshipStorageSPI].
  */

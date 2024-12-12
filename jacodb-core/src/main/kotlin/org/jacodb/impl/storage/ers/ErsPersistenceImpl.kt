@@ -23,6 +23,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcDatabase
 import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.jvm.ext.JAVA_OBJECT
+import org.jacodb.api.storage.ers.DumpableLoadableEntityRelationshipStorage
 import org.jacodb.api.storage.ers.Entity
 import org.jacodb.api.storage.ers.EntityRelationshipStorage
 import org.jacodb.api.storage.ers.Transaction
@@ -72,6 +73,17 @@ class ErsPersistenceImpl(
 
     override fun setup() {
         /* no-op */
+    }
+
+    override fun tryLoad(databaseId: String): Boolean {
+        val ers = ers
+        if (ers is DumpableLoadableEntityRelationshipStorage) {
+            ers.load(databaseId)?.let {
+                this.ers = it
+                return true
+            }
+        }
+        return false
     }
 
     override fun <T> read(action: (JCDBContext) -> T): T {
@@ -233,8 +245,8 @@ class ErsPersistenceImpl(
         }
     }
 
-    override fun setImmutable() {
-        ers = ers.asReadonly
+    override fun setImmutable(databaseId: String) {
+        ers = ers.asImmutable(databaseId)
     }
 
     override fun close() {

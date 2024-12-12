@@ -21,11 +21,16 @@ import org.jacodb.api.jvm.LocationType
 import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.impl.storage.longHash
 import java.io.File
+import java.math.BigInteger
 
 open class DummyCodeLocation(private val name: String) : JcByteCodeLocation, RegisteredLocation {
 
     override val id: Long
         get() = name.longHash
+
+    override val currentHash: BigInteger get() = BigInteger.valueOf(id)
+
+    override val fileSystemIdHash: BigInteger get() = currentHash
 
     override val fileSystemId: String
         get() = name

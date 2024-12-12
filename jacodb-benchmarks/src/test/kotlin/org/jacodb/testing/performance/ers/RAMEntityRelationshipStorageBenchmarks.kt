@@ -23,9 +23,6 @@ import org.jacodb.api.storage.ers.EntityRelationshipStorage
 import org.jacodb.api.storage.ers.EntityRelationshipStorageSPI
 import org.jacodb.api.storage.ers.Transaction
 import org.jacodb.impl.storage.ers.ram.RAM_ERS_SPI
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -161,6 +158,6 @@ class RAMEntityRelationshipStorageMutableBenchmarks : RAMEntityRelationshipStora
 class RAMEntityRelationshipStorageImmutableBenchmarks : RAMEntityRelationshipStorageBenchmarks() {
 
     override fun setImmutable() {
-        storage = storage.asReadonly
+        storage = storage.asImmutable("no id")
     }
 }

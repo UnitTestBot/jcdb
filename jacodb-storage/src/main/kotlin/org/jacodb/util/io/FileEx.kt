@@ -14,18 +14,19 @@
  *  limitations under the License.
  */
 
-package org.jacodb.testing.storage.ers
+package org.jacodb.util.io
 
-import jetbrains.exodus.env.ReadonlyTransactionException
-import org.jacodb.impl.JcKvErsSettings
-import org.jacodb.impl.storage.ers.kv.KV_ERS_SPI
-import org.jacodb.impl.storage.kv.xodus.XODUS_KEY_VALUE_STORAGE_SPI
-import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Test
+import java.io.File
+import java.io.FileInputStream
+import java.io.InputStream
+import java.nio.MappedByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.file.Path
 
-class XodusKVEntityRelationshipStorageTest : EntityRelationshipStorageTest() {
+fun File.inputStream(): InputStream = FileInputStream(this)
 
-    override val ersSettings = JcKvErsSettings(XODUS_KEY_VALUE_STORAGE_SPI)
+fun Path.inputStream(): InputStream = toFile().inputStream()
 
-    override val ersId = KV_ERS_SPI
+fun File.mapReadonly(): MappedByteBuffer = FileInputStream(this).use {
+    it.channel.map(FileChannel.MapMode.READ_ONLY, 0L, length())
 }

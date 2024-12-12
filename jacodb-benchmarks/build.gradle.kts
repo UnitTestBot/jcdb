@@ -73,6 +73,7 @@ benchmark {
             include("JcdbRAMJvmBackgroundBenchmarks")
             include("JcdbRAMAllClasspathBackgroundBenchmarks")
             include("JcdbRAMIdeaBackgroundBenchmarks")
+            include("JcdbRAMImmutableIdeaBackgroundBenchmarks")
         }
         register("cache") {
             warmups = 5

@@ -19,6 +19,8 @@ package org.jacodb.impl.fs
 import com.google.common.hash.Hashing
 import org.jacodb.api.jvm.JcByteCodeLocation
 import java.io.File
+import java.math.BigInteger
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
 
@@ -27,16 +29,21 @@ abstract class AbstractByteCodeLocation(override val jarOrFolder: File) : JcByte
     override val path: String
         get() = jarOrFolder.absolutePath
 
-    abstract fun currentHash(): String
+    override val fileSystemIdHash: BigInteger by lazy { currentHash }
 
-    override fun isChanged() = fileSystemId != currentHash()
+    override fun isChanged() = fileSystemIdHash != currentHash
 
-
-    protected val String.shaHash: String
+    protected val String.shaHash: ByteArray
         get() {
             return Hashing.sha256()
                 .hashString(this, StandardCharsets.UTF_8)
-                .toString();
+                .asBytes()
         }
 
+    protected val ByteBuffer.shaHash: ByteArray
+        get() {
+            return Hashing.sha256()
+                .hashBytes(this)
+                .asBytes()
+        }
 }

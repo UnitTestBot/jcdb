@@ -18,6 +18,7 @@ package org.jacodb.api.jvm
 
 import org.objectweb.asm.Opcodes
 import java.io.File
+import java.math.BigInteger
 
 
 /**
@@ -31,7 +32,17 @@ import java.io.File
  */
 interface JcByteCodeLocation {
     val jarOrFolder: File
-    val fileSystemId: String //id based on from file system
+
+    /**
+     * Is being calculated each time when it is invoked.
+     */
+    val currentHash: BigInteger
+
+    /**
+     * Numeric id of this location calculated once using `currentHash` property.
+     */
+    val fileSystemIdHash: BigInteger
+    val fileSystemId: String get() = fileSystemIdHash.toString(Character.MAX_RADIX)
 
     val type: LocationType
 

@@ -239,7 +239,7 @@ open class JcErsSettings(
         get() = ERS_DATABASE_PERSISTENCE_SPI
 }
 
-object JcRamErsSettings : JcErsSettings(RAM_ERS_SPI)
+object JcRamErsSettings : JcErsSettings(RAM_ERS_SPI, RamErsSettings())
 
 object JcSqlErsSettings : JcErsSettings(SQL_ERS_SPI)
 

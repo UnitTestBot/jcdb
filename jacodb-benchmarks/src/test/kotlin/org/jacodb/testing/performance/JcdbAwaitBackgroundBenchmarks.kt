@@ -18,11 +18,14 @@ package org.jacodb.testing.performance
 
 import kotlinx.coroutines.runBlocking
 import org.jacodb.api.jvm.JcDatabase
+import org.jacodb.impl.JcErsSettings
 import org.jacodb.impl.JcRamErsSettings
 import org.jacodb.impl.JcSettings
+import org.jacodb.impl.RamErsSettings
 import org.jacodb.impl.features.InMemoryHierarchy
 import org.jacodb.impl.features.Usages
 import org.jacodb.impl.jacodb
+import org.jacodb.impl.storage.ers.ram.RAM_ERS_SPI
 import org.jacodb.testing.allClasspath
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
@@ -38,13 +41,23 @@ import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Threads
 import org.openjdk.jmh.annotations.Warmup
 import java.io.File
+import java.nio.file.Files
 import java.util.concurrent.TimeUnit
+import kotlin.io.path.absolutePathString
 
 abstract class JcdbAbstractAwaitBackgroundBenchmarks {
+
+    companion object {
+        val tempDir by lazy {
+            Files.createTempDirectory("ersImmutable").absolutePathString()
+        }
+    }
 
     private var db: JcDatabase? = null
 
     abstract fun JcSettings.configure()
+
+    open val isImmutable = false
 
     @Setup(Level.Iteration)
     fun setup() {
@@ -59,7 +72,11 @@ abstract class JcdbAbstractAwaitBackgroundBenchmarks {
     @Benchmark
     fun awaitBackground() {
         runBlocking {
-            db?.awaitBackgroundJobs()
+            if (isImmutable) {
+                db?.setImmutable()
+            } else {
+                db?.awaitBackgroundJobs()
+            }
         }
     }
 
@@ -153,6 +170,23 @@ class JcdbRAMIdeaBackgroundBenchmarks : JcdbAbstractAwaitBackgroundBenchmarks() 
 
     override fun JcSettings.configure() {
         persistenceImpl(JcRamErsSettings)
+        loadByteCode(allIdeaJars)
+        installFeatures(Usages, InMemoryHierarchy)
+    }
+}
+
+@State(Scope.Benchmark)
+@Fork(1, jvmArgs = ["-Xmx20g", "-Xms12g", "-XX:+HeapDumpOnOutOfMemoryError"])
+@Warmup(iterations = 2)
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(TimeUnit.MILLISECONDS)
+@Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.MILLISECONDS)
+class JcdbRAMImmutableIdeaBackgroundBenchmarks : JcdbAbstractAwaitBackgroundBenchmarks() {
+
+    override val isImmutable = true
+
+    override fun JcSettings.configure() {
+        persistenceImpl(JcErsSettings(RAM_ERS_SPI, RamErsSettings(immutableDumpsPath = tempDir)))
         loadByteCode(allIdeaJars)
         installFeatures(Usages, InMemoryHierarchy)
     }

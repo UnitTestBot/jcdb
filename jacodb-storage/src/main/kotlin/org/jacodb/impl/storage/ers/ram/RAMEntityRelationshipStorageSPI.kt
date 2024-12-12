@@ -16,9 +16,10 @@
 
 package org.jacodb.impl.storage.ers.ram
 
-import org.jacodb.api.storage.ers.ErsSettings
 import org.jacodb.api.storage.ers.EntityRelationshipStorage
 import org.jacodb.api.storage.ers.EntityRelationshipStorageSPI
+import org.jacodb.api.storage.ers.ErsSettings
+import org.jacodb.impl.RamErsSettings
 
 const val RAM_ERS_SPI = "org.jacodb.impl.storage.ers.ram.RAMEntityRelationshipStorageSPI"
 
@@ -28,6 +29,7 @@ class RAMEntityRelationshipStorageSPI : EntityRelationshipStorageSPI {
 
     override fun newStorage(persistenceLocation: String?, settings: ErsSettings): EntityRelationshipStorage {
         require(persistenceLocation == null) { "RAM ERS can't be persisted" }
-        return RAMEntityRelationshipStorage()
+        require(settings is RamErsSettings) { "RamErsSettings is expected" }
+        return RAMEntityRelationshipStorage(settings = settings)
     }
 }

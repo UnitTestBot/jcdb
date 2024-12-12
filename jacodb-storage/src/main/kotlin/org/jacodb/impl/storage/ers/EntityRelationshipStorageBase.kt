@@ -14,18 +14,12 @@
  *  limitations under the License.
  */
 
-package org.jacodb.testing.storage.ers
+package org.jacodb.impl.storage.ers
 
-import jetbrains.exodus.env.ReadonlyTransactionException
-import org.jacodb.impl.JcKvErsSettings
-import org.jacodb.impl.storage.ers.kv.KV_ERS_SPI
-import org.jacodb.impl.storage.kv.xodus.XODUS_KEY_VALUE_STORAGE_SPI
-import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Test
+import org.jacodb.api.storage.ers.EntityRelationshipStorage
+import org.jacodb.impl.storage.ers.ram.toImmutable
 
-class XodusKVEntityRelationshipStorageTest : EntityRelationshipStorageTest() {
+abstract class EntityRelationshipStorageBase : EntityRelationshipStorage {
 
-    override val ersSettings = JcKvErsSettings(XODUS_KEY_VALUE_STORAGE_SPI)
-
-    override val ersId = KV_ERS_SPI
+    override fun asImmutable(databaseId: String): EntityRelationshipStorage = toImmutable()
 }
