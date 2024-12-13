@@ -155,7 +155,6 @@ tasks.dokkaHtmlMultiModule {
     removeChildTasks(
         listOf(
             project(":jacodb-examples"),
-            project(":jacodb-cli"),
             project(":jacodb-benchmarks")
         )
     )
