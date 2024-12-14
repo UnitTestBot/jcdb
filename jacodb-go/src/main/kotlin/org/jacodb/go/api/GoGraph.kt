@@ -61,6 +61,7 @@ class GoGraph(
     override fun throwers(node: GoInst): Set<GoInst> {
         return exits.filterIsInstance<GoPanicInst>().toSet()
     }
+
     // TODO: catchers? Is there any?
     override fun catchers(node: GoInst): Set<GoInst> = emptySet()
 
