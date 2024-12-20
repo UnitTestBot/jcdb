@@ -21,14 +21,12 @@ import org.jacodb.ets.dto.convertToEtsFile
 import org.jacodb.ets.model.EtsFile
 import org.jacodb.ets.utils.dumpDot
 import org.jacodb.ets.utils.render
-import org.jacodb.ets.utils.resolveSibling
 import org.jacodb.ets.utils.toText
 import kotlin.io.path.Path
 import kotlin.io.path.div
 import kotlin.io.path.name
 import kotlin.io.path.nameWithoutExtension
 import kotlin.io.path.relativeTo
-import kotlin.io.path.toPath
 import kotlin.io.path.walk
 
 private val logger = mu.KotlinLogging.logger {}
@@ -90,9 +88,7 @@ object DumpEtsFilesToDot {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        val res = ETSIR
-        val etsirDir = object {}::class.java.getResource(res)?.toURI()?.toPath()
-            ?: error("Resource not found: '$res'")
+        val etsirDir = getResourcePath(ETSIR)
         logger.info { "etsirDir = $etsirDir" }
 
         etsirDir.walk()

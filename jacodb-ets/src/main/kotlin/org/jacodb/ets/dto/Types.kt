@@ -141,13 +141,28 @@ object UndefinedTypeDto : PrimitiveTypeDto {
 @Serializable
 @SerialName("LiteralType")
 data class LiteralTypeDto(
-    val literal: String,
+    val literal: PrimitiveLiteralDto,
 ) : PrimitiveTypeDto {
     override val name: String
-        get() = "literal"
+        get() = literal.toString()
 
     override fun toString(): String {
-        return literal
+        return name
+    }
+}
+
+@Serializable(with = PrimitiveLiteralSerializer::class)
+sealed class PrimitiveLiteralDto {
+    data class StringLiteral(val value: String) : PrimitiveLiteralDto() {
+        override fun toString(): String = value
+    }
+
+    data class NumberLiteral(val value: Double) : PrimitiveLiteralDto() {
+        override fun toString(): String = value.toString()
+    }
+
+    data class BooleanLiteral(val value: Boolean) : PrimitiveLiteralDto() {
+        override fun toString(): String = value.toString()
     }
 }
 
@@ -155,9 +170,15 @@ data class LiteralTypeDto(
 @SerialName("ClassType")
 data class ClassTypeDto(
     val signature: ClassSignatureDto,
+    val typeParameters: List<TypeDto> = emptyList(),
 ) : TypeDto {
     override fun toString(): String {
-        return signature.toString()
+        return if (typeParameters.isNotEmpty()) {
+            val generics = typeParameters.joinToString()
+            "$signature<$generics>"
+        } else {
+            signature.toString()
+        }
     }
 }
 
@@ -165,9 +186,16 @@ data class ClassTypeDto(
 @SerialName("FunctionType")
 data class FunctionTypeDto(
     val signature: MethodSignatureDto,
+    val typeParameters: List<TypeDto> = emptyList(),
 ) : TypeDto {
     override fun toString(): String {
-        return "(${signature.parameters.joinToString()}) => ${signature.returnType}"
+        val params = signature.parameters.joinToString()
+        return if (typeParameters.isNotEmpty()) {
+            val generics = typeParameters.joinToString()
+            "${signature.name}<$generics>($params): ${signature.returnType}"
+        } else {
+            "${signature.name}($params): ${signature.returnType}"
+        }
     }
 }
 
@@ -178,7 +206,7 @@ data class ArrayTypeDto(
     val dimensions: Int,
 ) : TypeDto {
     override fun toString(): String {
-        return "$elementType[]".repeat(dimensions)
+        return "$elementType" + "[]".repeat(dimensions)
     }
 }
 
@@ -186,9 +214,60 @@ data class ArrayTypeDto(
 @SerialName("UnclearReferenceType")
 data class UnclearReferenceTypeDto(
     val name: String,
+    val typeParameters: List<TypeDto> = emptyList(),
 ) : TypeDto {
     override fun toString(): String {
-        return name
+        return if (typeParameters.isNotEmpty()) {
+            val generics = typeParameters.joinToString()
+            "$name<$generics>"
+        } else {
+            name
+        }
+    }
+}
+
+@Serializable
+@SerialName("GenericType")
+data class GenericTypeDto(
+    val name: String,
+    val defaultType: TypeDto? = null,
+    val constraint: TypeDto? = null,
+) : TypeDto {
+    override fun toString(): String {
+        return name + (constraint?.let { " extends $it" } ?: "") + (defaultType?.let { " = $it" } ?: "")
+    }
+}
+
+@Serializable
+@SerialName("AliasType")
+data class AliasTypeDto(
+    val name: String,
+    val originalType: TypeDto,
+    val signature: LocalSignatureDto,
+) : TypeDto {
+    override fun toString(): String {
+        return "$name = $originalType"
+    }
+}
+
+@Serializable
+@SerialName("AnnotationNamespaceType")
+data class AnnotationNamespaceTypeDto(
+    val originType: String,
+    val namespaceSignature: NamespaceSignatureDto,
+) : TypeDto {
+    override fun toString(): String {
+        return originType
+    }
+}
+
+@Serializable
+@SerialName("AnnotationTypeQueryType")
+data class AnnotationTypeQueryTypeDto(
+    val originType: String,
+) : TypeDto {
+    override fun toString(): String {
+        return originType
     }
 }
 

@@ -20,7 +20,6 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonClassDiscriminator
-import kotlinx.serialization.json.JsonElement
 
 @Serializable
 @OptIn(ExperimentalSerializationApi::class)
@@ -32,7 +31,7 @@ sealed interface ValueDto {
 @Serializable
 @SerialName("UNKNOWN_VALUE")
 data class UnknownValueDto(
-    val value: JsonElement,
+    val value: String,
 ) : ValueDto {
     override val type: TypeDto
         get() = UnknownTypeDto
@@ -365,6 +364,18 @@ data class StaticCallExprDto(
 ) : CallExprDto {
     override fun toString(): String {
         return "${method.name}(${args.joinToString()})"
+    }
+}
+
+@Serializable
+@SerialName("PtrCallExpr")
+data class PtrCallExprDto(
+    val ptr: ValueDto, // Local
+    override val method: MethodSignatureDto,
+    override val args: List<ValueDto>,
+) : CallExprDto {
+    override fun toString(): String {
+        return "$ptr@${method.declaringClass.name}::${method.name}(${args.joinToString()})"
     }
 }
 

@@ -31,16 +31,14 @@ data class FileSignatureDto(
 @Serializable
 data class NamespaceSignatureDto(
     val name: String,
-    val declaringFile: FileSignatureDto? = null,
+    val declaringFile: FileSignatureDto,
     val declaringNamespace: NamespaceSignatureDto? = null,
 ) {
     override fun toString(): String {
         return if (declaringNamespace != null) {
             "$declaringNamespace::$name"
-        } else if (declaringFile != null) {
-            "$name in $declaringFile"
         } else {
-            name
+            "$declaringFile::$name"
         }
     }
 }
@@ -48,16 +46,14 @@ data class NamespaceSignatureDto(
 @Serializable
 data class ClassSignatureDto(
     val name: String,
-    val declaringFile: FileSignatureDto? = null,
+    val declaringFile: FileSignatureDto,
     val declaringNamespace: NamespaceSignatureDto? = null,
 ) {
     override fun toString(): String {
         return if (declaringNamespace != null) {
             "$declaringNamespace::$name"
-        } else if (declaringFile != null) {
-            "$name in $declaringFile"
         } else {
-            name
+            "$declaringFile::$name"
         }
     }
 }
@@ -69,7 +65,7 @@ data class FieldSignatureDto(
     val type: TypeDto,
 ) {
     override fun toString(): String {
-        return "$name: $type"
+        return "${declaringClass.name}::$name: $type"
     }
 }
 
@@ -82,7 +78,7 @@ data class MethodSignatureDto(
 ) {
     override fun toString(): String {
         val params = parameters.joinToString()
-        return "$name($params): $returnType"
+        return "${declaringClass.name}::$name($params): $returnType"
     }
 }
 
@@ -94,5 +90,15 @@ data class MethodParameterDto(
 ) {
     override fun toString(): String {
         return "$name: $type"
+    }
+}
+
+@Serializable
+data class LocalSignatureDto(
+    val name: String,
+    val method: MethodSignatureDto,
+) {
+    override fun toString(): String {
+        return "${method}#${name}"
     }
 }

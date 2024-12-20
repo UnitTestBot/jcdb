@@ -72,17 +72,20 @@ fun EtsFileDto.toText(): String {
         lines += "  superClass = '${clazz.superClassName}'"
         lines += "  typeParameters = ${clazz.typeParameters}"
         lines += "  modifiers = ${clazz.modifiers}"
+        lines += "  decorators = ${clazz.decorators}"
         lines += "  fields: ${clazz.fields.size}"
         clazz.fields.forEach { field ->
             lines += "  - FIELD '${field.signature}'"
-            lines += "    typeParameters = ${field.typeParameters}"
             lines += "    modifiers = ${field.modifiers}"
+            lines += "    decorators = ${field.decorators}"
             lines += "    isOptional = ${field.isOptional}"
             lines += "    isDefinitelyAssigned = ${field.isDefinitelyAssigned}"
         }
         lines += "  methods: ${clazz.methods.size}"
         clazz.methods.forEach { method ->
             lines += "  - METHOD '${method.signature}'"
+            lines += "    modifiers = ${method.modifiers}"
+            lines += "    decorators = ${method.decorators}"
             lines += "    typeParameters = ${method.typeParameters}"
             if (method.body != null) {
                 lines += "    locals = ${method.body.locals}"
@@ -107,12 +110,19 @@ fun EtsFile.toText(): String {
     lines += "EtsFile '${signature}':"
     classes.forEach { clazz ->
         lines += "= CLASS '${clazz.signature}':"
+        lines += "  typeParameters = ${clazz.typeParameters}"
+        lines += "  modifiers = ${clazz.modifiers}"
+        lines += "  decorators = ${clazz.decorators}"
         lines += "  superClass = '${clazz.superClass}'"
         lines += "  fields: ${clazz.fields.size}"
         clazz.fields.forEach { field ->
             lines += "  - FIELD '${field.signature}'"
         }
         lines += "  constructor = '${clazz.ctor.signature}'"
+        lines += "    typeParameters = ${clazz.ctor.typeParameters}"
+        lines += "    modifiers = ${clazz.ctor.modifiers}"
+        lines += "    decorators = ${clazz.ctor.decorators}"
+        lines += "    locals: ${clazz.ctor.locals.size}"
         lines += "    stmts: ${clazz.ctor.cfg.stmts.size}"
         clazz.ctor.cfg.stmts.forEach { stmt ->
             lines += "    ${stmt.location.index}. $stmt"
@@ -122,7 +132,10 @@ fun EtsFile.toText(): String {
         lines += "  methods: ${clazz.methods.size}"
         clazz.methods.forEach { method ->
             lines += "  - METHOD '${method.signature}':"
-            lines += "    locals = ${method.localsCount}"
+            lines += "    typeParameters = ${method.typeParameters}"
+            lines += "    modifiers = ${method.modifiers}"
+            lines += "    decorators = ${method.decorators}"
+            lines += "    locals: ${method.locals.size}"
             lines += "    stmts: ${method.cfg.stmts.size}"
             method.cfg.stmts.forEach { stmt ->
                 lines += "    ${stmt.location.index}. $stmt"
