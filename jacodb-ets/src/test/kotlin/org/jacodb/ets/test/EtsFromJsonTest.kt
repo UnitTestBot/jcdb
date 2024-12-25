@@ -124,8 +124,8 @@ class EtsFromJsonTest {
         )
         val prefix = "$PROJECT_PATH/etsir"
         val project = loadEtsProjectFromResources(modules, prefix)
-        println("Classes: ${project.classes.size}")
-        for (cls in project.classes) {
+        println("Classes: ${project.projectClasses.size}")
+        for (cls in project.projectClasses) {
             println("= ${cls.signature} with ${cls.methods.size} methods:")
             for (method in cls.methods) {
                 println("  - ${method.signature}")
@@ -178,8 +178,8 @@ class EtsFromJsonTest {
         val project = loadEtsProjectFromResources(modules, "/projects/$projectName/etsir")
         logger.info {
             buildString {
-                appendLine("Loaded project with ${project.classes.size} classes and ${project.classes.sumOf { it.methods.size }} methods")
-                for (cls in project.classes) {
+                appendLine("Loaded project with ${project.projectClasses.size} classes and ${project.projectClasses.sumOf { it.methods.size }} methods")
+                for (cls in project.projectClasses) {
                     appendLine("= ${cls.signature} with ${cls.methods.size} methods:")
                     for (method in cls.methods) {
                         appendLine("  - ${method.signature}")
