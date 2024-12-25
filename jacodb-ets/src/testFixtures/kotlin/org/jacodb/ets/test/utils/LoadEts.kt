@@ -89,7 +89,7 @@ fun loadEtsProjectFromResources(
     val dirPaths = modules.map { "$prefix/$it" }
     val files = loadMultipleEtsFilesFromMultipleResourceDirectories(dirPaths).toList()
     logger.info { "Loaded ${files.size} files" }
-    return EtsScene(files)
+    return EtsScene(files, sdkFiles = emptyList())
 }
 
 //-----------------------------------------------------------------------------

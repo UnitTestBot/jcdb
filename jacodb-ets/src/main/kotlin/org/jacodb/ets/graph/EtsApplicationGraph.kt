@@ -27,8 +27,8 @@ import org.jacodb.ets.model.EtsFileSignature
 import org.jacodb.ets.model.EtsMethod
 import org.jacodb.ets.model.EtsMethodSignature
 import org.jacodb.ets.model.EtsScene
-import org.jacodb.ets.utils.callExpr
 import org.jacodb.ets.utils.Maybe
+import org.jacodb.ets.utils.callExpr
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.roundToInt
 
@@ -228,7 +228,7 @@ class EtsApplicationGraphImpl(
             return cacheClassWithIdealSignature.getValue(signature)
         }
 
-        val matched = cp.classes
+        val matched = cp.projectAndSdkClasses
             .asSequence()
             .filter { it.signature == signature }
             .toList()
@@ -348,7 +348,7 @@ class EtsApplicationGraphImpl(
 
         // If the neighbour match failed,
         // try to *uniquely* resolve the callee via a partial signature match:
-        val resolved = cp.classes
+        val resolved = cp.projectAndSdkClasses
             .asSequence()
             .filter { compareClassSignatures(it.signature, callee.enclosingClass) != ComparisonResult.NotEqual }
             // Note: exclude current class:

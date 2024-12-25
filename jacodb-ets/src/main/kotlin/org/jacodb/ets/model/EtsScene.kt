@@ -19,8 +19,15 @@ package org.jacodb.ets.model
 import org.jacodb.api.common.CommonProject
 
 class EtsScene(
-    val files: List<EtsFile>,
+    val projectFiles: List<EtsFile>,
+    val sdkFiles: List<EtsFile> = emptyList(),
 ) : CommonProject {
-    val classes: List<EtsClass>
-        get() = files.flatMap { it.allClasses }
+    val projectClasses: List<EtsClass>
+        get() = projectFiles.flatMap { it.allClasses }
+
+    val sdkClasses: List<EtsClass>
+        get() = sdkFiles.flatMap { it.allClasses }
+
+    val projectAndSdkClasses: List<EtsClass>
+        get() = projectClasses + sdkClasses
 }

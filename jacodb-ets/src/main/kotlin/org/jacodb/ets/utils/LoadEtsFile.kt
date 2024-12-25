@@ -43,7 +43,7 @@ private const val ENV_VAR_NODE_EXECUTABLE = "NODE_EXECUTABLE"
 private const val DEFAULT_NODE_EXECUTABLE = "node"
 
 fun generateEtsIR(
-    path: Path,
+    projectPath: Path,
     isProject: Boolean = false,
     loadEntrypoints: Boolean = true,
     useArkAnalyzerTypeInference: Int? = null,
@@ -69,9 +69,9 @@ fun generateEtsIR(
 
     val node = System.getenv(ENV_VAR_NODE_EXECUTABLE) ?: DEFAULT_NODE_EXECUTABLE
     val output = if (isProject) {
-        createTempDirectory(prefix = path.nameWithoutExtension)
+        createTempDirectory(prefix = projectPath.nameWithoutExtension)
     } else {
-        kotlin.io.path.createTempFile(prefix = path.nameWithoutExtension, suffix = ".json")
+        kotlin.io.path.createTempFile(prefix = projectPath.nameWithoutExtension, suffix = ".json")
     }
 
     val cmd = listOfNotNull(
@@ -80,16 +80,23 @@ fun generateEtsIR(
         if (isProject) "-p" else null,
         if (loadEntrypoints) "-e" else null,
         useArkAnalyzerTypeInference?.let { "-t $it" },
-        path.pathString,
+        projectPath.pathString,
         output.pathString,
     )
     runProcess(cmd, 10.seconds)
     return output
 }
 
-fun loadEtsFileAutoConvert(path: Path): EtsFile {
+fun generateSdkIR(sdkPath: Path): Path = generateEtsIR(
+    sdkPath,
+    isProject = true,
+    loadEntrypoints = false,
+    useArkAnalyzerTypeInference = 0,
+)
+
+fun loadEtsFileAutoConvert(projectPath: Path): EtsFile {
     val irFilePath = generateEtsIR(
-        path,
+        projectPath,
         isProject = false,
         useArkAnalyzerTypeInference = 1,
     )
@@ -100,25 +107,39 @@ fun loadEtsFileAutoConvert(path: Path): EtsFile {
 }
 
 fun loadEtsProjectAutoConvert(
-    path: Path,
+    projectPath: Path,
+    sdkIRPath: Path? = null,
     loadEntrypoints: Boolean = false,
     useArkAnalyzerTypeInference: Int? = 1,
 ): EtsScene {
     val irFolderPath = generateEtsIR(
-        path,
+        projectPath,
         isProject = true,
         loadEntrypoints = loadEntrypoints,
         useArkAnalyzerTypeInference = useArkAnalyzerTypeInference,
     )
-    val files = irFolderPath
-        .walk()
-        .filter { it.extension == "json" }
-        .map {
-            it.inputStream().use { stream ->
-                val etsFileDto = EtsFileDto.loadFromJson(stream)
-                convertToEtsFile(etsFileDto)
+
+    return loadEtsProjectFromIR(irFolderPath, sdkIRPath)
+}
+
+fun loadEtsProjectFromIR(
+    projectFilesPath: Path,
+    sdkFilesPath: Path?,
+): EtsScene {
+    val walker = { irFolder: Path ->
+        irFolder.walk()
+            .filter { it.extension == "json" }
+            .map {
+                it.inputStream().use { stream ->
+                    val etsFileDto = EtsFileDto.loadFromJson(stream)
+                    convertToEtsFile(etsFileDto)
+                }
             }
-        }
-        .toList()
-    return EtsScene(files)
+            .toList()
+    }
+
+    val projectFiles = walker(projectFilesPath)
+    val sdkFiles = sdkFilesPath?.let { walker(it) }.orEmpty()
+
+    return EtsScene(projectFiles, sdkFiles)
 }
