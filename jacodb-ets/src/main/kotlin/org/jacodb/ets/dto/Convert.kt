@@ -16,8 +16,12 @@
 
 package org.jacodb.ets.dto
 
+import org.jacodb.ets.base.CONSTRUCTOR_NAME
 import org.jacodb.ets.base.EtsAddExpr
+import org.jacodb.ets.base.EtsAliasType
 import org.jacodb.ets.base.EtsAndExpr
+import org.jacodb.ets.base.EtsAnnotationNamespaceType
+import org.jacodb.ets.base.EtsAnnotationTypeQueryType
 import org.jacodb.ets.base.EtsAnyType
 import org.jacodb.ets.base.EtsArrayAccess
 import org.jacodb.ets.base.EtsArrayLiteral
@@ -44,6 +48,7 @@ import org.jacodb.ets.base.EtsExpExpr
 import org.jacodb.ets.base.EtsExpr
 import org.jacodb.ets.base.EtsFieldRef
 import org.jacodb.ets.base.EtsFunctionType
+import org.jacodb.ets.base.EtsGenericType
 import org.jacodb.ets.base.EtsGotoStmt
 import org.jacodb.ets.base.EtsGtEqExpr
 import org.jacodb.ets.base.EtsGtExpr
@@ -77,6 +82,7 @@ import org.jacodb.ets.base.EtsOrExpr
 import org.jacodb.ets.base.EtsParameterRef
 import org.jacodb.ets.base.EtsPreDecExpr
 import org.jacodb.ets.base.EtsPreIncExpr
+import org.jacodb.ets.base.EtsPtrCallExpr
 import org.jacodb.ets.base.EtsRemExpr
 import org.jacodb.ets.base.EtsReturnStmt
 import org.jacodb.ets.base.EtsRightShiftExpr
@@ -109,27 +115,30 @@ import org.jacodb.ets.graph.EtsCfg
 import org.jacodb.ets.model.EtsClass
 import org.jacodb.ets.model.EtsClassImpl
 import org.jacodb.ets.model.EtsClassSignature
+import org.jacodb.ets.model.EtsDecorator
 import org.jacodb.ets.model.EtsField
 import org.jacodb.ets.model.EtsFieldImpl
 import org.jacodb.ets.model.EtsFieldSignature
 import org.jacodb.ets.model.EtsFieldSubSignature
 import org.jacodb.ets.model.EtsFile
 import org.jacodb.ets.model.EtsFileSignature
+import org.jacodb.ets.model.EtsLocalSignature
 import org.jacodb.ets.model.EtsMethod
 import org.jacodb.ets.model.EtsMethodImpl
 import org.jacodb.ets.model.EtsMethodParameter
 import org.jacodb.ets.model.EtsMethodSignature
-import org.jacodb.ets.model.EtsMethodSubSignature
+import org.jacodb.ets.model.EtsModifiers
 import org.jacodb.ets.model.EtsNamespace
 import org.jacodb.ets.model.EtsNamespaceSignature
 
 class EtsMethodBuilder(
     signature: EtsMethodSignature,
-    // Default locals count is args + this
-    localsCount: Int = signature.parameters.size + 1,
-    modifiers: List<String> = emptyList(),
+    typeParameters: List<EtsType> = emptyList(),
+    locals: List<EtsLocal> = emptyList(),
+    modifiers: EtsModifiers = EtsModifiers.EMPTY,
+    decorators: List<EtsDecorator> = emptyList(),
 ) {
-    val etsMethod = EtsMethodImpl(signature, localsCount, modifiers)
+    private val etsMethod = EtsMethodImpl(signature, typeParameters, locals, modifiers, decorators)
 
     private val currentStmts: MutableList<EtsStmt> = mutableListOf()
 
@@ -153,15 +162,22 @@ class EtsMethodBuilder(
         return etsMethod
     }
 
+    private fun ensureLocal(entity: EtsEntity): EtsLocal {
+        if (entity is EtsLocal) {
+            return entity
+        }
+        val newLocal = newTempLocal(entity.type)
+        currentStmts += EtsAssignStmt(
+            location = loc(),
+            lhv = newLocal,
+            rhv = entity,
+        )
+        return newLocal
+    }
+
     private fun ensureOneAddress(entity: EtsEntity): EtsValue {
         if (entity is EtsExpr || entity is EtsFieldRef || entity is EtsArrayAccess) {
-            val newLocal = newTempLocal(entity.type)
-            currentStmts += EtsAssignStmt(
-                location = loc(),
-                lhv = newLocal,
-                rhv = entity,
-            )
-            return newLocal
+            return ensureLocal(entity)
         } else {
             check(entity is EtsValue) {
                 "Expected EtsValue, but got $entity"
@@ -175,7 +191,7 @@ class EtsMethodBuilder(
             is UnknownStmtDto -> object : EtsStmt {
                 override val location: EtsInstLocation = loc()
 
-                override fun toString(): String = "Unknown(${stmt.stmt})"
+                override fun toString(): String = "UnknownStmt(${stmt.stmt})"
 
                 // TODO: equals/hashCode ???
 
@@ -193,13 +209,17 @@ class EtsMethodBuilder(
                 check(lhv is EtsLocal || lhv is EtsFieldRef || lhv is EtsArrayAccess) {
                     "LHV of AssignStmt should be EtsLocal, EtsFieldRef, or EtsArrayAccess, but got $lhv"
                 }
-                val rhv = convertToEtsEntity(stmt.right).let {
+                val rhv = convertToEtsEntity(stmt.right).let { rhv ->
                     if (lhv is EtsLocal) {
-                        it
-                    } else if (it is EtsCastExpr || it is EtsNewExpr) {
-                        it
+                        if (rhv is EtsCastExpr && rhv.arg is EtsExpr) {
+                            EtsCastExpr(ensureLocal(rhv.arg), rhv.type)
+                        } else {
+                            rhv
+                        }
+                    } else if (rhv is EtsCastExpr || rhv is EtsNewExpr) {
+                        rhv
                     } else {
-                        ensureOneAddress(it)
+                        ensureOneAddress(rhv)
                     }
                 }
                 EtsAssignStmt(
@@ -271,7 +291,7 @@ class EtsMethodBuilder(
             is UnknownValueDto -> object : EtsEntity {
                 override val type: EtsType = EtsUnknownType
 
-                override fun toString(): String = "Unknown(${value.value})"
+                override fun toString(): String = "UnknownValue(${value.value})"
 
                 override fun <R> accept(visitor: EtsEntity.Visitor<R>): R {
                     if (visitor is EtsEntity.Visitor.Default<R>) {
@@ -281,10 +301,7 @@ class EtsMethodBuilder(
                 }
             }
 
-            is LocalDto -> EtsLocal(
-                name = value.name,
-                type = convertToEtsType(value.type),
-            )
+            is LocalDto -> convertToEtsLocal(value)
 
             is ConstantDto -> convertToEtsConstant(value)
 
@@ -293,7 +310,7 @@ class EtsMethodBuilder(
             )
 
             is NewArrayExprDto -> EtsNewArrayExpr(
-                elementType = convertToEtsType(value.type),
+                elementType = convertToEtsType(value.elementType),
                 size = convertToEtsEntity(value.size),
             )
 
@@ -413,14 +430,22 @@ class EtsMethodBuilder(
                 instance = convertToEtsEntity(value.instance as LocalDto) as EtsLocal, // safe cast
                 method = convertToEtsMethodSignature(value.method),
                 args = value.args.map {
-                    ensureOneAddress(convertToEtsEntity(it))
+                    ensureLocal(convertToEtsEntity(it))
                 },
             )
 
             is StaticCallExprDto -> EtsStaticCallExpr(
                 method = convertToEtsMethodSignature(value.method),
                 args = value.args.map {
-                    ensureOneAddress(convertToEtsEntity(it))
+                    ensureLocal(convertToEtsEntity(it))
+                },
+            )
+
+            is PtrCallExprDto -> EtsPtrCallExpr(
+                ptr = convertToEtsEntity(value.ptr as LocalDto) as EtsLocal, // safe cast
+                method = convertToEtsMethodSignature(value.method),
+                args = value.args.map {
+                    ensureLocal(convertToEtsEntity(it))
                 },
             )
 
@@ -464,7 +489,7 @@ class EtsMethodBuilder(
             "Method body should contain at least return stmt"
         }
 
-        val visited: MutableSet<Int> = hashSetOf()
+        val visited: MutableSet<Int> = hashSetOf(0)
         val queue: ArrayDeque<Int> = ArrayDeque()
         queue.add(0)
 
@@ -518,20 +543,21 @@ fun convertToEtsClass(classDto: ClassDto): EtsClass {
             successors = emptyList(),
             predecessors = emptyList(),
             stmts = listOf(
-                ReturnVoidStmtDto
-            )
+                ReturnVoidStmtDto,
+            ),
         )
         val cfg = CfgDto(blocks = listOf(zeroBlock))
         val body = BodyDto(locals = emptyList(), cfg = cfg)
         val signature = MethodSignatureDto(
             declaringClass = classSignatureDto,
-            name = "constructor",
+            name = CONSTRUCTOR_NAME,
             parameters = emptyList(),
             returnType = ClassTypeDto(classSignatureDto),
         )
         return MethodDto(
             signature = signature,
-            modifiers = emptyList(),
+            modifiers = 0,
+            decorators = emptyList(),
             typeParameters = emptyList(),
             body = body,
         )
@@ -541,19 +567,29 @@ fun convertToEtsClass(classDto: ClassDto): EtsClass {
     val superClassSignature = classDto.superClassName?.takeIf { it != "" }?.let { name ->
         EtsClassSignature(
             name = name,
-            file = null, // TODO
-            namespace = null, // TODO
+            file = EtsFileSignature.DEFAULT,
+        )
+    }
+    val implementedInterfaces = classDto.implementedInterfaceNames.map { name ->
+        EtsClassSignature(
+            name = name,
+            file = EtsFileSignature.DEFAULT,
         )
     }
 
     val fields = classDto.fields.map { convertToEtsField(it) }
 
-    val (methodDtos, ctorDtos) = classDto.methods.partition { it.signature.name != "constructor" }
+    val (methodDtos, ctorDtos) = classDto.methods.partition { it.signature.name != CONSTRUCTOR_NAME }
     check(ctorDtos.size <= 1) { "Class should not have multiple constructors" }
     val ctorDto = ctorDtos.firstOrNull() ?: defaultConstructorDto(classDto.signature)
 
     val methods = methodDtos.map { convertToEtsMethod(it) }
     val ctor = convertToEtsMethod(ctorDto)
+
+    val typeParameters = classDto.typeParameters?.map { convertToEtsType(it) } ?: emptyList()
+
+    val modifiers = EtsModifiers(classDto.modifiers)
+    val decorators = classDto.decorators.map { convertToEtsDecorator(it) }
 
     return EtsClassImpl(
         signature = signature,
@@ -561,6 +597,10 @@ fun convertToEtsClass(classDto: ClassDto): EtsClass {
         methods = methods,
         ctor = ctor,
         superClass = superClassSignature,
+        implementedInterfaces = implementedInterfaces,
+        typeParameters = typeParameters,
+        modifiers = modifiers,
+        decorators = decorators,
     )
 }
 
@@ -579,6 +619,22 @@ fun convertToEtsType(type: TypeDto): EtsType {
             }
         }
 
+        is AliasTypeDto -> EtsAliasType(
+            name = type.name,
+            originalType = convertToEtsType(type.originalType),
+            signature = convertToEtsLocalSignature(type.signature),
+        )
+
+        is AnnotationNamespaceTypeDto -> EtsAnnotationNamespaceType(
+            originType = type.originType,
+            namespaceSignature = convertToEtsNamespaceSignature(type.namespaceSignature),
+        )
+
+
+        is AnnotationTypeQueryTypeDto -> EtsAnnotationTypeQueryType(
+            originType = type.originType,
+        )
+
         AnyTypeDto -> EtsAnyType
 
         is ArrayTypeDto -> EtsArrayType(
@@ -586,21 +642,29 @@ fun convertToEtsType(type: TypeDto): EtsType {
             dimensions = type.dimensions,
         )
 
-        is FunctionTypeDto -> EtsFunctionType(
-            method = convertToEtsMethodSignature(type.signature)
-        )
+        BooleanTypeDto -> EtsBooleanType
 
         is ClassTypeDto -> EtsClassType(
-            classSignature = convertToEtsClassSignature(type.signature)
+            signature = convertToEtsClassSignature(type.signature),
+            typeParameters = type.typeParameters.map { convertToEtsType(it) },
+        )
+
+        is FunctionTypeDto -> EtsFunctionType(
+            method = convertToEtsMethodSignature(type.signature),
+            typeParameters = type.typeParameters.map { convertToEtsType(it) },
+        )
+
+        is GenericTypeDto -> EtsGenericType(
+            name = type.name,
+            defaultType = type.defaultType?.let { convertToEtsType(it) },
+            constraint = type.constraint?.let { convertToEtsType(it) },
+        )
+
+        is LiteralTypeDto -> EtsLiteralType(
+            literalTypeName = type.literal.toString(),
         )
 
         NeverTypeDto -> EtsNeverType
-
-        BooleanTypeDto -> EtsBooleanType
-
-        is LiteralTypeDto -> EtsLiteralType(
-            literalTypeName = type.literal
-        )
 
         NullTypeDto -> EtsNullType
 
@@ -608,15 +672,16 @@ fun convertToEtsType(type: TypeDto): EtsType {
 
         StringTypeDto -> EtsStringType
 
-        UndefinedTypeDto -> EtsUndefinedType
-
         is TupleTypeDto -> EtsTupleType(
             types = type.types.map { convertToEtsType(it) }
         )
 
         is UnclearReferenceTypeDto -> EtsUnclearRefType(
-            typeName = type.name
+            name = type.name,
+            typeParameters = type.typeParameters.map { convertToEtsType(it) },
         )
+
+        UndefinedTypeDto -> EtsUndefinedType
 
         is UnionTypeDto -> EtsUnionType(
             types = type.types.map { convertToEtsType(it) }
@@ -672,7 +737,7 @@ fun convertToEtsFileSignature(file: FileSignatureDto): EtsFileSignature {
 fun convertToEtsNamespaceSignature(namespace: NamespaceSignatureDto): EtsNamespaceSignature {
     return EtsNamespaceSignature(
         name = namespace.name,
-        file = namespace.declaringFile?.let { convertToEtsFileSignature(it) },
+        file = namespace.declaringFile.let { convertToEtsFileSignature(it) },
         namespace = namespace.declaringNamespace?.let { convertToEtsNamespaceSignature(it) },
     )
 }
@@ -680,7 +745,7 @@ fun convertToEtsNamespaceSignature(namespace: NamespaceSignatureDto): EtsNamespa
 fun convertToEtsClassSignature(clazz: ClassSignatureDto): EtsClassSignature {
     return EtsClassSignature(
         name = clazz.name,
-        file = clazz.declaringFile?.let { convertToEtsFileSignature(it) },
+        file = clazz.declaringFile.let { convertToEtsFileSignature(it) },
         namespace = clazz.declaringNamespace?.let { convertToEtsNamespaceSignature(it) },
     )
 }
@@ -698,36 +763,51 @@ fun convertToEtsFieldSignature(field: FieldSignatureDto): EtsFieldSignature {
 fun convertToEtsMethodSignature(method: MethodSignatureDto): EtsMethodSignature {
     return EtsMethodSignature(
         enclosingClass = convertToEtsClassSignature(method.declaringClass),
-        sub = EtsMethodSubSignature(
-            name = method.name,
-            parameters = method.parameters.mapIndexed { index, param ->
-                EtsMethodParameter(
-                    index = index,
-                    name = param.name,
-                    type = convertToEtsType(param.type),
-                    isOptional = param.isOptional
-                )
-            },
-            returnType = convertToEtsType(method.returnType),
-        )
+        name = method.name,
+        parameters = method.parameters.mapIndexed { index, param ->
+            EtsMethodParameter(
+                index = index,
+                name = param.name,
+                type = convertToEtsType(param.type),
+                isOptional = param.isOptional
+            )
+        },
+        returnType = convertToEtsType(method.returnType),
+    )
+}
+
+fun convertToEtsLocalSignature(local: LocalSignatureDto): EtsLocalSignature {
+    return EtsLocalSignature(
+        name = local.name,
+        method = convertToEtsMethodSignature(local.method),
     )
 }
 
 fun convertToEtsMethod(method: MethodDto): EtsMethod {
     val signature = convertToEtsMethodSignature(method.signature)
-    val modifiers = method.modifiers
-        .filterIsInstance<ModifierDto.StringItem>()
-        .map { it.modifier }
+    val typeParameters = method.typeParameters?.map { convertToEtsType(it) } ?: emptyList()
+    val modifiers = EtsModifiers(method.modifiers)
+    val decorators = method.decorators.map { convertToEtsDecorator(it) }
     if (method.body != null) {
-        // Note: locals are not used in the current implementation
-        // val locals = method.body.locals.map {
-        //     convertToEtsEntity(it) as EtsLocal  // safe cast
-        // }
-        val localsCount = method.body.locals.size
-        val builder = EtsMethodBuilder(signature, localsCount, modifiers)
+        val locals = method.body.locals.map {
+            convertToEtsLocal(it)
+        }
+        val builder = EtsMethodBuilder(
+            signature = signature,
+            typeParameters = typeParameters,
+            locals = locals,
+            modifiers = modifiers,
+            decorators = decorators,
+        )
         return builder.build(method.body.cfg)
     } else {
-        return EtsMethodImpl(signature, modifiers = modifiers)
+        return EtsMethodImpl(
+            signature = signature,
+            typeParameters = typeParameters,
+            locals = emptyList(),
+            modifiers = modifiers,
+            decorators = decorators,
+        )
     }
 }
 
@@ -740,10 +820,7 @@ fun convertToEtsField(field: FieldDto): EtsField {
                 type = convertToEtsType(field.signature.type),
             )
         ),
-        modifiers = field.modifiers
-            ?.filterIsInstance<ModifierDto.StringItem>()
-            ?.map { it.modifier }
-            .orEmpty(),
+        modifiers = EtsModifiers(field.modifiers),
         isOptional = field.isOptional,
         isDefinitelyAssigned = field.isDefinitelyAssigned,
     )
@@ -768,5 +845,20 @@ fun convertToEtsFile(file: EtsFileDto): EtsFile {
         signature = signature,
         classes = classes,
         namespaces = namespaces,
+    )
+}
+
+fun convertToEtsDecorator(decorator: DecoratorDto): EtsDecorator {
+    return EtsDecorator(
+        name = decorator.kind,
+        // TODO: content
+        // TODO: param
+    )
+}
+
+fun convertToEtsLocal(local: LocalDto): EtsLocal {
+    return EtsLocal(
+        name = local.name,
+        type = convertToEtsType(local.type),
     )
 }

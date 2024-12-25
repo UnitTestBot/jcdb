@@ -2,6 +2,7 @@ import java.io.FileNotFoundException
 
 plugins {
     kotlin("plugin.serialization")
+    `java-test-fixtures`
 }
 
 dependencies {
@@ -15,6 +16,9 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation(Libs.mockk)
+
+    testFixturesImplementation(Libs.kotlin_logging)
+    testFixturesImplementation(Libs.junit_jupiter_api)
 }
 
 // Example usage:
@@ -67,6 +71,7 @@ tasks.register("generateTestResources") {
             "--multi",
             inputDir.relativeTo(resources).path,
             outputDir.relativeTo(resources).path,
+            "-t",
         )
         println("Running: '${cmd.joinToString(" ")}'")
         val process = ProcessBuilder(cmd).directory(resources).start()

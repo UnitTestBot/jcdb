@@ -26,6 +26,10 @@ class EtsFile(
     val projectName: String
         get() = signature.projectName
 
+    val allClasses: List<EtsClass> by lazy {
+        classes + namespaces.flatMap { it.allClasses }
+    }
+
     override fun toString(): String {
         return name
     }

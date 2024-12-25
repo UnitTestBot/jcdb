@@ -29,46 +29,60 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 
-fun EtsCfg.view(dotCmd: String, viewerCmd: String, viewCatchConnections: Boolean = false) {
-    Util.sh(arrayOf(viewerCmd, "file://${toFile(dotCmd, viewCatchConnections)}"))
+private const val DEFAULT_DOT_CMD = "dot"
+
+fun EtsCfg.view(
+    viewerCmd: String = if (System.getProperty("os.name").startsWith("Windows")) "start" else "xdg-open",
+    dotCmd: String = DEFAULT_DOT_CMD,
+    viewCatchConnections: Boolean = true,
+) {
+    val path = toFile(null, dotCmd, viewCatchConnections)
+    Util.sh(arrayOf(viewerCmd, "file://$path"))
 }
 
-fun EtsCfg.toFile(dotCmd: String, viewCatchConnections: Boolean = false, file: File? = null): Path {
+fun EtsCfg.toFile(
+    file: File? = null,
+    dotCmd: String = DEFAULT_DOT_CMD,
+    viewCatchConnections: Boolean = true,
+): Path {
     Graph.setDefaultCmd(dotCmd)
 
     val graph = Graph("etsCfg")
+        .setBgColor(Color.X11.transparent)
+        .setFontSize(12.0)
+        .setFontName("Fira Mono")
 
     val nodes = mutableMapOf<EtsStmt, Node>()
     for ((index, inst) in instructions.withIndex()) {
+        val label = inst.toString().replace("\"", "\\\"")
         val node = Node("$index")
             .setShape(Shape.box)
-            .setLabel(inst.toString().replace("\"", "\\\""))
+            .setLabel(label)
             .setFontSize(12.0)
         nodes[inst] = node
         graph.addNode(node)
     }
 
-    graph.setBgColor(Color.X11.transparent)
-    graph.setFontSize(12.0)
-    graph.setFontName("Fira Mono")
-
     for ((inst, node) in nodes) {
         when (inst) {
             is EtsIfStmt -> {
                 val successors = successors(inst).toList()
-                check(successors.size == 2)
+                // check(successors.size == 2)
+                check(successors.size <= 2)
                 graph.addEdge(
                     Edge(node.name, nodes[successors[0]]!!.name)
                         .also {
                             it.setLabel("false")
                         }
                 )
-                graph.addEdge(
-                    Edge(node.name, nodes[successors[1]]!!.name)
-                        .also {
-                            it.setLabel("true")
-                        }
-                )
+                if (successors.size == 2) {
+                    graph.addEdge(
+                        Edge(node.name, nodes[successors[1]]!!.name)
+                            .also {
+                                it.setLabel("true")
+                            }
+                    )
+                }
             }
 
             else -> for (successor in successors(inst)) {

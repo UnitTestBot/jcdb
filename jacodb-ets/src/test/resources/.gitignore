@@ -1,3 +1,4 @@
-/samples/etsir/
-/samples/abc/
+/samples
+!/samples/source
 /projects
+/repos

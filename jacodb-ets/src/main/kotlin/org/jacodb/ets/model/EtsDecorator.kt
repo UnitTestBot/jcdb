@@ -16,18 +16,8 @@
 
 package org.jacodb.ets.model
 
-import org.jacodb.api.common.CommonProject
-
-class EtsScene(
-    val projectFiles: List<EtsFile>,
-    val sdkFiles: List<EtsFile> = emptyList(),
-) : CommonProject {
-    val projectClasses: List<EtsClass>
-        get() = projectFiles.flatMap { it.allClasses }
-
-    val sdkClasses: List<EtsClass>
-        get() = sdkFiles.flatMap { it.allClasses }
-
-    val projectAndSdkClasses: List<EtsClass>
-        get() = projectClasses + sdkClasses
-}
+data class EtsDecorator(
+    val name: String, // kind
+    // TODO: content
+    // TODO: param
+)
