@@ -126,20 +126,27 @@ fun loadEtsProjectFromIR(
     projectFilesPath: Path,
     sdkFilesPath: Path?,
 ): EtsScene {
-    val walker = { irFolder: Path ->
-        irFolder.walk()
-            .filter { it.extension == "json" }
-            .map {
-                it.inputStream().use { stream ->
-                    val etsFileDto = EtsFileDto.loadFromJson(stream)
-                    convertToEtsFile(etsFileDto)
-                }
-            }
-            .toList()
-    }
-
     val projectFiles = walker(projectFilesPath)
     val sdkFiles = sdkFilesPath?.let { walker(it) }.orEmpty()
 
     return EtsScene(projectFiles, sdkFiles)
+}
+
+fun loadEtsProjectFromMultipleIR(input: List<Path>, sdkPaths: List<Path>): EtsScene {
+    val projectFiles = input.flatMap(walker)
+    val sdkFiles = sdkPaths.flatMap(walker)
+
+    return EtsScene(projectFiles, sdkFiles)
+}
+
+private val walker = { irFolder: Path ->
+    irFolder.walk()
+        .filter { it.extension == "json" }
+        .map {
+            it.inputStream().use { stream ->
+                val etsFileDto = EtsFileDto.loadFromJson(stream)
+                convertToEtsFile(etsFileDto)
+            }
+        }
+        .toList()
 }
