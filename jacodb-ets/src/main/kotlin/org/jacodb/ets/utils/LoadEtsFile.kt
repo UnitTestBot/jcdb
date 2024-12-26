@@ -94,11 +94,14 @@ fun generateSdkIR(sdkPath: Path): Path = generateEtsIR(
     useArkAnalyzerTypeInference = 0,
 )
 
-fun loadEtsFileAutoConvert(projectPath: Path): EtsFile {
+fun loadEtsFileAutoConvert(
+    projectPath: Path,
+    useArkAnalyzerTypeInference: Int? = 1,
+): EtsFile {
     val irFilePath = generateEtsIR(
         projectPath,
         isProject = false,
-        useArkAnalyzerTypeInference = 1,
+        useArkAnalyzerTypeInference = useArkAnalyzerTypeInference,
     )
     irFilePath.inputStream().use { stream ->
         val etsFileDto = EtsFileDto.loadFromJson(stream)
