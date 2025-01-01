@@ -1195,6 +1195,7 @@ data class GoFunction(
     override val packageName: String,
     val freeVars: List<GoFreeVar>,
     val returnTypes: List<GoType>,
+    val recover: GoBasicBlock? = null
 ) : GoMethod {
     private var flowGraph: GoGraph? = null
 
@@ -1235,6 +1236,7 @@ data class GoFunction(
 
     override val name: String
         get() = metName
+
     override val returnType: GoType
         get() = TupleType(returnTypes)
 
@@ -1244,6 +1246,17 @@ data class GoFunction(
 
     override fun <T> accept(visitor: GoExprVisitor<T>): T {
         return visitor.visitGoFunction(this)
+    }
+
+    fun setRecover() {
+        if (recover == null) {
+            return
+        }
+        flowGraph = GoBlockGraph(
+            listOf(recover),
+            recover.instructions,
+            listOf(0),
+        ).graph
     }
 }
 
