@@ -1248,6 +1248,10 @@ data class GoFunction(
         return visitor.visitGoFunction(this)
     }
 
+    fun withRecover(recover: GoBasicBlock?): GoFunction {
+        return GoFunction(type, parameters, metName, blocks, packageName, freeVars, returnTypes, recover)
+    }
+
     fun setRecover() {
         if (recover == null) {
             return
