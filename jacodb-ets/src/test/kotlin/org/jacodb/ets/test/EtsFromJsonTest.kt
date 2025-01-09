@@ -115,12 +115,12 @@ class EtsFromJsonTest {
     @TestFactory
     fun testLoadAllAvailableEtsFilesFromJson() = testFactory {
         val prefix = "/samples"
-        val p = getResourcePathOrNull("$prefix/source") ?: run {
+        val base = getResourcePathOrNull("$prefix/source") ?: run {
             logger.warn { "No samples directory found in resources" }
             return@testFactory
         }
-        val availableFiles = p.walk(PathWalkOption.BREADTH_FIRST)
-            .map { it.relativeTo(p) }
+        val availableFiles = base.walk(PathWalkOption.BREADTH_FIRST)
+            .map { it.relativeTo(base) }
             .toList()
         logger.info {
             buildString {
@@ -148,12 +148,14 @@ class EtsFromJsonTest {
 
     @TestFactory
     fun testLoadAllAvailableEtsFilesAutoConvert() = testFactory {
-        val base = "/samples/source"
-        val p = getResourcePathOrNull(base) ?: run {
+        val prefix = "/samples/source"
+        val base = getResourcePathOrNull(prefix) ?: run {
             logger.warn { "No samples directory found in resources" }
             return@testFactory
         }
-        val availableFiles = p.walk(PathWalkOption.BREADTH_FIRST).toList()
+        val availableFiles = base.walk(PathWalkOption.BREADTH_FIRST)
+            .map { it.relativeTo(base) }
+            .toList()
         logger.info {
             buildString {
                 appendLine("Found ${availableFiles.size} sample files")
@@ -169,7 +171,8 @@ class EtsFromJsonTest {
         container("load ${availableFiles.size} files") {
             for (file in availableFiles) {
                 test("load $file") {
-                    val ets = loadEtsFileAutoConvert(file)
+                    val p = getResourcePath("$prefix/$file")
+                    val ets = loadEtsFileAutoConvert(p)
                     println("ets = $ets")
                 }
             }
