@@ -386,6 +386,42 @@ data class ParameterRefDto(
 }
 
 @Serializable
+@SerialName("CaughtExceptionRef")
+data class CaughtExceptionRefDto(
+    override val type: TypeDto,
+) : RefDto {
+    override fun toString(): String {
+        return "catch($type)"
+    }
+}
+
+@Serializable
+@SerialName("GlobalRef")
+data class GlobalRefDto(
+    val name: String,
+    val ref: ValueDto?,
+) : RefDto {
+    override val type: TypeDto
+        get() = ref?.type ?: UnknownTypeDto
+
+    override fun toString(): String {
+        return "global $name"
+    }
+}
+
+@Serializable
+@SerialName("ClosureFieldRef")
+data class ClosureFieldRefDto(
+    val base: LocalDto,
+    val fieldName: String,
+    override val type: TypeDto,
+) : RefDto {
+    override fun toString(): String {
+        return "$base.$fieldName"
+    }
+}
+
+@Serializable
 @SerialName("ArrayRef")
 data class ArrayRefDto(
     val array: ValueDto,

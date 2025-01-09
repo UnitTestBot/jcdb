@@ -28,12 +28,15 @@ import org.jacodb.ets.base.EtsBitXorExpr
 import org.jacodb.ets.base.EtsBooleanConstant
 import org.jacodb.ets.base.EtsCallStmt
 import org.jacodb.ets.base.EtsCastExpr
+import org.jacodb.ets.base.EtsCaughtExceptionRef
+import org.jacodb.ets.base.EtsClosureFieldRef
 import org.jacodb.ets.base.EtsCommaExpr
 import org.jacodb.ets.base.EtsDeleteExpr
 import org.jacodb.ets.base.EtsDivExpr
 import org.jacodb.ets.base.EtsEntity
 import org.jacodb.ets.base.EtsEqExpr
 import org.jacodb.ets.base.EtsExpExpr
+import org.jacodb.ets.base.EtsGlobalRef
 import org.jacodb.ets.base.EtsGotoStmt
 import org.jacodb.ets.base.EtsGtEqExpr
 import org.jacodb.ets.base.EtsGtExpr
@@ -295,4 +298,13 @@ private object EntityGetOperands : EtsEntity.Visitor<Sequence<EtsEntity>> {
 
     override fun visit(expr: EtsTernaryExpr): Sequence<EtsEntity> =
         sequenceOf(expr.condition, expr.thenExpr, expr.elseExpr)
+
+    override fun visit(value: EtsCaughtExceptionRef): Sequence<EtsEntity> =
+        emptySequence()
+
+    override fun visit(value: EtsGlobalRef): Sequence<EtsEntity> =
+        if (value.ref != null) sequenceOf(value.ref) else emptySequence()
+
+    override fun visit(value: EtsClosureFieldRef): Sequence<EtsEntity> =
+        sequenceOf(value.base)
 }

@@ -32,6 +32,9 @@ interface EtsValue : EtsEntity, CommonValue {
         // Ref
         fun visit(value: EtsThis): R
         fun visit(value: EtsParameterRef): R
+        fun visit(value: EtsCaughtExceptionRef): R
+        fun visit(value: EtsGlobalRef): R
+        fun visit(value: EtsClosureFieldRef): R
         fun visit(value: EtsArrayAccess): R
         fun visit(value: EtsInstanceFieldRef): R
         fun visit(value: EtsStaticFieldRef): R
@@ -47,6 +50,9 @@ interface EtsValue : EtsEntity, CommonValue {
 
             override fun visit(value: EtsThis): R = defaultVisit(value)
             override fun visit(value: EtsParameterRef): R = defaultVisit(value)
+            override fun visit(value: EtsCaughtExceptionRef): R = defaultVisit(value)
+            override fun visit(value: EtsGlobalRef): R = defaultVisit(value)
+            override fun visit(value: EtsClosureFieldRef): R = defaultVisit(value)
             override fun visit(value: EtsArrayAccess): R = defaultVisit(value)
             override fun visit(value: EtsInstanceFieldRef): R = defaultVisit(value)
             override fun visit(value: EtsStaticFieldRef): R = defaultVisit(value)

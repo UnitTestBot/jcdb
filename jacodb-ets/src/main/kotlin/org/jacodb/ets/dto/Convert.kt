@@ -36,7 +36,9 @@ import org.jacodb.ets.base.EtsBooleanType
 import org.jacodb.ets.base.EtsCallExpr
 import org.jacodb.ets.base.EtsCallStmt
 import org.jacodb.ets.base.EtsCastExpr
+import org.jacodb.ets.base.EtsCaughtExceptionRef
 import org.jacodb.ets.base.EtsClassType
+import org.jacodb.ets.base.EtsClosureFieldRef
 import org.jacodb.ets.base.EtsCommaExpr
 import org.jacodb.ets.base.EtsConstant
 import org.jacodb.ets.base.EtsDeleteExpr
@@ -48,6 +50,7 @@ import org.jacodb.ets.base.EtsExpr
 import org.jacodb.ets.base.EtsFieldRef
 import org.jacodb.ets.base.EtsFunctionType
 import org.jacodb.ets.base.EtsGenericType
+import org.jacodb.ets.base.EtsGlobalRef
 import org.jacodb.ets.base.EtsGotoStmt
 import org.jacodb.ets.base.EtsGtEqExpr
 import org.jacodb.ets.base.EtsGtExpr
@@ -411,6 +414,21 @@ class EtsMethodBuilder(
 
         is ParameterRefDto -> EtsParameterRef(
             index = index,
+            type = type.toEtsType(),
+        )
+
+        is CaughtExceptionRefDto -> EtsCaughtExceptionRef(
+            type = type.toEtsType(),
+        )
+
+        is GlobalRefDto -> EtsGlobalRef(
+            name = name,
+            ref = ref?.toEtsEntity() as EtsValue, // TODO: check whether the cast is safe
+        )
+
+        is ClosureFieldRefDto -> EtsClosureFieldRef(
+            base = base.toEtsLocal(),
+            fieldName = fieldName,
             type = type.toEtsType(),
         )
 
