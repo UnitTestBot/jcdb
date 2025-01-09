@@ -42,8 +42,8 @@ import org.jacodb.ets.dto.PrimitiveLiteralDto
 import org.jacodb.ets.dto.ReturnVoidStmtDto
 import org.jacodb.ets.dto.StmtDto
 import org.jacodb.ets.dto.TypeDto
-import org.jacodb.ets.dto.convertToEtsFile
-import org.jacodb.ets.dto.convertToEtsMethod
+import org.jacodb.ets.dto.toEtsMethod
+import org.jacodb.ets.dto.toEtsFile
 import org.jacodb.ets.model.EtsClassSignature
 import org.jacodb.ets.model.EtsFileSignature
 import org.jacodb.ets.model.EtsMethodSignature
@@ -91,7 +91,7 @@ class EtsFromJsonTest {
         val path = "/samples/etsir/ast/save/basic.ts.json"
         val etsDto = loadEtsFileDtoFromResource(path)
         println("etsDto = $etsDto")
-        val ets = convertToEtsFile(etsDto)
+        val ets = etsDto.toEtsFile()
         println("ets = $ets")
 
         println("Classes: ${ets.classes.size}")
@@ -291,7 +291,7 @@ class EtsFromJsonTest {
         """.trimIndent()
         val methodDto = Json.decodeFromString<MethodDto>(jsonString)
         println("methodDto = $methodDto")
-        val method = convertToEtsMethod(methodDto)
+        val method = methodDto.toEtsMethod()
         println("method = $method")
         Assertions.assertEquals(
             EtsMethodSignature(

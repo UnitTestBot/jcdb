@@ -116,7 +116,6 @@ import org.jacodb.ets.model.EtsClass
 import org.jacodb.ets.model.EtsClassImpl
 import org.jacodb.ets.model.EtsClassSignature
 import org.jacodb.ets.model.EtsDecorator
-import org.jacodb.ets.model.EtsField
 import org.jacodb.ets.model.EtsFieldImpl
 import org.jacodb.ets.model.EtsFieldSignature
 import org.jacodb.ets.model.EtsFieldSubSignature
@@ -130,6 +129,7 @@ import org.jacodb.ets.model.EtsMethodSignature
 import org.jacodb.ets.model.EtsModifiers
 import org.jacodb.ets.model.EtsNamespace
 import org.jacodb.ets.model.EtsNamespaceSignature
+import org.jacodb.ets.model.EtsField
 
 class EtsMethodBuilder(
     signature: EtsMethodSignature,
@@ -156,7 +156,7 @@ class EtsMethodBuilder(
 
     fun build(cfgDto: CfgDto): EtsMethod {
         require(!built) { "Method has already been built" }
-        val cfg = convertToEtsCfg(cfgDto)
+        val cfg = cfgDto.toEtsCfg()
         etsMethod._cfg = cfg
         built = true
         return etsMethod
@@ -186,295 +186,291 @@ class EtsMethodBuilder(
         }
     }
 
-    fun convertToEtsStmt(stmt: StmtDto): EtsStmt {
-        return when (stmt) {
-            is UnknownStmtDto -> object : EtsStmt {
-                override val location: EtsInstLocation = loc()
+    private fun StmtDto.toEtsStmt(): EtsStmt = when (this) {
+        is UnknownStmtDto -> object : EtsStmt {
+            override val location: EtsInstLocation = loc()
 
-                override fun toString(): String = "UnknownStmt(${stmt.stmt})"
+            override fun toString(): String = "UnknownStmt($stmt)"
 
-                // TODO: equals/hashCode ???
+            // TODO: equals/hashCode ???
 
-                override fun <R> accept(visitor: EtsStmt.Visitor<R>): R {
-                    error("UnknownStmt is not supported")
-                }
+            override fun <R> accept(visitor: EtsStmt.Visitor<R>): R {
+                error("UnknownStmt is not supported")
             }
+        }
 
-            is NopStmtDto -> {
-                EtsNopStmt(location = loc())
+        is NopStmtDto -> {
+            EtsNopStmt(location = loc())
+        }
+
+        is AssignStmtDto -> {
+            val lhv = left.toEtsEntity() as EtsValue // safe cast
+            check(lhv is EtsLocal || lhv is EtsFieldRef || lhv is EtsArrayAccess) {
+                "LHV of AssignStmt should be EtsLocal, EtsFieldRef, or EtsArrayAccess, but got $lhv"
             }
-
-            is AssignStmtDto -> {
-                val lhv = convertToEtsEntity(stmt.left) as EtsValue // safe cast
-                check(lhv is EtsLocal || lhv is EtsFieldRef || lhv is EtsArrayAccess) {
-                    "LHV of AssignStmt should be EtsLocal, EtsFieldRef, or EtsArrayAccess, but got $lhv"
-                }
-                val rhv = convertToEtsEntity(stmt.right).let { rhv ->
-                    if (lhv is EtsLocal) {
-                        if (rhv is EtsCastExpr && rhv.arg is EtsExpr) {
-                            EtsCastExpr(ensureLocal(rhv.arg), rhv.type)
-                        } else {
-                            rhv
-                        }
-                    } else if (rhv is EtsCastExpr || rhv is EtsNewExpr) {
-                        rhv
+            val rhv = right.toEtsEntity().let { rhv ->
+                if (lhv is EtsLocal) {
+                    if (rhv is EtsCastExpr && rhv.arg is EtsExpr) {
+                        EtsCastExpr(ensureLocal(rhv.arg), rhv.type)
                     } else {
-                        ensureOneAddress(rhv)
+                        rhv
                     }
+                } else if (rhv is EtsCastExpr || rhv is EtsNewExpr) {
+                    rhv
+                } else {
+                    ensureOneAddress(rhv)
                 }
-                EtsAssignStmt(
-                    location = loc(),
-                    lhv = lhv,
-                    rhv = rhv,
-                )
             }
-
-            is CallStmtDto -> {
-                val expr = convertToEtsEntity(stmt.expr) as EtsCallExpr
-                EtsCallStmt(
-                    location = loc(),
-                    expr = expr,
-                )
-            }
-
-            is ReturnStmtDto -> {
-                val returnValue = ensureOneAddress(convertToEtsEntity(stmt.arg))
-                EtsReturnStmt(
-                    location = loc(),
-                    returnValue = returnValue,
-                )
-            }
-
-            is ReturnVoidStmtDto -> {
-                EtsReturnStmt(
-                    location = loc(),
-                    returnValue = null,
-                )
-            }
-
-            is ThrowStmtDto -> {
-                val arg = convertToEtsEntity(stmt.arg)
-                EtsThrowStmt(
-                    location = loc(),
-                    arg = arg,
-                )
-            }
-
-            is GotoStmtDto -> {
-                EtsGotoStmt(location = loc())
-            }
-
-            is IfStmtDto -> {
-                val condition = convertToEtsEntity(stmt.condition)
-                EtsIfStmt(
-                    location = loc(),
-                    condition = condition,
-                )
-            }
-
-            is SwitchStmtDto -> {
-                val arg = convertToEtsEntity(stmt.arg)
-                val cases = stmt.cases.map { convertToEtsEntity(it) }
-                EtsSwitchStmt(
-                    location = loc(),
-                    arg = arg,
-                    cases = cases,
-                )
-            }
-
-            // else -> error("Unknown Stmt: $stmt")
+            EtsAssignStmt(
+                location = loc(),
+                lhv = lhv,
+                rhv = rhv,
+            )
         }
+
+        is CallStmtDto -> {
+            val expr = expr.toEtsEntity() as EtsCallExpr
+            EtsCallStmt(
+                location = loc(),
+                expr = expr,
+            )
+        }
+
+        is ReturnStmtDto -> {
+            val returnValue = ensureOneAddress(arg.toEtsEntity())
+            EtsReturnStmt(
+                location = loc(),
+                returnValue = returnValue,
+            )
+        }
+
+        is ReturnVoidStmtDto -> {
+            EtsReturnStmt(
+                location = loc(),
+                returnValue = null,
+            )
+        }
+
+        is ThrowStmtDto -> {
+            val arg = arg.toEtsEntity()
+            EtsThrowStmt(
+                location = loc(),
+                arg = arg,
+            )
+        }
+
+        is GotoStmtDto -> {
+            EtsGotoStmt(location = loc())
+        }
+
+        is IfStmtDto -> {
+            val condition = condition.toEtsEntity()
+            EtsIfStmt(
+                location = loc(),
+                condition = condition,
+            )
+        }
+
+        is SwitchStmtDto -> {
+            val arg = arg.toEtsEntity()
+            val cases = cases.map { it.toEtsEntity() }
+            EtsSwitchStmt(
+                location = loc(),
+                arg = arg,
+                cases = cases,
+            )
+        }
+
+        // else -> error("Unknown Stmt: $stmt")
     }
 
-    fun convertToEtsEntity(value: ValueDto): EtsEntity {
-        return when (value) {
-            is UnknownValueDto -> object : EtsEntity {
-                override val type: EtsType = EtsUnknownType
+    private fun ValueDto.toEtsEntity(): EtsEntity = when (this) {
+        is UnknownValueDto -> object : EtsEntity {
+            override val type: EtsType = EtsUnknownType
 
-                override fun toString(): String = "UnknownValue(${value.value})"
+            override fun toString(): String = "UnknownValue($value)"
 
-                override fun <R> accept(visitor: EtsEntity.Visitor<R>): R {
-                    if (visitor is EtsEntity.Visitor.Default<R>) {
-                        return visitor.defaultVisit(this)
-                    }
-                    error("Cannot handle $this")
+            override fun <R> accept(visitor: EtsEntity.Visitor<R>): R {
+                if (visitor is EtsEntity.Visitor.Default<R>) {
+                    return visitor.defaultVisit(this)
                 }
+                error("Cannot handle $this")
             }
-
-            is LocalDto -> convertToEtsLocal(value)
-
-            is ConstantDto -> convertToEtsConstant(value)
-
-            is NewExprDto -> EtsNewExpr(
-                type = convertToEtsType(value.classType) // TODO: safe cast to ClassType
-            )
-
-            is NewArrayExprDto -> EtsNewArrayExpr(
-                elementType = convertToEtsType(value.elementType),
-                size = convertToEtsEntity(value.size),
-            )
-
-            is DeleteExprDto -> EtsDeleteExpr(
-                arg = convertToEtsEntity(value.arg)
-            )
-
-            is AwaitExprDto -> EtsAwaitExpr(
-                arg = convertToEtsEntity(value.arg)
-            )
-
-            is YieldExprDto -> EtsYieldExpr(
-                arg = convertToEtsEntity(value.arg)
-            )
-
-            is TypeOfExprDto -> EtsTypeOfExpr(
-                arg = convertToEtsEntity(value.arg)
-            )
-
-            is InstanceOfExprDto -> EtsInstanceOfExpr(
-                arg = convertToEtsEntity(value.arg),
-                checkType = convertToEtsType(value.checkType),
-            )
-
-            is LengthExprDto -> EtsLengthExpr(
-                arg = convertToEtsEntity(value.arg)
-            )
-
-            is CastExprDto -> EtsCastExpr(
-                arg = convertToEtsEntity(value.arg),
-                type = convertToEtsType(value.type),
-            )
-
-            is PhiExprDto -> error("PhiExpr is not supported")
-
-            is ArrayLiteralDto -> EtsArrayLiteral(
-                elements = value.elements.map { convertToEtsEntity(it) },
-                type = convertToEtsType(value.type), // TODO: as EtsArrayType,
-            )
-
-            is ObjectLiteralDto -> EtsObjectLiteral(
-                properties = emptyList(), // TODO
-                type = convertToEtsType(value.type),
-            )
-
-            is UnaryOperationDto -> {
-                val arg = convertToEtsEntity(value.arg)
-                // Note: `value.type` is ignored here!
-                when (value.op) {
-                    Ops.NOT -> EtsNotExpr(arg)
-                    Ops.BIT_NOT -> EtsBitNotExpr(arg.type, arg)
-                    Ops.MINUS -> EtsNegExpr(arg.type, arg)
-                    Ops.PLUS -> EtsUnaryPlusExpr(arg)
-                    Ops.INC -> EtsPreIncExpr(arg.type, arg)
-                    Ops.DEC -> EtsPreDecExpr(arg.type, arg)
-                    else -> error("Unknown unop: '${value.op}'")
-                }
-            }
-
-            is BinaryOperationDto -> {
-                val left = convertToEtsEntity(value.left)
-                val right = convertToEtsEntity(value.right)
-                val type = convertToEtsType(value.type)
-                when (value.op) {
-                    Ops.ADD -> EtsAddExpr(type, left, right)
-                    Ops.SUB -> EtsSubExpr(type, left, right)
-                    Ops.MUL -> EtsMulExpr(type, left, right)
-                    Ops.DIV -> EtsDivExpr(type, left, right)
-                    Ops.MOD -> EtsRemExpr(type, left, right)
-                    Ops.EXP -> EtsExpExpr(type, left, right)
-                    Ops.BIT_AND -> EtsBitAndExpr(type, left, right)
-                    Ops.BIT_OR -> EtsBitOrExpr(type, left, right)
-                    Ops.BIT_XOR -> EtsBitXorExpr(type, left, right)
-                    Ops.LSH -> EtsLeftShiftExpr(type, left, right)
-                    Ops.RSH -> EtsRightShiftExpr(type, left, right)
-                    Ops.URSH -> EtsUnsignedRightShiftExpr(type, left, right)
-                    Ops.AND -> EtsAndExpr(type, left, right)
-                    Ops.OR -> EtsOrExpr(type, left, right)
-                    Ops.NULLISH -> EtsNullishCoalescingExpr(type, left, right)
-                    Ops.COMMA -> EtsCommaExpr(left, right) // Note: `type` is ignored here!
-
-                    // TODO: fix (remove) this when `instanceof` is properly supported in ArkAnalyzer.
-                    //  Ideally, it would become a separate `ArkInstanceOfExpr`, and we are going to
-                    //  introduce a corresponding DTO for it.
-                    //  Currently, `x instanceof T` is represented as `BinopExpr(Local("x"), Local("T"))`,
-                    //  so we just *unsafely* extract the type name from the "pseudo-local" here:
-                    // "instanceof" -> EtsInstanceOfExpr(left, (right as EtsLocal).name)
-
-                    // TODO: Currently, ArkIR treats "in" operation just as BinopExpr.
-                    //       Ideally, it would be represented as a separate `ArkInExpr`,
-                    //       or at least as `ArkConditionExpr`, since it inherently has a boolean type.
-                    // Ops.IN -> EtsInExpr(left, right) // Note: `type` is ignored here!
-
-                    else -> error("Unknown binop: ${value.op}")
-                }
-            }
-
-            is RelationOperationDto -> {
-                val left = convertToEtsEntity(value.left)
-                val right = convertToEtsEntity(value.right)
-                // Note: `value.type` is ignored here!
-                when (value.op) {
-                    Ops.EQ_EQ -> EtsEqExpr(left, right)
-                    Ops.NOT_EQ -> EtsNotEqExpr(left, right)
-                    Ops.EQ_EQ_EQ -> EtsStrictEqExpr(left, right)
-                    Ops.NOT_EQ_EQ -> EtsStrictNotEqExpr(left, right)
-                    Ops.LT -> EtsLtExpr(left, right)
-                    Ops.LT_EQ -> EtsLtEqExpr(left, right)
-                    Ops.GT -> EtsGtExpr(left, right)
-                    Ops.GT_EQ -> EtsGtEqExpr(left, right)
-                    Ops.IN -> EtsInExpr(left, right)
-                    else -> error("Unknown relop: ${value.op}")
-                }
-            }
-
-            is InstanceCallExprDto -> EtsInstanceCallExpr(
-                instance = convertToEtsEntity(value.instance as LocalDto) as EtsLocal, // safe cast
-                method = convertToEtsMethodSignature(value.method),
-                args = value.args.map {
-                    ensureLocal(convertToEtsEntity(it))
-                },
-            )
-
-            is StaticCallExprDto -> EtsStaticCallExpr(
-                method = convertToEtsMethodSignature(value.method),
-                args = value.args.map {
-                    ensureLocal(convertToEtsEntity(it))
-                },
-            )
-
-            is PtrCallExprDto -> EtsPtrCallExpr(
-                ptr = convertToEtsEntity(value.ptr as LocalDto) as EtsLocal, // safe cast
-                method = convertToEtsMethodSignature(value.method),
-                args = value.args.map {
-                    ensureLocal(convertToEtsEntity(it))
-                },
-            )
-
-            is ThisRefDto -> EtsThis(
-                type = convertToEtsType(value.type as ClassTypeDto) as EtsClassType // safe cast
-            )
-
-            is ParameterRefDto -> EtsParameterRef(
-                index = value.index,
-                type = convertToEtsType(value.type),
-            )
-
-            is ArrayRefDto -> EtsArrayAccess(
-                array = convertToEtsEntity(value.array) as EtsValue, // TODO: check whether the cast is safe
-                index = convertToEtsEntity(value.index) as EtsValue, // TODO: check whether the cast is safe
-                type = convertToEtsType(value.type),
-            )
-
-            is FieldRefDto -> convertToEtsFieldRef(value)
-
-            // else -> error("Unknown Value: $value")
         }
+
+        is LocalDto -> toEtsLocal()
+
+        is ConstantDto -> toEtsConstant()
+
+        is NewExprDto -> EtsNewExpr(
+            type = classType.toEtsType() // TODO: safe cast to ClassType
+        )
+
+        is NewArrayExprDto -> EtsNewArrayExpr(
+            elementType = elementType.toEtsType(),
+            size = size.toEtsEntity(),
+        )
+
+        is DeleteExprDto -> EtsDeleteExpr(
+            arg = arg.toEtsEntity()
+        )
+
+        is AwaitExprDto -> EtsAwaitExpr(
+            arg = arg.toEtsEntity()
+        )
+
+        is YieldExprDto -> EtsYieldExpr(
+            arg = arg.toEtsEntity()
+        )
+
+        is TypeOfExprDto -> EtsTypeOfExpr(
+            arg = arg.toEtsEntity()
+        )
+
+        is InstanceOfExprDto -> EtsInstanceOfExpr(
+            arg = arg.toEtsEntity(),
+            checkType = checkType.toEtsType(),
+        )
+
+        is LengthExprDto -> EtsLengthExpr(
+            arg = arg.toEtsEntity()
+        )
+
+        is CastExprDto -> EtsCastExpr(
+            arg = arg.toEtsEntity(),
+            type = type.toEtsType(),
+        )
+
+        is PhiExprDto -> error("PhiExpr is not supported")
+
+        is ArrayLiteralDto -> EtsArrayLiteral(
+            elements = elements.map { it.toEtsEntity() },
+            type = type.toEtsType(), // TODO: as EtsArrayType,
+        )
+
+        is ObjectLiteralDto -> EtsObjectLiteral(
+            properties = emptyList(), // TODO
+            type = type.toEtsType(),
+        )
+
+        is UnaryOperationDto -> {
+            val arg = arg.toEtsEntity()
+            // Note: `type` is ignored here!
+            when (op) {
+                Ops.NOT -> EtsNotExpr(arg)
+                Ops.BIT_NOT -> EtsBitNotExpr(arg.type, arg)
+                Ops.MINUS -> EtsNegExpr(arg.type, arg)
+                Ops.PLUS -> EtsUnaryPlusExpr(arg)
+                Ops.INC -> EtsPreIncExpr(arg.type, arg)
+                Ops.DEC -> EtsPreDecExpr(arg.type, arg)
+                else -> error("Unknown unop: '$op'")
+            }
+        }
+
+        is BinaryOperationDto -> {
+            val left = left.toEtsEntity()
+            val right = right.toEtsEntity()
+            val type = type.toEtsType()
+            when (op) {
+                Ops.ADD -> EtsAddExpr(type, left, right)
+                Ops.SUB -> EtsSubExpr(type, left, right)
+                Ops.MUL -> EtsMulExpr(type, left, right)
+                Ops.DIV -> EtsDivExpr(type, left, right)
+                Ops.MOD -> EtsRemExpr(type, left, right)
+                Ops.EXP -> EtsExpExpr(type, left, right)
+                Ops.BIT_AND -> EtsBitAndExpr(type, left, right)
+                Ops.BIT_OR -> EtsBitOrExpr(type, left, right)
+                Ops.BIT_XOR -> EtsBitXorExpr(type, left, right)
+                Ops.LSH -> EtsLeftShiftExpr(type, left, right)
+                Ops.RSH -> EtsRightShiftExpr(type, left, right)
+                Ops.URSH -> EtsUnsignedRightShiftExpr(type, left, right)
+                Ops.AND -> EtsAndExpr(type, left, right)
+                Ops.OR -> EtsOrExpr(type, left, right)
+                Ops.NULLISH -> EtsNullishCoalescingExpr(type, left, right)
+                Ops.COMMA -> EtsCommaExpr(left, right) // Note: `type` is ignored here!
+
+                // TODO: fix (remove) this when `instanceof` is properly supported in ArkAnalyzer.
+                //  Ideally, it would become a separate `ArkInstanceOfExpr`, and we are going to
+                //  introduce a corresponding DTO for it.
+                //  Currently, `x instanceof T` is represented as `BinopExpr(Local("x"), Local("T"))`,
+                //  so we just *unsafely* extract the type name from the "pseudo-local" here:
+                // "instanceof" -> EtsInstanceOfExpr(left, (right as EtsLocal).name)
+
+                // TODO: Currently, ArkIR treats "in" operation just as BinopExpr.
+                //       Ideally, it would be represented as a separate `ArkInExpr`,
+                //       or at least as `ArkConditionExpr`, since it inherently has a boolean type.
+                // Ops.IN -> EtsInExpr(left, right) // Note: `type` is ignored here!
+
+                else -> error("Unknown binop: $op")
+            }
+        }
+
+        is RelationOperationDto -> {
+            val left = left.toEtsEntity()
+            val right = right.toEtsEntity()
+            // Note: `type` is ignored here!
+            when (op) {
+                Ops.EQ_EQ -> EtsEqExpr(left, right)
+                Ops.NOT_EQ -> EtsNotEqExpr(left, right)
+                Ops.EQ_EQ_EQ -> EtsStrictEqExpr(left, right)
+                Ops.NOT_EQ_EQ -> EtsStrictNotEqExpr(left, right)
+                Ops.LT -> EtsLtExpr(left, right)
+                Ops.LT_EQ -> EtsLtEqExpr(left, right)
+                Ops.GT -> EtsGtExpr(left, right)
+                Ops.GT_EQ -> EtsGtEqExpr(left, right)
+                Ops.IN -> EtsInExpr(left, right)
+                else -> error("Unknown relop: $op")
+            }
+        }
+
+        is InstanceCallExprDto -> EtsInstanceCallExpr(
+            instance = (instance as LocalDto).toEtsEntity() as EtsLocal, // safe cast
+            method = method.toEtsMethodSignature(),
+            args = args.map {
+                ensureLocal(it.toEtsEntity())
+            },
+        )
+
+        is StaticCallExprDto -> EtsStaticCallExpr(
+            method = method.toEtsMethodSignature(),
+            args = args.map {
+                ensureLocal(it.toEtsEntity())
+            },
+        )
+
+        is PtrCallExprDto -> EtsPtrCallExpr(
+            ptr = (ptr as LocalDto).toEtsEntity() as EtsLocal, // safe cast
+            method = method.toEtsMethodSignature(),
+            args = args.map {
+                ensureLocal(it.toEtsEntity())
+            },
+        )
+
+        is ThisRefDto -> EtsThis(
+            type = (type as ClassTypeDto).toEtsType() as EtsClassType // safe cast
+        )
+
+        is ParameterRefDto -> EtsParameterRef(
+            index = index,
+            type = type.toEtsType(),
+        )
+
+        is ArrayRefDto -> EtsArrayAccess(
+            array = array.toEtsEntity() as EtsValue, // TODO: check whether the cast is safe
+            index = index.toEtsEntity() as EtsValue, // TODO: check whether the cast is safe
+            type = type.toEtsType(),
+        )
+
+        is FieldRefDto -> toEtsFieldRef()
+
+        // else -> error("Unknown Value: $value")
     }
 
-    fun convertToEtsFieldRef(fieldRef: FieldRefDto): EtsFieldRef {
-        val field = convertToEtsFieldSignature(fieldRef.field)
-        return when (fieldRef) {
+    private fun FieldRefDto.toEtsFieldRef(): EtsFieldRef {
+        val field = field.toEtsFieldSignature()
+        return when (this) {
             is InstanceFieldRefDto -> EtsInstanceFieldRef(
-                instance = convertToEtsEntity(fieldRef.instance as LocalDto) as EtsLocal, // safe cast
+                instance = (instance as LocalDto).toEtsEntity() as EtsLocal, // safe cast
                 field = field,
             )
 
@@ -484,8 +480,8 @@ class EtsMethodBuilder(
         }
     }
 
-    fun convertToEtsCfg(cfg: CfgDto): EtsCfg {
-        require(cfg.blocks.isNotEmpty()) {
+    private fun CfgDto.toEtsCfg(): EtsCfg {
+        require(blocks.isNotEmpty()) {
             "Method body should contain at least return stmt"
         }
 
@@ -493,7 +489,7 @@ class EtsMethodBuilder(
         val queue: ArrayDeque<Int> = ArrayDeque()
         queue.add(0)
 
-        val blocks = cfg.blocks.associateBy { it.id }
+        val blocks = blocks.associateBy { it.id }
         val blockStart: MutableMap<Int, Int> = hashMapOf()
         val blockEnd: MutableMap<Int, Int> = hashMapOf()
 
@@ -502,7 +498,7 @@ class EtsMethodBuilder(
             blockStart[block.id] = currentStmts.size
             if (block.stmts.isNotEmpty()) {
                 for (stmt in block.stmts) {
-                    currentStmts += convertToEtsStmt(stmt)
+                    currentStmts += stmt.toEtsStmt()
                 }
             } else {
                 currentStmts += EtsNopStmt(loc())
@@ -518,7 +514,7 @@ class EtsMethodBuilder(
         }
 
         val successorMap: MutableMap<EtsStmt, List<EtsStmt>> = hashMapOf()
-        for (block in cfg.blocks) {
+        for (block in this.blocks) {
             val startId = blockStart[block.id]!!
             val endId = blockEnd[block.id]!!
             for (i in startId until endId) {
@@ -536,7 +532,7 @@ class EtsMethodBuilder(
     }
 }
 
-fun convertToEtsClass(classDto: ClassDto): EtsClass {
+fun ClassDto.toEtsClass(): EtsClass {
     fun defaultConstructorDto(classSignatureDto: ClassSignatureDto): MethodDto {
         val zeroBlock = BasicBlockDto(
             id = 0,
@@ -563,33 +559,33 @@ fun convertToEtsClass(classDto: ClassDto): EtsClass {
         )
     }
 
-    val signature = convertToEtsClassSignature(classDto.signature)
-    val superClassSignature = classDto.superClassName?.takeIf { it != "" }?.let { name ->
+    val signature = signature.toEtsClassSignature()
+    val superClassSignature = superClassName?.takeIf { it != "" }?.let { name ->
         EtsClassSignature(
             name = name,
             file = EtsFileSignature.DEFAULT,
         )
     }
-    val implementedInterfaces = classDto.implementedInterfaceNames.map { name ->
+    val implementedInterfaces = implementedInterfaceNames.map { name ->
         EtsClassSignature(
             name = name,
             file = EtsFileSignature.DEFAULT,
         )
     }
 
-    val fields = classDto.fields.map { convertToEtsField(it) }
+    val fields = fields.map { it.toEtsField() }
 
-    val (methodDtos, ctorDtos) = classDto.methods.partition { it.signature.name != CONSTRUCTOR_NAME }
+    val (methodDtos, ctorDtos) = methods.partition { it.signature.name != CONSTRUCTOR_NAME }
     check(ctorDtos.size <= 1) { "Class should not have multiple constructors" }
-    val ctorDto = ctorDtos.firstOrNull() ?: defaultConstructorDto(classDto.signature)
+    val ctorDto = ctorDtos.firstOrNull() ?: defaultConstructorDto(this.signature)
 
-    val methods = methodDtos.map { convertToEtsMethod(it) }
-    val ctor = convertToEtsMethod(ctorDto)
+    val methods = methodDtos.map { it.toEtsMethod() }
+    val ctor = ctorDto.toEtsMethod()
 
-    val typeParameters = classDto.typeParameters?.map { convertToEtsType(it) } ?: emptyList()
+    val typeParameters = typeParameters?.map { it.toEtsType() } ?: emptyList()
 
-    val modifiers = EtsModifiers(classDto.modifiers)
-    val decorators = classDto.decorators.map { convertToEtsDecorator(it) }
+    val modifiers = EtsModifiers(modifiers)
+    val decorators = decorators.map { it.toEtsDecorator() }
 
     return EtsClassImpl(
         signature = signature,
@@ -604,109 +600,103 @@ fun convertToEtsClass(classDto: ClassDto): EtsClass {
     )
 }
 
-fun convertToEtsType(type: TypeDto): EtsType {
-    return when (type) {
-        is AbsolutelyUnknownTypeDto -> object : EtsType {
-            override val typeName: String
-                get() = type.type ?: "UNKNOWN"
+fun TypeDto.toEtsType(): EtsType = when (this) {
+    is AbsolutelyUnknownTypeDto -> object : EtsType {
+        override val typeName: String
+            get() = type ?: "UNKNOWN"
 
-            override fun toString(): String {
-                return type.type ?: "UNKNOWN"
-            }
-
-            override fun <R> accept(visitor: EtsType.Visitor<R>): R {
-                error("Not supported: ${type.type}")
-            }
+        override fun toString(): String {
+            return type ?: "UNKNOWN"
         }
 
-        is AliasTypeDto -> EtsAliasType(
-            name = type.name,
-            originalType = convertToEtsType(type.originalType),
-            signature = convertToEtsLocalSignature(type.signature),
-        )
-
-        is AnnotationNamespaceTypeDto -> EtsAnnotationNamespaceType(
-            originType = type.originType,
-            namespaceSignature = convertToEtsNamespaceSignature(type.namespaceSignature),
-        )
-
-
-        is AnnotationTypeQueryTypeDto -> EtsAnnotationTypeQueryType(
-            originType = type.originType,
-        )
-
-        AnyTypeDto -> EtsAnyType
-
-        is ArrayTypeDto -> EtsArrayType(
-            elementType = convertToEtsType(type.elementType),
-            dimensions = type.dimensions,
-        )
-
-        BooleanTypeDto -> EtsBooleanType
-
-        is ClassTypeDto -> EtsClassType(
-            signature = convertToEtsClassSignature(type.signature),
-            typeParameters = type.typeParameters.map { convertToEtsType(it) },
-        )
-
-        is FunctionTypeDto -> EtsFunctionType(
-            method = convertToEtsMethodSignature(type.signature),
-            typeParameters = type.typeParameters.map { convertToEtsType(it) },
-        )
-
-        is GenericTypeDto -> EtsGenericType(
-            name = type.name,
-            defaultType = type.defaultType?.let { convertToEtsType(it) },
-            constraint = type.constraint?.let { convertToEtsType(it) },
-        )
-
-        is LiteralTypeDto -> EtsLiteralType(
-            literalTypeName = type.literal.toString(),
-        )
-
-        NeverTypeDto -> EtsNeverType
-
-        NullTypeDto -> EtsNullType
-
-        NumberTypeDto -> EtsNumberType
-
-        StringTypeDto -> EtsStringType
-
-        is TupleTypeDto -> EtsTupleType(
-            types = type.types.map { convertToEtsType(it) }
-        )
-
-        is UnclearReferenceTypeDto -> EtsUnclearRefType(
-            name = type.name,
-            typeParameters = type.typeParameters.map { convertToEtsType(it) },
-        )
-
-        UndefinedTypeDto -> EtsUndefinedType
-
-        is UnionTypeDto -> EtsUnionType(
-            types = type.types.map { convertToEtsType(it) }
-        )
-
-        UnknownTypeDto -> EtsUnknownType
-
-        VoidTypeDto -> EtsVoidType
+        override fun <R> accept(visitor: EtsType.Visitor<R>): R {
+            error("Not supported: $type")
+        }
     }
+
+    is AliasTypeDto -> EtsAliasType(
+        name = name,
+        originalType = originalType.toEtsType(),
+        signature = signature.toEtsLocalSignature(),
+    )
+
+    is AnnotationNamespaceTypeDto -> EtsAnnotationNamespaceType(
+        originType = originType,
+        namespaceSignature = namespaceSignature.toEtsNamespaceSignature(),
+    )
+
+    is AnnotationTypeQueryTypeDto -> EtsAnnotationTypeQueryType(
+        originType = originType,
+    )
+
+    AnyTypeDto -> EtsAnyType
+
+    is ArrayTypeDto -> EtsArrayType(
+        elementType = elementType.toEtsType(),
+        dimensions = dimensions,
+    )
+
+    BooleanTypeDto -> EtsBooleanType
+
+    is ClassTypeDto -> toEtsClassType()
+
+    is FunctionTypeDto -> EtsFunctionType(
+        method = signature.toEtsMethodSignature(),
+        typeParameters = typeParameters.map { it.toEtsType() },
+    )
+
+    is GenericTypeDto -> EtsGenericType(
+        name = name,
+        defaultType = defaultType?.toEtsType(),
+        constraint = constraint?.toEtsType(),
+    )
+
+    is LiteralTypeDto -> EtsLiteralType(
+        literalTypeName = literal.toString(),
+    )
+
+    NeverTypeDto -> EtsNeverType
+
+    NullTypeDto -> EtsNullType
+
+    NumberTypeDto -> EtsNumberType
+
+    StringTypeDto -> EtsStringType
+
+    is TupleTypeDto -> EtsTupleType(
+        types = types.map { it.toEtsType() }
+    )
+
+    is UnclearReferenceTypeDto -> EtsUnclearRefType(
+        name = name,
+        typeParameters = typeParameters.map { it.toEtsType() },
+    )
+
+    UndefinedTypeDto -> EtsUndefinedType
+
+    is UnionTypeDto -> EtsUnionType(
+        types = types.map { it.toEtsType() }
+    )
+
+    UnknownTypeDto -> EtsUnknownType
+
+    VoidTypeDto -> EtsVoidType
 }
 
-fun convertToEtsConstant(value: ConstantDto): EtsConstant {
-    val type = convertToEtsType(value.type)
-    return when (type) {
-        EtsStringType -> EtsStringConstant(
-            value = value.value
-        )
+fun ClassTypeDto.toEtsClassType(): EtsClassType {
+    return EtsClassType(
+        signature = signature.toEtsClassSignature(),
+        typeParameters = typeParameters.map { it.toEtsType() },
+    )
+}
 
-        EtsBooleanType -> EtsBooleanConstant(
-            value = value.value.toBoolean()
-        )
+fun ConstantDto.toEtsConstant(): EtsConstant {
+    return when (type.toEtsType()) {
+        EtsStringType -> EtsStringConstant(value = this.value)
 
-        EtsNumberType -> EtsNumberConstant(
-            value = value.value.toDouble()
-        )
+        EtsBooleanType -> EtsBooleanConstant(value = value.toBoolean())
+
+        EtsNumberType -> EtsNumberConstant(value = value.toDouble())
 
         EtsNullType -> EtsNullConstant
 
@@ -715,7 +705,7 @@ fun convertToEtsConstant(value: ConstantDto): EtsConstant {
         else -> object : EtsConstant {
             override val type: EtsType = EtsUnknownType
 
-            override fun toString(): String = "Unknown(${value.value})"
+            override fun toString(): String = "Unknown($value)"
 
             override fun <R> accept(visitor: EtsValue.Visitor<R>): R {
                 if (visitor is EtsValue.Visitor.Default<R>) {
@@ -727,70 +717,70 @@ fun convertToEtsConstant(value: ConstantDto): EtsConstant {
     }
 }
 
-fun convertToEtsFileSignature(file: FileSignatureDto): EtsFileSignature {
+fun FileSignatureDto.toEtsFileSignature(): EtsFileSignature {
     return EtsFileSignature(
-        projectName = file.projectName,
-        fileName = file.fileName,
+        projectName = projectName,
+        fileName = fileName,
     )
 }
 
-fun convertToEtsNamespaceSignature(namespace: NamespaceSignatureDto): EtsNamespaceSignature {
+fun NamespaceSignatureDto.toEtsNamespaceSignature(): EtsNamespaceSignature {
     return EtsNamespaceSignature(
-        name = namespace.name,
-        file = namespace.declaringFile.let { convertToEtsFileSignature(it) },
-        namespace = namespace.declaringNamespace?.let { convertToEtsNamespaceSignature(it) },
+        name = name,
+        file = declaringFile.toEtsFileSignature(),
+        namespace = declaringNamespace?.toEtsNamespaceSignature(),
     )
 }
 
-fun convertToEtsClassSignature(clazz: ClassSignatureDto): EtsClassSignature {
+fun ClassSignatureDto.toEtsClassSignature(): EtsClassSignature {
     return EtsClassSignature(
-        name = clazz.name,
-        file = clazz.declaringFile.let { convertToEtsFileSignature(it) },
-        namespace = clazz.declaringNamespace?.let { convertToEtsNamespaceSignature(it) },
+        name = name,
+        file = declaringFile.toEtsFileSignature(),
+        namespace = declaringNamespace?.toEtsNamespaceSignature(),
     )
 }
 
-fun convertToEtsFieldSignature(field: FieldSignatureDto): EtsFieldSignature {
+fun FieldSignatureDto.toEtsFieldSignature(): EtsFieldSignature {
     return EtsFieldSignature(
-        enclosingClass = convertToEtsClassSignature(field.declaringClass),
+        enclosingClass = declaringClass.toEtsClassSignature(),
         sub = EtsFieldSubSignature(
-            name = field.name,
-            type = convertToEtsType(field.type),
+            name = name,
+            type = type.toEtsType(),
         )
     )
 }
 
-fun convertToEtsMethodSignature(method: MethodSignatureDto): EtsMethodSignature {
+fun MethodSignatureDto.toEtsMethodSignature(): EtsMethodSignature {
     return EtsMethodSignature(
-        enclosingClass = convertToEtsClassSignature(method.declaringClass),
-        name = method.name,
-        parameters = method.parameters.mapIndexed { index, param ->
+        enclosingClass = declaringClass.toEtsClassSignature(),
+        name = name,
+        parameters = parameters.mapIndexed { index, param ->
             EtsMethodParameter(
                 index = index,
                 name = param.name,
-                type = convertToEtsType(param.type),
+                type = param.type.toEtsType(),
                 isOptional = param.isOptional
             )
         },
-        returnType = convertToEtsType(method.returnType),
+        returnType = returnType.toEtsType(),
     )
 }
 
-fun convertToEtsLocalSignature(local: LocalSignatureDto): EtsLocalSignature {
+fun LocalSignatureDto.toEtsLocalSignature(): EtsLocalSignature {
     return EtsLocalSignature(
-        name = local.name,
-        method = convertToEtsMethodSignature(local.method),
+        name = name,
+        method = method.toEtsMethodSignature(),
     )
 }
 
-fun convertToEtsMethod(method: MethodDto): EtsMethod {
-    val signature = convertToEtsMethodSignature(method.signature)
-    val typeParameters = method.typeParameters?.map { convertToEtsType(it) } ?: emptyList()
-    val modifiers = EtsModifiers(method.modifiers)
-    val decorators = method.decorators.map { convertToEtsDecorator(it) }
-    if (method.body != null) {
-        val locals = method.body.locals.map {
-            convertToEtsLocal(it)
+fun MethodDto.toEtsMethod(): EtsMethod {
+    val signature = signature.toEtsMethodSignature()
+    val typeParameters = typeParameters?.map { it.toEtsType() } ?: emptyList()
+    val modifiers = EtsModifiers(modifiers)
+    val decorators = decorators.map { it.toEtsDecorator() }
+    if (body != null) {
+        val locals = body.locals.map {
+            it.toEtsLocal()
         }
         val builder = EtsMethodBuilder(
             signature = signature,
@@ -799,7 +789,7 @@ fun convertToEtsMethod(method: MethodDto): EtsMethod {
             modifiers = modifiers,
             decorators = decorators,
         )
-        return builder.build(method.body.cfg)
+        return builder.build(body.cfg)
     } else {
         return EtsMethodImpl(
             signature = signature,
@@ -811,25 +801,25 @@ fun convertToEtsMethod(method: MethodDto): EtsMethod {
     }
 }
 
-fun convertToEtsField(field: FieldDto): EtsField {
+fun FieldDto.toEtsField(): EtsField {
     return EtsFieldImpl(
         signature = EtsFieldSignature(
-            enclosingClass = convertToEtsClassSignature(field.signature.declaringClass),
+            enclosingClass = signature.declaringClass.toEtsClassSignature(),
             sub = EtsFieldSubSignature(
-                name = field.signature.name,
-                type = convertToEtsType(field.signature.type),
+                name = signature.name,
+                type = signature.type.toEtsType(),
             )
         ),
-        modifiers = EtsModifiers(field.modifiers),
-        isOptional = field.isOptional,
-        isDefinitelyAssigned = field.isDefinitelyAssigned,
+        modifiers = EtsModifiers(modifiers),
+        isOptional = isOptional,
+        isDefinitelyAssigned = isDefinitelyAssigned,
     )
 }
 
-fun convertToEtsNamespace(namespace: NamespaceDto): EtsNamespace {
-    val signature = convertToEtsNamespaceSignature(namespace.signature)
-    val classes = namespace.classes.map { convertToEtsClass(it) }
-    val namespaces = namespace.namespaces.map { convertToEtsNamespace(it) }
+fun NamespaceDto.toEtsNamespace(): EtsNamespace {
+    val signature = signature.toEtsNamespaceSignature()
+    val classes = classes.map { it.toEtsClass() }
+    val namespaces = namespaces.map { it.toEtsNamespace() }
     return EtsNamespace(
         signature = signature,
         classes = classes,
@@ -837,10 +827,10 @@ fun convertToEtsNamespace(namespace: NamespaceDto): EtsNamespace {
     )
 }
 
-fun convertToEtsFile(file: EtsFileDto): EtsFile {
-    val signature = convertToEtsFileSignature(file.signature)
-    val classes = file.classes.map { convertToEtsClass(it) }
-    val namespaces = file.namespaces.map { convertToEtsNamespace(it) }
+fun EtsFileDto.toEtsFile(): EtsFile {
+    val signature = signature.toEtsFileSignature()
+    val classes = classes.map { it.toEtsClass() }
+    val namespaces = namespaces.map { it.toEtsNamespace() }
     return EtsFile(
         signature = signature,
         classes = classes,
@@ -848,17 +838,17 @@ fun convertToEtsFile(file: EtsFileDto): EtsFile {
     )
 }
 
-fun convertToEtsDecorator(decorator: DecoratorDto): EtsDecorator {
+fun DecoratorDto.toEtsDecorator(): EtsDecorator {
     return EtsDecorator(
-        name = decorator.kind,
+        name = kind,
         // TODO: content
         // TODO: param
     )
 }
 
-fun convertToEtsLocal(local: LocalDto): EtsLocal {
+fun LocalDto.toEtsLocal(): EtsLocal {
     return EtsLocal(
-        name = local.name,
-        type = convertToEtsType(local.type),
+        name = name,
+        type = type.toEtsType(),
     )
 }

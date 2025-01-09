@@ -17,7 +17,7 @@
 package org.jacodb.ets.utils
 
 import org.jacodb.ets.dto.EtsFileDto
-import org.jacodb.ets.dto.convertToEtsFile
+import org.jacodb.ets.dto.toEtsFile
 import org.jacodb.ets.model.EtsFile
 import org.jacodb.ets.model.EtsScene
 import java.io.FileNotFoundException
@@ -105,7 +105,7 @@ fun loadEtsFileAutoConvert(
     )
     irFilePath.inputStream().use { stream ->
         val etsFileDto = EtsFileDto.loadFromJson(stream)
-        return convertToEtsFile(etsFileDto)
+        return etsFileDto.toEtsFile()
     }
 }
 
@@ -148,7 +148,7 @@ private val walker = { irFolder: Path ->
         .map {
             it.inputStream().use { stream ->
                 val etsFileDto = EtsFileDto.loadFromJson(stream)
-                convertToEtsFile(etsFileDto)
+                etsFileDto.toEtsFile()
             }
         }
         .toList()

@@ -17,7 +17,7 @@
 package org.jacodb.ets.test.utils
 
 import org.jacodb.ets.dto.EtsFileDto
-import org.jacodb.ets.dto.convertToEtsFile
+import org.jacodb.ets.dto.toEtsFile
 import org.jacodb.ets.model.EtsFile
 import org.jacodb.ets.utils.dumpDot
 import org.jacodb.ets.utils.render
@@ -104,7 +104,7 @@ object DumpEtsFilesToDot {
                     render(DOT_DIR, dotPath.relativeTo(DOT_DIR))
                 }
 
-                val etsFile = convertToEtsFile(etsFileDto)
+                val etsFile = etsFileDto.toEtsFile()
                 run {
                     val dotPath = DOT_DIR / path.resolveSibling(path.nameWithoutExtension + ".dot")
                     etsFile.dumpDot(dotPath)
