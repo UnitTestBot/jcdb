@@ -215,7 +215,7 @@ class EtsMethodBuilder(
         }
 
         is CallStmtDto -> {
-            val expr = expr.toEtsEntity() as EtsCallExpr
+            val expr = expr.toEtsEntity() as EtsCallExpr // safe cast
             EtsCallStmt(
                 location = loc(),
                 expr = expr,
@@ -388,7 +388,7 @@ class EtsMethodBuilder(
         }
 
         is InstanceCallExprDto -> EtsInstanceCallExpr(
-            instance = (instance as LocalDto).toEtsEntity() as EtsLocal, // safe cast
+            instance = (instance as LocalDto).toEtsLocal(), // safe cast
             method = method.toEtsMethodSignature(),
             args = args.map {
                 ensureLocal(it.toEtsEntity())
@@ -403,7 +403,7 @@ class EtsMethodBuilder(
         )
 
         is PtrCallExprDto -> EtsPtrCallExpr(
-            ptr = (ptr as LocalDto).toEtsEntity() as EtsLocal, // safe cast
+            ptr = (ptr as LocalDto).toEtsLocal(), // safe cast
             method = method.toEtsMethodSignature(),
             args = args.map {
                 ensureLocal(it.toEtsEntity())
@@ -411,7 +411,7 @@ class EtsMethodBuilder(
         )
 
         is ThisRefDto -> EtsThis(
-            type = (type as ClassTypeDto).toEtsType() as EtsClassType // safe cast
+            type = (type as ClassTypeDto).toEtsClassType() // safe cast
         )
 
         is ParameterRefDto -> EtsParameterRef(
@@ -434,7 +434,7 @@ class EtsMethodBuilder(
         val field = field.toEtsFieldSignature()
         return when (this) {
             is InstanceFieldRefDto -> EtsInstanceFieldRef(
-                instance = (instance as LocalDto).toEtsEntity() as EtsLocal, // safe cast
+                instance = (instance as LocalDto).toEtsLocal(), // safe cast
                 field = field,
             )
 
