@@ -365,18 +365,6 @@ class EtsMethodBuilder(
                 Ops.NULLISH -> EtsNullishCoalescingExpr(type, left, right)
                 Ops.COMMA -> EtsCommaExpr(left, right) // Note: `type` is ignored here!
 
-                // TODO: fix (remove) this when `instanceof` is properly supported in ArkAnalyzer.
-                //  Ideally, it would become a separate `ArkInstanceOfExpr`, and we are going to
-                //  introduce a corresponding DTO for it.
-                //  Currently, `x instanceof T` is represented as `BinopExpr(Local("x"), Local("T"))`,
-                //  so we just *unsafely* extract the type name from the "pseudo-local" here:
-                // "instanceof" -> EtsInstanceOfExpr(left, (right as EtsLocal).name)
-
-                // TODO: Currently, ArkIR treats "in" operation just as BinopExpr.
-                //       Ideally, it would be represented as a separate `ArkInExpr`,
-                //       or at least as `ArkConditionExpr`, since it inherently has a boolean type.
-                // Ops.IN -> EtsInExpr(left, right) // Note: `type` is ignored here!
-
                 else -> error("Unknown binop: $op")
             }
         }
