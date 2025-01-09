@@ -439,7 +439,7 @@ class EtsMethodBuilder(
             )
 
             is StaticFieldRefDto -> EtsStaticFieldRef(
-                field = field
+                field = field,
             )
         }
     }
