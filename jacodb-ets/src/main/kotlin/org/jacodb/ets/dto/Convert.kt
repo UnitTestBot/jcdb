@@ -298,19 +298,19 @@ class EtsMethodBuilder(
         )
 
         is DeleteExprDto -> EtsDeleteExpr(
-            arg = arg.toEtsEntity()
+            arg = arg.toEtsEntity(),
         )
 
         is AwaitExprDto -> EtsAwaitExpr(
-            arg = arg.toEtsEntity()
+            arg = arg.toEtsEntity(),
         )
 
         is YieldExprDto -> EtsYieldExpr(
-            arg = arg.toEtsEntity()
+            arg = arg.toEtsEntity(),
         )
 
         is TypeOfExprDto -> EtsTypeOfExpr(
-            arg = arg.toEtsEntity()
+            arg = arg.toEtsEntity(),
         )
 
         is InstanceOfExprDto -> EtsInstanceOfExpr(
@@ -319,7 +319,7 @@ class EtsMethodBuilder(
         )
 
         is LengthExprDto -> EtsLengthExpr(
-            arg = arg.toEtsEntity()
+            arg = arg.toEtsEntity(),
         )
 
         is CastExprDto -> EtsCastExpr(
@@ -405,7 +405,7 @@ class EtsMethodBuilder(
         )
 
         is ThisRefDto -> EtsThis(
-            type = (type as ClassTypeDto).toEtsClassType() // safe cast
+            type = (type as ClassTypeDto).toEtsClassType(), // safe cast
         )
 
         is ParameterRefDto -> EtsParameterRef(
