@@ -23,6 +23,7 @@ import org.jacodb.ets.model.EtsScene
 import java.io.FileNotFoundException
 import java.nio.file.Path
 import kotlin.io.path.Path
+import kotlin.io.path.PathWalkOption
 import kotlin.io.path.absolute
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.exists
@@ -142,8 +143,8 @@ fun loadEtsProjectFromMultipleIR(input: List<Path>, sdkPaths: List<Path>): EtsSc
     return EtsScene(projectFiles, sdkFiles)
 }
 
-private val walker = { irFolder: Path ->
-    irFolder.walk()
+private val walker = { dir: Path ->
+    dir.walk(PathWalkOption.BREADTH_FIRST)
         .filter { it.extension == "json" }
         .map {
             it.inputStream().use { stream ->
