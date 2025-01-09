@@ -390,24 +390,18 @@ class EtsMethodBuilder(
         is InstanceCallExprDto -> EtsInstanceCallExpr(
             instance = (instance as LocalDto).toEtsLocal(), // safe cast
             method = method.toEtsMethodSignature(),
-            args = args.map {
-                ensureLocal(it.toEtsEntity())
-            },
+            args = args.map { ensureLocal(it.toEtsEntity()) },
         )
 
         is StaticCallExprDto -> EtsStaticCallExpr(
             method = method.toEtsMethodSignature(),
-            args = args.map {
-                ensureLocal(it.toEtsEntity())
-            },
+            args = args.map { ensureLocal(it.toEtsEntity()) },
         )
 
         is PtrCallExprDto -> EtsPtrCallExpr(
             ptr = (ptr as LocalDto).toEtsLocal(), // safe cast
             method = method.toEtsMethodSignature(),
-            args = args.map {
-                ensureLocal(it.toEtsEntity())
-            },
+            args = args.map { ensureLocal(it.toEtsEntity()) },
         )
 
         is ThisRefDto -> EtsThis(
