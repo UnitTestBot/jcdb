@@ -57,9 +57,14 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.condition.EnabledIf
+import kotlin.io.path.PathWalkOption
 import kotlin.io.path.div
 import kotlin.io.path.exists
-import kotlin.io.path.toPath
+import kotlin.io.path.isDirectory
+import kotlin.io.path.listDirectoryEntries
+import kotlin.io.path.name
+import kotlin.io.path.relativeTo
+import kotlin.io.path.walk
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
@@ -73,7 +78,13 @@ class EtsFromJsonTest {
             prettyPrint = true
         }
 
-        private const val PROJECT_PATH = "/projects/ArkTSDistributedCalc"
+        private const val PROJECT_PATH = "/projects/Demo_Calc"
+
+        @JvmStatic
+        private fun projectAvailable(): Boolean {
+            val path = getResourcePathOrNull(PROJECT_PATH)
+            return path != null && path.exists()
+        }
     }
 
     @Test
@@ -101,17 +112,74 @@ class EtsFromJsonTest {
         println("etsFile = $etsFile")
     }
 
-    private fun projectAvailable(): Boolean {
-        val path = this::class.java.getResource(PROJECT_PATH)?.toURI()?.toPath()
-        return path != null && path.exists()
+    @TestFactory
+    fun testLoadAllAvailableEtsFilesFromJson() = testFactory {
+        val prefix = "/samples"
+        val p = getResourcePathOrNull("$prefix/source") ?: run {
+            logger.warn { "No samples directory found in resources" }
+            return@testFactory
+        }
+        val availableFiles = p.walk(PathWalkOption.BREADTH_FIRST)
+            .map { it.relativeTo(p) }
+            .toList()
+        logger.info {
+            buildString {
+                appendLine("Found ${availableFiles.size} sample files")
+                for (file in availableFiles) {
+                    appendLine("  - $file")
+                }
+            }
+        }
+        if (availableFiles.isEmpty()) {
+            logger.warn { "No sample files found" }
+            return@testFactory
+        }
+        container("load ${availableFiles.size} files") {
+            for (file in availableFiles) {
+                test("load $file") {
+                    val etsDto = loadEtsFileDtoFromResource("$prefix/etsir/ast/$file.json")
+                    println("etsDto = $etsDto")
+                    val ets = etsDto.toEtsFile()
+                    println("ets = $ets")
+                }
+            }
+        }
+    }
+
+    @TestFactory
+    fun testLoadAllAvailableEtsFilesAutoConvert() = testFactory {
+        val base = "/samples/source"
+        val p = getResourcePathOrNull(base) ?: run {
+            logger.warn { "No samples directory found in resources" }
+            return@testFactory
+        }
+        val availableFiles = p.walk(PathWalkOption.BREADTH_FIRST).toList()
+        logger.info {
+            buildString {
+                appendLine("Found ${availableFiles.size} sample files")
+                for (file in availableFiles) {
+                    appendLine("  - $file")
+                }
+            }
+        }
+        if (availableFiles.isEmpty()) {
+            logger.warn { "No sample files found" }
+            return@testFactory
+        }
+        container("load ${availableFiles.size} files") {
+            for (file in availableFiles) {
+                test("load $file") {
+                    val ets = loadEtsFileAutoConvert(file)
+                    println("ets = $ets")
+                }
+            }
+        }
     }
 
     @EnabledIf("projectAvailable")
     @Test
     fun testLoadEtsProject() {
-        val modules = listOf(
-            "entry",
-        )
+        val modules = listOf("entry")
         val prefix = "$PROJECT_PATH/etsir"
         val project = loadEtsProjectFromResources(modules, prefix)
         println("Classes: ${project.projectClasses.size}")
@@ -129,10 +197,13 @@ class EtsFromJsonTest {
             logger.warn { "No projects directory found in resources" }
             return@testFactory
         }
-        val availableProjectNames = p.toFile().listFiles { f -> f.isDirectory }!!.map { it.name }
+        val availableProjectNames = p.listDirectoryEntries()
+            .filter { it.isDirectory() }
+            .map { it.name }
+            .toList()
         logger.info {
             buildString {
-                appendLine("Found projects: ${availableProjectNames.size}")
+                appendLine("Found ${availableProjectNames.size} projects")
                 for (name in availableProjectNames) {
                     appendLine("  - $name")
                 }
@@ -159,7 +230,10 @@ class EtsFromJsonTest {
             logger.warn { "No etsir directory found for project $projectName" }
             return
         }
-        val modules = etsirPath.toFile().listFiles { f -> f.isDirectory }!!.map { it.name }
+        val modules = etsirPath.listDirectoryEntries()
+            .filter { it.isDirectory() }
+            .map { it.name }
+            .toList()
         logger.info { "Found ${modules.size} modules: $modules" }
         if (modules.isEmpty()) {
             logger.warn { "No modules found for project $projectName" }
