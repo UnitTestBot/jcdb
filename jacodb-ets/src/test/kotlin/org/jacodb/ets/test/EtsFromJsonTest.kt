@@ -30,7 +30,6 @@ import org.jacodb.ets.base.EtsUnknownType
 import org.jacodb.ets.dto.AnyTypeDto
 import org.jacodb.ets.dto.ClassSignatureDto
 import org.jacodb.ets.dto.DecoratorDto
-import org.jacodb.ets.dto.EtsMethodBuilder
 import org.jacodb.ets.dto.FieldDto
 import org.jacodb.ets.dto.FieldSignatureDto
 import org.jacodb.ets.dto.FileSignatureDto
@@ -42,8 +41,9 @@ import org.jacodb.ets.dto.PrimitiveLiteralDto
 import org.jacodb.ets.dto.ReturnVoidStmtDto
 import org.jacodb.ets.dto.StmtDto
 import org.jacodb.ets.dto.TypeDto
-import org.jacodb.ets.dto.toEtsMethod
 import org.jacodb.ets.dto.toEtsFile
+import org.jacodb.ets.dto.toEtsLocal
+import org.jacodb.ets.dto.toEtsMethod
 import org.jacodb.ets.model.EtsClassSignature
 import org.jacodb.ets.model.EtsFileSignature
 import org.jacodb.ets.model.EtsMethodSignature
@@ -72,16 +72,6 @@ class EtsFromJsonTest {
             // classDiscriminator = "_"
             prettyPrint = true
         }
-
-        private val defaultSignature = EtsMethodSignature(
-            enclosingClass = EtsClassSignature(
-                name = DEFAULT_ARK_CLASS_NAME,
-                file = EtsFileSignature.DEFAULT,
-            ),
-            name = DEFAULT_ARK_METHOD_NAME,
-            parameters = emptyList(),
-            returnType = EtsAnyType,
-        )
 
         private const val PROJECT_PATH = "/projects/ArkTSDistributedCalc"
     }
@@ -202,8 +192,7 @@ class EtsFromJsonTest {
         val valueDto = Json.decodeFromString<LocalDto>(jsonString)
         println("valueDto = $valueDto")
         Assertions.assertEquals(LocalDto("x", AnyTypeDto), valueDto)
-        val ctx = EtsMethodBuilder(defaultSignature)
-        val value = ctx.convertToEtsEntity(valueDto)
+        val value = valueDto.toEtsLocal()
         println("value = $value")
         Assertions.assertEquals(EtsLocal("x", EtsAnyType), value)
     }
