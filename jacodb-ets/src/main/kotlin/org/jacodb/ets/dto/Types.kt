@@ -270,3 +270,14 @@ data class AnnotationTypeQueryTypeDto(
         return originType
     }
 }
+
+@Serializable
+@SerialName("LexicalEnvType")
+data class LexicalEnvTypeDto(
+    val nestedMethod: MethodSignatureDto,
+    val closures: List<LocalDto>,
+) : TypeDto {
+    override fun toString(): String {
+        return closures.joinToString(prefix = "[", postfix = "]")
+    }
+}

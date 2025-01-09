@@ -59,6 +59,7 @@ import org.jacodb.ets.base.EtsInstanceFieldRef
 import org.jacodb.ets.base.EtsInstanceOfExpr
 import org.jacodb.ets.base.EtsLeftShiftExpr
 import org.jacodb.ets.base.EtsLengthExpr
+import org.jacodb.ets.base.EtsLexicalEnvType
 import org.jacodb.ets.base.EtsLiteralType
 import org.jacodb.ets.base.EtsLocal
 import org.jacodb.ets.base.EtsLtEqExpr
@@ -594,6 +595,11 @@ fun TypeDto.toEtsType(): EtsType = when (this) {
         name = name,
         defaultType = defaultType?.toEtsType(),
         constraint = constraint?.toEtsType(),
+    )
+    
+    is LexicalEnvTypeDto -> EtsLexicalEnvType(
+        nestedMethod = nestedMethod.toEtsMethodSignature(),
+        closures = closures.map { it.toEtsLocal() },
     )
 
     is LiteralTypeDto -> EtsLiteralType(
