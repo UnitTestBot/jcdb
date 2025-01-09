@@ -221,7 +221,7 @@ class EtsFromJsonTest {
         val jsonString = json.encodeToString(field)
         println("json: $jsonString")
 
-        val fieldDto = json.decodeFromString<FieldDto>(jsonString)
+        val fieldDto = Json.decodeFromString<FieldDto>(jsonString)
         println("fieldDto = $fieldDto")
         Assertions.assertEquals(field, fieldDto)
     }
