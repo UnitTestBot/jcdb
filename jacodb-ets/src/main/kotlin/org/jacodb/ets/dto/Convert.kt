@@ -609,7 +609,7 @@ fun TypeDto.toEtsType(): EtsType = when (this) {
     StringTypeDto -> EtsStringType
 
     is TupleTypeDto -> EtsTupleType(
-        types = types.map { it.toEtsType() }
+        types = types.map { it.toEtsType() },
     )
 
     is UnclearReferenceTypeDto -> EtsUnclearRefType(
@@ -620,7 +620,7 @@ fun TypeDto.toEtsType(): EtsType = when (this) {
     UndefinedTypeDto -> EtsUndefinedType
 
     is UnionTypeDto -> EtsUnionType(
-        types = types.map { it.toEtsType() }
+        types = types.map { it.toEtsType() },
     )
 
     UnknownTypeDto -> EtsUnknownType
@@ -691,7 +691,7 @@ fun FieldSignatureDto.toEtsFieldSignature(): EtsFieldSignature {
         sub = EtsFieldSubSignature(
             name = name,
             type = type.toEtsType(),
-        )
+        ),
     )
 }
 
@@ -704,7 +704,7 @@ fun MethodSignatureDto.toEtsMethodSignature(): EtsMethodSignature {
                 index = index,
                 name = param.name,
                 type = param.type.toEtsType(),
-                isOptional = param.isOptional
+                isOptional = param.isOptional,
             )
         },
         returnType = returnType.toEtsType(),
@@ -753,7 +753,7 @@ fun FieldDto.toEtsField(): EtsField {
             sub = EtsFieldSubSignature(
                 name = signature.name,
                 type = signature.type.toEtsType(),
-            )
+            ),
         ),
         modifiers = EtsModifiers(modifiers),
         isOptional = isOptional,
