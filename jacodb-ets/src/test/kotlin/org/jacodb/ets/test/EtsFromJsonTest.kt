@@ -168,7 +168,7 @@ class EtsFromJsonTest {
             logger.warn { "No sample files found" }
             return@testFactory
         }
-        container("load ${availableFiles.size} files") {
+        container("auto-load ${availableFiles.size} files") {
             for (file in availableFiles) {
                 test("load $file") {
                     val p = getResourcePath("$prefix/$file")
