@@ -203,7 +203,7 @@ class EtsFromJsonTest {
         val availableProjectNames = p.listDirectoryEntries()
             .filter { it.isDirectory() }
             .map { it.name }
-            .toList()
+            .sorted()
         logger.info {
             buildString {
                 appendLine("Found ${availableProjectNames.size} projects")
@@ -217,7 +217,7 @@ class EtsFromJsonTest {
             return@testFactory
         }
         container("load ${availableProjectNames.size} projects") {
-            for (projectName in availableProjectNames.sorted()) {
+            for (projectName in availableProjectNames) {
                 test("load $projectName") {
                     dynamicLoadEtsProject(projectName)
                 }
@@ -236,7 +236,7 @@ class EtsFromJsonTest {
         val modules = etsirPath.listDirectoryEntries()
             .filter { it.isDirectory() }
             .map { it.name }
-            .toList()
+            .sorted()
         logger.info { "Found ${modules.size} modules: $modules" }
         if (modules.isEmpty()) {
             logger.warn { "No modules found for project $projectName" }
