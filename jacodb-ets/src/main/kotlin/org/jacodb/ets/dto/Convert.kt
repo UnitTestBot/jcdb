@@ -24,7 +24,6 @@ import org.jacodb.ets.base.EtsAnnotationNamespaceType
 import org.jacodb.ets.base.EtsAnnotationTypeQueryType
 import org.jacodb.ets.base.EtsAnyType
 import org.jacodb.ets.base.EtsArrayAccess
-import org.jacodb.ets.base.EtsArrayLiteral
 import org.jacodb.ets.base.EtsArrayType
 import org.jacodb.ets.base.EtsAssignStmt
 import org.jacodb.ets.base.EtsAwaitExpr
@@ -77,7 +76,6 @@ import org.jacodb.ets.base.EtsNullType
 import org.jacodb.ets.base.EtsNullishCoalescingExpr
 import org.jacodb.ets.base.EtsNumberConstant
 import org.jacodb.ets.base.EtsNumberType
-import org.jacodb.ets.base.EtsObjectLiteral
 import org.jacodb.ets.base.EtsOrExpr
 import org.jacodb.ets.base.EtsParameterRef
 import org.jacodb.ets.base.EtsPreDecExpr
@@ -187,18 +185,6 @@ class EtsMethodBuilder(
     }
 
     private fun StmtDto.toEtsStmt(): EtsStmt = when (this) {
-        is UnknownStmtDto -> object : EtsStmt {
-            override val location: EtsInstLocation = loc()
-
-            override fun toString(): String = "UnknownStmt($stmt)"
-
-            // TODO: equals/hashCode ???
-
-            override fun <R> accept(visitor: EtsStmt.Visitor<R>): R {
-                error("UnknownStmt is not supported")
-            }
-        }
-
         is NopStmtDto -> {
             EtsNopStmt(location = loc())
         }
@@ -342,16 +328,6 @@ class EtsMethodBuilder(
         )
 
         is PhiExprDto -> error("PhiExpr is not supported")
-
-        is ArrayLiteralDto -> EtsArrayLiteral(
-            elements = elements.map { it.toEtsEntity() },
-            type = type.toEtsType(), // TODO: as EtsArrayType,
-        )
-
-        is ObjectLiteralDto -> EtsObjectLiteral(
-            properties = emptyList(), // TODO
-            type = type.toEtsType(),
-        )
 
         is UnaryOperationDto -> {
             val arg = arg.toEtsEntity()
@@ -601,19 +577,6 @@ fun ClassDto.toEtsClass(): EtsClass {
 }
 
 fun TypeDto.toEtsType(): EtsType = when (this) {
-    is AbsolutelyUnknownTypeDto -> object : EtsType {
-        override val typeName: String
-            get() = type ?: "UNKNOWN"
-
-        override fun toString(): String {
-            return type ?: "UNKNOWN"
-        }
-
-        override fun <R> accept(visitor: EtsType.Visitor<R>): R {
-            error("Not supported: $type")
-        }
-    }
-
     is AliasTypeDto -> EtsAliasType(
         name = name,
         originalType = originalType.toEtsType(),

@@ -27,20 +27,8 @@ import kotlinx.serialization.json.JsonClassDiscriminator
 sealed interface StmtDto
 
 @Serializable
-@SerialName("UNKNOWN_STMT")
-data class UnknownStmtDto(
-    val stmt: String,
-) : StmtDto {
-    override fun toString(): String {
-        return "UNKNOWN($stmt)"
-    }
-}
-
-@Serializable
 @SerialName("NopStmt")
-object NopStmtDto : StmtDto {
-    override fun toString(): String = javaClass.simpleName
-}
+data object NopStmtDto : StmtDto
 
 @Serializable
 @SerialName("AssignStmt")
@@ -68,9 +56,7 @@ sealed interface TerminatingStmtDto : StmtDto
 
 @Serializable
 @SerialName("ReturnVoidStmt")
-object ReturnVoidStmtDto : TerminatingStmtDto {
-    override fun toString(): String = javaClass.simpleName
-}
+data object ReturnVoidStmtDto : TerminatingStmtDto
 
 @Serializable
 @SerialName("ReturnStmt")
@@ -93,9 +79,7 @@ sealed interface BranchingStmtDto : StmtDto
 
 @Serializable
 @SerialName("GotoStmt")
-object GotoStmtDto : BranchingStmtDto {
-    override fun toString(): String = javaClass.simpleName
-}
+data object GotoStmtDto : BranchingStmtDto
 
 @Serializable
 @SerialName("IfStmt")

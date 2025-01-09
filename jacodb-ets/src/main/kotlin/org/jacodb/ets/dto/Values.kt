@@ -264,24 +264,6 @@ data class PhiExprDto(
 }
 
 @Serializable
-@SerialName("ArrayLiteralExpr")
-data class ArrayLiteralDto(
-    val elements: List<ValueDto>,
-    override val type: TypeDto,
-) : ExprDto {
-    override fun toString(): String {
-        return "[" + elements.joinToString() + "]"
-    }
-}
-
-@Serializable
-@SerialName("ObjectLiteralExpr")
-data class ObjectLiteralDto(
-    val anonymousClass: ClassSignatureDto,
-    override val type: TypeDto,
-) : ExprDto
-
-@Serializable
 sealed interface UnaryExprDto : ExprDto {
     val arg: ValueDto
 

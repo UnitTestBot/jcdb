@@ -270,13 +270,3 @@ data class AnnotationTypeQueryTypeDto(
         return originType
     }
 }
-
-@Serializable
-@SerialName("UNKNOWN_TYPE")
-data class AbsolutelyUnknownTypeDto(
-    val type: String? = null,
-) : TypeDto {
-    override fun toString(): String {
-        return type ?: "UNKNOWN"
-    }
-}

@@ -28,8 +28,6 @@ interface EtsValue : EtsEntity, CommonValue {
         fun visit(value: EtsNumberConstant): R
         fun visit(value: EtsNullConstant): R
         fun visit(value: EtsUndefinedConstant): R
-        fun visit(value: EtsArrayLiteral): R
-        fun visit(value: EtsObjectLiteral): R
 
         // Ref
         fun visit(value: EtsThis): R
@@ -46,8 +44,6 @@ interface EtsValue : EtsEntity, CommonValue {
             override fun visit(value: EtsNumberConstant): R = defaultVisit(value)
             override fun visit(value: EtsNullConstant): R = defaultVisit(value)
             override fun visit(value: EtsUndefinedConstant): R = defaultVisit(value)
-            override fun visit(value: EtsArrayLiteral): R = defaultVisit(value)
-            override fun visit(value: EtsObjectLiteral): R = defaultVisit(value)
 
             override fun visit(value: EtsThis): R = defaultVisit(value)
             override fun visit(value: EtsParameterRef): R = defaultVisit(value)

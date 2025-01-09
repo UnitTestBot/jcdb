@@ -19,7 +19,6 @@ package org.jacodb.ets.utils
 import org.jacodb.ets.base.EtsAddExpr
 import org.jacodb.ets.base.EtsAndExpr
 import org.jacodb.ets.base.EtsArrayAccess
-import org.jacodb.ets.base.EtsArrayLiteral
 import org.jacodb.ets.base.EtsAssignStmt
 import org.jacodb.ets.base.EtsAwaitExpr
 import org.jacodb.ets.base.EtsBitAndExpr
@@ -58,7 +57,6 @@ import org.jacodb.ets.base.EtsNotExpr
 import org.jacodb.ets.base.EtsNullConstant
 import org.jacodb.ets.base.EtsNullishCoalescingExpr
 import org.jacodb.ets.base.EtsNumberConstant
-import org.jacodb.ets.base.EtsObjectLiteral
 import org.jacodb.ets.base.EtsOrExpr
 import org.jacodb.ets.base.EtsParameterRef
 import org.jacodb.ets.base.EtsPostDecExpr
@@ -141,13 +139,6 @@ private object EntityGetOperands : EtsEntity.Visitor<Sequence<EtsEntity>> {
 
     override fun visit(value: EtsUndefinedConstant): Sequence<EtsEntity> =
         emptySequence()
-
-    override fun visit(value: EtsArrayLiteral): Sequence<EtsEntity> =
-        value.elements.asSequence()
-
-    // TODO: check
-    override fun visit(value: EtsObjectLiteral): Sequence<EtsEntity> =
-        value.properties.asSequence().map { (_, v) -> v }
 
     override fun visit(value: EtsThis): Sequence<EtsEntity> =
         emptySequence()

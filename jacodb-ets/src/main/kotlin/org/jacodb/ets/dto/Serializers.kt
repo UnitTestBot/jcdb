@@ -39,7 +39,7 @@ object PrimitiveLiteralSerializer : KSerializer<PrimitiveLiteralDto> {
         require(encoder is JsonEncoder)
         when (value) {
             is PrimitiveLiteralDto.StringLiteral -> encoder.encodeString(value.value)
-            is PrimitiveLiteralDto.NumberLiteral -> encoder.encodeDouble(value.value.toDouble())
+            is PrimitiveLiteralDto.NumberLiteral -> encoder.encodeDouble(value.value)
             is PrimitiveLiteralDto.BooleanLiteral -> encoder.encodeBoolean(value.value)
         }
     }
