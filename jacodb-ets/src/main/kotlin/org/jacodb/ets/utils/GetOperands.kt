@@ -67,6 +67,7 @@ import org.jacodb.ets.base.EtsPostIncExpr
 import org.jacodb.ets.base.EtsPreDecExpr
 import org.jacodb.ets.base.EtsPreIncExpr
 import org.jacodb.ets.base.EtsPtrCallExpr
+import org.jacodb.ets.base.EtsRawStmt
 import org.jacodb.ets.base.EtsRemExpr
 import org.jacodb.ets.base.EtsReturnStmt
 import org.jacodb.ets.base.EtsRightShiftExpr
@@ -121,6 +122,9 @@ private object StmtGetOperands : EtsStmt.Visitor<Sequence<EtsEntity>> {
 
     override fun visit(stmt: EtsSwitchStmt): Sequence<EtsEntity> =
         sequenceOf(stmt.arg) + stmt.cases.asSequence()
+
+    override fun visit(stmt: EtsRawStmt): Sequence<EtsEntity> =
+        emptySequence()
 }
 
 private object EntityGetOperands : EtsEntity.Visitor<Sequence<EtsEntity>> {

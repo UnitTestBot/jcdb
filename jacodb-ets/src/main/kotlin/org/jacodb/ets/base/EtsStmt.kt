@@ -42,6 +42,7 @@ interface EtsStmt : CommonInst {
         fun visit(stmt: EtsGotoStmt): R
         fun visit(stmt: EtsIfStmt): R
         fun visit(stmt: EtsSwitchStmt): R
+        fun visit(stmt: EtsRawStmt): R
 
         interface Default<out R> : Visitor<R> {
             override fun visit(stmt: EtsNopStmt): R = defaultVisit(stmt)
@@ -52,6 +53,7 @@ interface EtsStmt : CommonInst {
             override fun visit(stmt: EtsGotoStmt): R = defaultVisit(stmt)
             override fun visit(stmt: EtsIfStmt): R = defaultVisit(stmt)
             override fun visit(stmt: EtsSwitchStmt): R = defaultVisit(stmt)
+            override fun visit(stmt: EtsRawStmt): R = defaultVisit(stmt)
 
             fun defaultVisit(stmt: EtsStmt): R
         }
@@ -178,6 +180,6 @@ data class EtsRawStmt(
     }
 
     override fun <R> accept(visitor: EtsStmt.Visitor<R>): R {
-        error("${this::class.java.simpleName} should not be visited")
+        return visitor.visit(this)
     }
 }
