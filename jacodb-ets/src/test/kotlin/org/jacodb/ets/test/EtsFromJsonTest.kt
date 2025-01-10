@@ -214,11 +214,11 @@ class EtsFromJsonTest {
 
     @TestFactory
     fun testLoadAllAvailableEtsProjects() = testFactory {
-        val p = getResourcePathOrNull("/projects") ?: run {
+        val base = getResourcePathOrNull("/projects") ?: run {
             logger.warn { "No projects directory found in resources" }
             return@testFactory
         }
-        val availableProjectNames = p.listDirectoryEntries()
+        val availableProjectNames = base.listDirectoryEntries()
             .filter { it.isDirectory() }
             .map { it.name }
             .sorted()
