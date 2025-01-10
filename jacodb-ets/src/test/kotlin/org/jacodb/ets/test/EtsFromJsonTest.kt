@@ -88,26 +88,35 @@ class EtsFromJsonTest {
 
         private fun printProject(project: EtsScene) {
             logger.info {
-                buildString {
-                    appendLine("Loaded project with ${project.projectClasses.size} classes and ${project.projectClasses.sumOf { it.methods.size }} methods")
-                    for (cls in project.projectClasses) {
-                        appendLine("= ${cls.signature} with ${cls.methods.size} methods:")
+                "Loaded project with ${project.projectClasses.size} classes and ${
+                    project.projectClasses.sumOf { it.methods.size }
+                } methods"
+            }
+            for (cls in project.projectClasses) {
+                logger.info {
+                    buildString {
+                        appendLine("Class $cls has ${cls.methods.size} methods")
                         for (method in cls.methods) {
-                            appendLine("  - ${method.signature}")
+                            appendLine("- $method")
                         }
                     }
                 }
             }
         }
 
-        private fun printFile(file: EtsFile) {
+        private fun printFile(file: EtsFile, showStmts: Boolean = false) {
             logger.info { "Loaded file $file with ${file.allClasses.size} classes" }
             for (cls in file.allClasses) {
                 logger.info {
                     buildString {
-                        appendLine("= $cls with ${cls.methods.size} methods")
+                        appendLine("Class $cls has ${cls.methods.size} methods")
                         for (method in cls.methods) {
-                            appendLine("  - $method")
+                            appendLine("- $method")
+                            if (showStmts) {
+                                for (stmt in method.cfg.stmts) {
+                                    appendLine("  - $stmt")
+                                }
+                            }
                         }
                     }
                 }
@@ -119,7 +128,7 @@ class EtsFromJsonTest {
     fun testLoadEtsFileFromJson() {
         val path = "/samples/etsir/ast/save/basic.ts.json"
         val file = loadEtsFileFromResource(path)
-        printFile(file)
+        printFile(file, showStmts = true)
     }
 
     @Test
@@ -127,7 +136,7 @@ class EtsFromJsonTest {
         val path = "/samples/source/example.ts"
         val res = getResourcePath(path)
         val file = loadEtsFileAutoConvert(res)
-        printFile(file)
+        printFile(file, showStmts = true)
     }
 
     @TestFactory
