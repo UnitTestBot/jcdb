@@ -41,19 +41,19 @@ import org.jacodb.ets.dto.PrimitiveLiteralDto
 import org.jacodb.ets.dto.ReturnVoidStmtDto
 import org.jacodb.ets.dto.StmtDto
 import org.jacodb.ets.dto.TypeDto
-import org.jacodb.ets.dto.toEtsFile
 import org.jacodb.ets.dto.toEtsLocal
 import org.jacodb.ets.dto.toEtsMethod
 import org.jacodb.ets.model.EtsClassSignature
+import org.jacodb.ets.model.EtsFile
 import org.jacodb.ets.model.EtsFileSignature
 import org.jacodb.ets.model.EtsMethodSignature
+import org.jacodb.ets.model.EtsScene
 import org.jacodb.ets.test.utils.getResourcePath
 import org.jacodb.ets.test.utils.getResourcePathOrNull
-import org.jacodb.ets.test.utils.loadEtsFileDtoFromResource
+import org.jacodb.ets.test.utils.loadEtsFileFromResource
 import org.jacodb.ets.test.utils.loadEtsProjectFromResources
 import org.jacodb.ets.test.utils.testFactory
 import org.jacodb.ets.utils.loadEtsFileAutoConvert
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.condition.EnabledIf
@@ -85,31 +85,49 @@ class EtsFromJsonTest {
             val path = getResourcePathOrNull(PROJECT_PATH)
             return path != null && path.exists()
         }
+
+        private fun printProject(project: EtsScene) {
+            logger.info {
+                buildString {
+                    appendLine("Loaded project with ${project.projectClasses.size} classes and ${project.projectClasses.sumOf { it.methods.size }} methods")
+                    for (cls in project.projectClasses) {
+                        appendLine("= ${cls.signature} with ${cls.methods.size} methods:")
+                        for (method in cls.methods) {
+                            appendLine("  - ${method.signature}")
+                        }
+                    }
+                }
+            }
+        }
+
+        private fun printFile(file: EtsFile) {
+            logger.info { "Loaded file $file with ${file.allClasses.size} classes" }
+            for (cls in file.allClasses) {
+                logger.info {
+                    buildString {
+                        appendLine("= $cls with ${cls.methods.size} methods")
+                        for (method in cls.methods) {
+                            appendLine("  - $method")
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Test
     fun testLoadEtsFileFromJson() {
         val path = "/samples/etsir/ast/save/basic.ts.json"
-        val etsDto = loadEtsFileDtoFromResource(path)
-        println("etsDto = $etsDto")
-        val ets = etsDto.toEtsFile()
-        println("ets = $ets")
-
-        println("Classes: ${ets.classes.size}")
-        for (cls in ets.classes) {
-            println("= $cls with ${cls.methods.size} methods:")
-            for (method in cls.methods) {
-                println("  - $method")
-            }
-        }
+        val file = loadEtsFileFromResource(path)
+        printFile(file)
     }
 
     @Test
     fun testLoadEtsFileAutoConvert() {
         val path = "/samples/source/example.ts"
         val res = getResourcePath(path)
-        val etsFile = loadEtsFileAutoConvert(res)
-        println("etsFile = $etsFile")
+        val file = loadEtsFileAutoConvert(res)
+        printFile(file)
     }
 
     @TestFactory
@@ -125,8 +143,8 @@ class EtsFromJsonTest {
         logger.info {
             buildString {
                 appendLine("Found ${availableFiles.size} sample files")
-                for (file in availableFiles) {
-                    appendLine("  - $file")
+                for (path in availableFiles) {
+                    appendLine("  - $path")
                 }
             }
         }
@@ -135,12 +153,10 @@ class EtsFromJsonTest {
             return@testFactory
         }
         container("load ${availableFiles.size} files") {
-            for (file in availableFiles) {
-                test("load $file") {
-                    val etsDto = loadEtsFileDtoFromResource("$prefix/etsir/ast/$file.json")
-                    println("etsDto = $etsDto")
-                    val ets = etsDto.toEtsFile()
-                    println("ets = $ets")
+            for (path in availableFiles) {
+                test("load $path") {
+                    val file = loadEtsFileFromResource("$prefix/etsir/ast/$path.json")
+                    printFile(file)
                 }
             }
         }
@@ -159,8 +175,8 @@ class EtsFromJsonTest {
         logger.info {
             buildString {
                 appendLine("Found ${availableFiles.size} sample files")
-                for (file in availableFiles) {
-                    appendLine("  - $file")
+                for (path in availableFiles) {
+                    appendLine("  - $path")
                 }
             }
         }
@@ -169,11 +185,11 @@ class EtsFromJsonTest {
             return@testFactory
         }
         container("auto-load ${availableFiles.size} files") {
-            for (file in availableFiles) {
-                test("load $file") {
-                    val p = getResourcePath("$prefix/$file")
-                    val ets = loadEtsFileAutoConvert(p)
-                    println("ets = $ets")
+            for (path in availableFiles) {
+                test("load $path") {
+                    val p = getResourcePath("$prefix/$path")
+                    val file = loadEtsFileAutoConvert(p)
+                    printFile(file)
                 }
             }
         }
@@ -185,13 +201,7 @@ class EtsFromJsonTest {
         val modules = listOf("entry")
         val prefix = "$PROJECT_PATH/etsir"
         val project = loadEtsProjectFromResources(modules, prefix)
-        println("Classes: ${project.projectClasses.size}")
-        for (cls in project.projectClasses) {
-            println("= ${cls.signature} with ${cls.methods.size} methods:")
-            for (method in cls.methods) {
-                println("  - ${method.signature}")
-            }
-        }
+        printProject(project)
     }
 
     @TestFactory
@@ -243,17 +253,7 @@ class EtsFromJsonTest {
             return
         }
         val project = loadEtsProjectFromResources(modules, "/projects/$projectName/etsir")
-        logger.info {
-            buildString {
-                appendLine("Loaded project with ${project.projectClasses.size} classes and ${project.projectClasses.sumOf { it.methods.size }} methods")
-                for (cls in project.projectClasses) {
-                    appendLine("= ${cls.signature} with ${cls.methods.size} methods:")
-                    for (method in cls.methods) {
-                        appendLine("  - ${method.signature}")
-                    }
-                }
-            }
-        }
+        printProject(project)
     }
 
     @Test
@@ -267,11 +267,11 @@ class EtsFromJsonTest {
             }
         """.trimIndent()
         val valueDto = Json.decodeFromString<LocalDto>(jsonString)
-        println("valueDto = $valueDto")
-        Assertions.assertEquals(LocalDto("x", AnyTypeDto), valueDto)
+        logger.info { "valueDto = $valueDto" }
+        assertEquals(LocalDto("x", AnyTypeDto), valueDto)
         val value = valueDto.toEtsLocal()
-        println("value = $value")
-        Assertions.assertEquals(EtsLocal("x", EtsAnyType), value)
+        logger.info { "value = $value" }
+        assertEquals(EtsLocal("x", EtsAnyType), value)
     }
 
     @Test
@@ -293,14 +293,14 @@ class EtsFromJsonTest {
             isOptional = true,
             isDefinitelyAssigned = false,
         )
-        println("field = $field")
+        logger.info { "field = $field" }
 
         val jsonString = json.encodeToString(field)
-        println("json: $jsonString")
+        logger.info { "json: $jsonString" }
 
         val fieldDto = Json.decodeFromString<FieldDto>(jsonString)
-        println("fieldDto = $fieldDto")
-        Assertions.assertEquals(field, fieldDto)
+        logger.info { "fieldDto = $fieldDto" }
+        assertEquals(field, fieldDto)
     }
 
     @Test
@@ -311,8 +311,8 @@ class EtsFromJsonTest {
             }
         """.trimIndent()
         val stmtDto = Json.decodeFromString<StmtDto>(jsonString)
-        println("stmtDto = $stmtDto")
-        Assertions.assertEquals(ReturnVoidStmtDto, stmtDto)
+        logger.info { "stmtDto = $stmtDto" }
+        assertEquals(ReturnVoidStmtDto, stmtDto)
     }
 
     @Test
@@ -356,10 +356,10 @@ class EtsFromJsonTest {
              }
         """.trimIndent()
         val methodDto = Json.decodeFromString<MethodDto>(jsonString)
-        println("methodDto = $methodDto")
+        logger.info { "methodDto = $methodDto" }
         val method = methodDto.toEtsMethod()
-        println("method = $method")
-        Assertions.assertEquals(
+        logger.info { "method = $method" }
+        assertEquals(
             EtsMethodSignature(
                 enclosingClass = EtsClassSignature(
                     name = DEFAULT_ARK_CLASS_NAME,
@@ -374,9 +374,9 @@ class EtsFromJsonTest {
             ),
             method.signature
         )
-        Assertions.assertEquals(0, method.locals.size)
-        Assertions.assertEquals(1, method.cfg.stmts.size)
-        Assertions.assertEquals(
+        assertEquals(0, method.locals.size)
+        assertEquals(1, method.cfg.stmts.size)
+        assertEquals(
             listOf(
                 EtsReturnStmt(EtsInstLocation(method, 0), null),
             ),
@@ -392,10 +392,10 @@ class EtsFromJsonTest {
             }
         """.trimIndent()
         val decoratorDto = Json.decodeFromString<DecoratorDto>(jsonString)
-        println("decoratorDto = $decoratorDto")
-        Assertions.assertEquals(DecoratorDto("cat"), decoratorDto)
+        logger.info { "decoratorDto = $decoratorDto" }
+        assertEquals(DecoratorDto("cat"), decoratorDto)
         val jsonString2 = json.encodeToString(decoratorDto)
-        println("json: $jsonString2")
+        logger.info { "json: $jsonString2" }
     }
 
     @Test
@@ -408,7 +408,7 @@ class EtsFromJsonTest {
             }
         """.trimIndent()
         val typeDto = Json.decodeFromString<TypeDto>(jsonString)
-        println("typeDto = $typeDto")
+        logger.info { "typeDto = $typeDto" }
         assertIs<LiteralTypeDto>(typeDto)
         assertEquals(PrimitiveLiteralDto.StringLiteral("hello"), typeDto.literal)
     }
