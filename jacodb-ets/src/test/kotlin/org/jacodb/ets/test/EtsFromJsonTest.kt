@@ -54,9 +54,9 @@ import org.jacodb.ets.test.utils.loadEtsFileFromResource
 import org.jacodb.ets.test.utils.loadEtsProjectFromResources
 import org.jacodb.ets.test.utils.testFactory
 import org.jacodb.ets.utils.loadEtsFileAutoConvert
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
-import org.junit.jupiter.api.condition.EnabledIf
 import kotlin.io.path.PathWalkOption
 import kotlin.io.path.div
 import kotlin.io.path.exists
@@ -78,11 +78,9 @@ class EtsFromJsonTest {
             prettyPrint = true
         }
 
-        private const val PROJECT_PATH = "/projects/Demo_Calc"
-
         @JvmStatic
-        private fun projectAvailable(): Boolean {
-            val path = getResourcePathOrNull(PROJECT_PATH)
+        private fun projectAvailable(res: String): Boolean {
+            val path = getResourcePathOrNull(res)
             return path != null && path.exists()
         }
 
@@ -204,11 +202,12 @@ class EtsFromJsonTest {
         }
     }
 
-    @EnabledIf("projectAvailable")
     @Test
     fun testLoadEtsProject() {
+        val res = "/projects/Demo_Calc"
+        Assumptions.assumeTrue(projectAvailable(res)) { "Project not available: $res" }
         val modules = listOf("entry")
-        val prefix = "$PROJECT_PATH/etsir"
+        val prefix = "$res/etsir"
         val project = loadEtsProjectFromResources(modules, prefix)
         printProject(project)
     }
