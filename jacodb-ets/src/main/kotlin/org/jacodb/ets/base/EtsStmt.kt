@@ -167,3 +167,17 @@ data class EtsSwitchStmt(
         return visitor.visit(this)
     }
 }
+
+data class EtsRawStmt(
+    override val location: EtsInstLocation,
+    val type: String,
+    val text: String,
+) : EtsStmt {
+    override fun toString(): String {
+        return text
+    }
+
+    override fun <R> accept(visitor: EtsStmt.Visitor<R>): R {
+        error("${this::class.java.simpleName} should not be visited")
+    }
+}

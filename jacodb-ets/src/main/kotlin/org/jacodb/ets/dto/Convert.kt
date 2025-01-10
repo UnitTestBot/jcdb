@@ -107,6 +107,7 @@ import org.jacodb.ets.base.EtsUnclearRefType
 import org.jacodb.ets.base.EtsUndefinedConstant
 import org.jacodb.ets.base.EtsUndefinedType
 import org.jacodb.ets.base.EtsUnionType
+import org.jacodb.ets.base.EtsRawStmt
 import org.jacodb.ets.base.EtsUnknownType
 import org.jacodb.ets.base.EtsUnsignedRightShiftExpr
 import org.jacodb.ets.base.EtsValue
@@ -268,6 +269,14 @@ class EtsMethodBuilder(
                 location = loc(),
                 arg = arg,
                 cases = cases,
+            )
+        }
+
+        is RawStmtDto -> {
+            EtsRawStmt(
+                location = loc(),
+                type = type,
+                text = text,
             )
         }
 

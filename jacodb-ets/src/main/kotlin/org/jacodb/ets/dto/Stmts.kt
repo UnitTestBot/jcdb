@@ -93,3 +93,10 @@ data class SwitchStmtDto(
     val arg: ValueDto,
     val cases: List<ValueDto>,
 ) : BranchingStmtDto
+
+@Serializable
+@SerialName("RawStmt")
+data class RawStmtDto(
+    val type: String, // constructor name
+    val text: String, // toString
+) : StmtDto
