@@ -93,7 +93,7 @@ class EtsFromJsonTest {
             for (cls in project.projectClasses) {
                 logger.info {
                     buildString {
-                        appendLine("Class $cls has ${cls.methods.size} methods")
+                        appendLine("Class ${cls.name} has ${cls.methods.size} methods")
                         for (method in cls.methods) {
                             appendLine("- $method")
                         }
@@ -107,7 +107,7 @@ class EtsFromJsonTest {
             for (cls in file.allClasses) {
                 logger.info {
                     buildString {
-                        appendLine("Class $cls has ${cls.methods.size} methods")
+                        appendLine("Class ${cls.name} has ${cls.methods.size} methods")
                         for (method in cls.methods) {
                             appendLine("- $method")
                             if (showStmts) {
