@@ -37,6 +37,7 @@ data class GoAllocExpr(
     override val location: GoInstLocation,
     override val type: GoType,
     override val name: String,
+    val comment: String,
 ) : GoExpr, GoValue, GoAssignableInst {
     override fun toAssignInst(): GoAssignInst {
         return GoAssignInst(
@@ -46,7 +47,7 @@ data class GoAllocExpr(
         )
     }
 
-    override fun toString(): String = "new ${type.typeName}"
+    override fun toString(): String = "new ${type.typeName} ($comment)"
 
     override fun <T> accept(visitor: GoExprVisitor<T>): T {
         return visitor.visitGoAllocExpr(this)
