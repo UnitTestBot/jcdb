@@ -1653,9 +1653,7 @@ data class GoFloat64(override val value: Double, override val type: GoType) : Go
     }
 }
 
-class GoNullConstant : GoConstant {
-    override val type: GoType = NullType()
-
+class GoNullConstant(override val type: GoType) : GoConstant {
     override fun toString(): String = "null"
 
     override fun <T> accept(visitor: GoExprVisitor<T>): T {
