@@ -75,6 +75,7 @@ interface EtsType : CommonType, CommonTypeName {
             override fun visit(type: EtsAliasType): R = defaultVisit(type)
             override fun visit(type: EtsAnnotationNamespaceType): R = defaultVisit(type)
             override fun visit(type: EtsAnnotationTypeQueryType): R = defaultVisit(type)
+            override fun visit(type: EtsLexicalEnvType): R = defaultVisit(type)
 
             fun defaultVisit(type: EtsType): R
         }
