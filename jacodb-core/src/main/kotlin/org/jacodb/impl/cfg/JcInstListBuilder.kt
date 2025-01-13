@@ -30,7 +30,6 @@ class JcInstListBuilder(val method: JcMethod,val instList: JcInstList<JcRawInst>
 
     private val instMap = identityMap<JcRawInst, JcInst>()
     private var currentLineNumber = 0
-    private var index = 0
     private val labels = instList.filterIsInstance<JcRawLabelInst>().associateBy { it.ref }
     private val convertedLocalVars = mutableMapOf<JcRawLocalVar, JcRawLocalVar>()
     private val inst2Index: Map<JcRawInst, Int> = identityMap<JcRawInst, Int>().also {
@@ -43,7 +42,6 @@ class JcInstListBuilder(val method: JcMethod,val instList: JcInstList<JcRawInst>
 
     private fun reset() {
         currentLineNumber = 0
-        index = 0
     }
 
     fun buildInstList(): JcInstList<JcInst> {
@@ -85,19 +83,19 @@ class JcInstListBuilder(val method: JcMethod,val instList: JcInstList<JcRawInst>
             }
         val lhv = preprocessedLhv.accept(this) as JcValue
         val rhv = inst.rhv.accept(this)
-        JcAssignInst(newLocation(), lhv, rhv)
+        JcAssignInst(newLocation(inst), lhv, rhv)
     }
 
     override fun visitJcRawEnterMonitorInst(inst: JcRawEnterMonitorInst): JcInst = handle(inst) {
-        JcEnterMonitorInst(newLocation(), inst.monitor.accept(this) as JcValue)
+        JcEnterMonitorInst(newLocation(inst), inst.monitor.accept(this) as JcValue)
     }
 
     override fun visitJcRawExitMonitorInst(inst: JcRawExitMonitorInst): JcInst = handle(inst) {
-        JcExitMonitorInst(newLocation(), inst.monitor.accept(this) as JcValue)
+        JcExitMonitorInst(newLocation(inst), inst.monitor.accept(this) as JcValue)
     }
 
     override fun visitJcRawCallInst(inst: JcRawCallInst): JcInst = handle(inst) {
-        JcCallInst(newLocation(), inst.callExpr.accept(this) as JcCallExpr)
+        JcCallInst(newLocation(inst), inst.callExpr.accept(this) as JcCallExpr)
     }
 
     override fun visitJcRawLabelInst(inst: JcRawLabelInst): JcInst? {
@@ -110,15 +108,15 @@ class JcInstListBuilder(val method: JcMethod,val instList: JcInstList<JcRawInst>
     }
 
     override fun visitJcRawReturnInst(inst: JcRawReturnInst): JcInst {
-        return JcReturnInst(newLocation(), inst.returnValue?.accept(this) as? JcValue)
+        return JcReturnInst(newLocation(inst), inst.returnValue?.accept(this) as? JcValue)
     }
 
     override fun visitJcRawThrowInst(inst: JcRawThrowInst): JcInst {
-        return JcThrowInst(newLocation(), inst.throwable.accept(this) as JcValue)
+        return JcThrowInst(newLocation(inst), inst.throwable.accept(this) as JcValue)
     }
 
     override fun visitJcRawCatchInst(inst: JcRawCatchInst): JcInst = handle(inst) {
-        val location = newLocation()
+        val location = newLocation(inst)
         val throwableTypes = inst.entries.map { it.acceptedThrowable.asType() }
         val throwers = inst.entries.flatMap {
             val result = mutableListOf<JcInstRef>()
@@ -146,12 +144,12 @@ class JcInstListBuilder(val method: JcMethod,val instList: JcInstList<JcRawInst>
     }
 
     override fun visitJcRawGotoInst(inst: JcRawGotoInst): JcInst = handle(inst) {
-        JcGotoInst(newLocation(), label2InstRef(inst.target))
+        JcGotoInst(newLocation(inst), label2InstRef(inst.target))
     }
 
     override fun visitJcRawIfInst(inst: JcRawIfInst): JcInst = handle(inst) {
         JcIfInst(
-            newLocation(),
+            newLocation(inst),
             inst.condition.accept(this) as JcConditionExpr,
             label2InstRef(inst.trueBranch),
             label2InstRef(inst.falseBranch)
@@ -160,17 +158,16 @@ class JcInstListBuilder(val method: JcMethod,val instList: JcInstList<JcRawInst>
 
     override fun visitJcRawSwitchInst(inst: JcRawSwitchInst): JcInst = handle(inst) {
         JcSwitchInst(
-            newLocation(),
+            newLocation(inst),
             inst.key.accept(this) as JcValue,
             inst.branches.map { it.key.accept(this) as JcValue to label2InstRef(it.value) }.toMap(),
             label2InstRef(inst.default)
         )
     }
 
-    private fun newLocation(): JcInstLocation {
-        return JcInstLocationImpl(method, index, currentLineNumber).also {
-            index++
-        }
+    private fun newLocation(rawInst: JcRawInst): JcInstLocation {
+        val index = inst2Index.getValue(rawInst)
+        return JcInstLocationImpl(method, index, currentLineNumber)
     }
 
     private fun convertBinary(
