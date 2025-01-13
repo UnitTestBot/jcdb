@@ -47,7 +47,7 @@ data class EtsParameterRef(
 
 data class EtsCaughtExceptionRef(
     override val type: EtsType,
-) : EtsRef {
+) : EtsValue {
     override fun toString(): String {
         return "catch($type)"
     }
@@ -60,7 +60,7 @@ data class EtsCaughtExceptionRef(
 data class EtsGlobalRef(
     val name: String,
     val ref: EtsValue?, // TODO: check whether it could be EtsEntity at best
-) : EtsRef {
+) : EtsValue {
     override val type: EtsType
         get() = ref?.type ?: EtsUnknownType
 
@@ -77,7 +77,7 @@ data class EtsClosureFieldRef(
     val base: EtsLocal,
     val fieldName: String,
     override val type: EtsType,
-) : EtsRef {
+) : EtsValue {
     override fun toString(): String {
         return "$base.$fieldName"
     }
