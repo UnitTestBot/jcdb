@@ -85,6 +85,7 @@ import org.jacodb.ets.base.EtsParameterRef
 import org.jacodb.ets.base.EtsPreDecExpr
 import org.jacodb.ets.base.EtsPreIncExpr
 import org.jacodb.ets.base.EtsPtrCallExpr
+import org.jacodb.ets.base.EtsRawStmt
 import org.jacodb.ets.base.EtsRemExpr
 import org.jacodb.ets.base.EtsReturnStmt
 import org.jacodb.ets.base.EtsRightShiftExpr
@@ -107,18 +108,17 @@ import org.jacodb.ets.base.EtsUnclearRefType
 import org.jacodb.ets.base.EtsUndefinedConstant
 import org.jacodb.ets.base.EtsUndefinedType
 import org.jacodb.ets.base.EtsUnionType
-import org.jacodb.ets.base.EtsRawStmt
 import org.jacodb.ets.base.EtsUnknownType
 import org.jacodb.ets.base.EtsUnsignedRightShiftExpr
 import org.jacodb.ets.base.EtsValue
 import org.jacodb.ets.base.EtsVoidType
 import org.jacodb.ets.base.EtsYieldExpr
-import org.jacodb.ets.base.Ops
 import org.jacodb.ets.graph.EtsCfg
 import org.jacodb.ets.model.EtsClass
 import org.jacodb.ets.model.EtsClassImpl
 import org.jacodb.ets.model.EtsClassSignature
 import org.jacodb.ets.model.EtsDecorator
+import org.jacodb.ets.model.EtsField
 import org.jacodb.ets.model.EtsFieldImpl
 import org.jacodb.ets.model.EtsFieldSignature
 import org.jacodb.ets.model.EtsFieldSubSignature
@@ -132,7 +132,6 @@ import org.jacodb.ets.model.EtsMethodSignature
 import org.jacodb.ets.model.EtsModifiers
 import org.jacodb.ets.model.EtsNamespace
 import org.jacodb.ets.model.EtsNamespaceSignature
-import org.jacodb.ets.model.EtsField
 
 class EtsMethodBuilder(
     signature: EtsMethodSignature,
@@ -346,12 +345,12 @@ class EtsMethodBuilder(
             val arg = arg.toEtsEntity()
             // Note: `type` is ignored here!
             when (op) {
-                Ops.NOT -> EtsNotExpr(arg)
-                Ops.BIT_NOT -> EtsBitNotExpr(arg.type, arg)
-                Ops.MINUS -> EtsNegExpr(arg.type, arg)
-                Ops.PLUS -> EtsUnaryPlusExpr(arg)
-                Ops.INC -> EtsPreIncExpr(arg.type, arg)
-                Ops.DEC -> EtsPreDecExpr(arg.type, arg)
+                Ops.Unary.NOT -> EtsNotExpr(arg)
+                Ops.Unary.BIT_NOT -> EtsBitNotExpr(arg.type, arg)
+                Ops.Unary.MINUS -> EtsNegExpr(arg.type, arg)
+                Ops.Unary.PLUS -> EtsUnaryPlusExpr(arg)
+                Ops.Unary.INC -> EtsPreIncExpr(arg.type, arg)
+                Ops.Unary.DEC -> EtsPreDecExpr(arg.type, arg)
                 else -> error("Unknown unop: '$op'")
             }
         }
@@ -361,23 +360,22 @@ class EtsMethodBuilder(
             val right = right.toEtsEntity()
             val type = type.toEtsType()
             when (op) {
-                Ops.ADD -> EtsAddExpr(type, left, right)
-                Ops.SUB -> EtsSubExpr(type, left, right)
-                Ops.MUL -> EtsMulExpr(type, left, right)
-                Ops.DIV -> EtsDivExpr(type, left, right)
-                Ops.MOD -> EtsRemExpr(type, left, right)
-                Ops.EXP -> EtsExpExpr(type, left, right)
-                Ops.BIT_AND -> EtsBitAndExpr(type, left, right)
-                Ops.BIT_OR -> EtsBitOrExpr(type, left, right)
-                Ops.BIT_XOR -> EtsBitXorExpr(type, left, right)
-                Ops.LSH -> EtsLeftShiftExpr(type, left, right)
-                Ops.RSH -> EtsRightShiftExpr(type, left, right)
-                Ops.URSH -> EtsUnsignedRightShiftExpr(type, left, right)
-                Ops.AND -> EtsAndExpr(type, left, right)
-                Ops.OR -> EtsOrExpr(type, left, right)
-                Ops.NULLISH -> EtsNullishCoalescingExpr(type, left, right)
-                Ops.COMMA -> EtsCommaExpr(left, right) // Note: `type` is ignored here!
-
+                Ops.Binary.ADD -> EtsAddExpr(type, left, right)
+                Ops.Binary.SUB -> EtsSubExpr(type, left, right)
+                Ops.Binary.MUL -> EtsMulExpr(type, left, right)
+                Ops.Binary.DIV -> EtsDivExpr(type, left, right)
+                Ops.Binary.MOD -> EtsRemExpr(type, left, right)
+                Ops.Binary.EXP -> EtsExpExpr(type, left, right)
+                Ops.Binary.BIT_AND -> EtsBitAndExpr(type, left, right)
+                Ops.Binary.BIT_OR -> EtsBitOrExpr(type, left, right)
+                Ops.Binary.BIT_XOR -> EtsBitXorExpr(type, left, right)
+                Ops.Binary.LSH -> EtsLeftShiftExpr(type, left, right)
+                Ops.Binary.RSH -> EtsRightShiftExpr(type, left, right)
+                Ops.Binary.URSH -> EtsUnsignedRightShiftExpr(type, left, right)
+                Ops.Binary.AND -> EtsAndExpr(type, left, right)
+                Ops.Binary.OR -> EtsOrExpr(type, left, right)
+                Ops.Binary.NULLISH -> EtsNullishCoalescingExpr(type, left, right)
+                Ops.Binary.COMMA -> EtsCommaExpr(left, right) // Note: `type` is ignored here!
                 else -> error("Unknown binop: $op")
             }
         }
@@ -387,15 +385,15 @@ class EtsMethodBuilder(
             val right = right.toEtsEntity()
             // Note: `type` is ignored here!
             when (op) {
-                Ops.EQ_EQ -> EtsEqExpr(left, right)
-                Ops.NOT_EQ -> EtsNotEqExpr(left, right)
-                Ops.EQ_EQ_EQ -> EtsStrictEqExpr(left, right)
-                Ops.NOT_EQ_EQ -> EtsStrictNotEqExpr(left, right)
-                Ops.LT -> EtsLtExpr(left, right)
-                Ops.LT_EQ -> EtsLtEqExpr(left, right)
-                Ops.GT -> EtsGtExpr(left, right)
-                Ops.GT_EQ -> EtsGtEqExpr(left, right)
-                Ops.IN -> EtsInExpr(left, right)
+                Ops.Relational.EQ -> EtsEqExpr(left, right)
+                Ops.Relational.NOT_EQ -> EtsNotEqExpr(left, right)
+                Ops.Relational.STRICT_EQ -> EtsStrictEqExpr(left, right)
+                Ops.Relational.STRICT_NOT_EQ -> EtsStrictNotEqExpr(left, right)
+                Ops.Relational.LT -> EtsLtExpr(left, right)
+                Ops.Relational.LT_EQ -> EtsLtEqExpr(left, right)
+                Ops.Relational.GT -> EtsGtExpr(left, right)
+                Ops.Relational.GT_EQ -> EtsGtEqExpr(left, right)
+                Ops.Relational.IN -> EtsInExpr(left, right)
                 else -> error("Unknown relop: $op")
             }
         }
@@ -623,7 +621,7 @@ fun TypeDto.toEtsType(): EtsType = when (this) {
         defaultType = defaultType?.toEtsType(),
         constraint = constraint?.toEtsType(),
     )
-    
+
     is LexicalEnvTypeDto -> EtsLexicalEnvType(
         nestedMethod = nestedMethod.toEtsMethodSignature(),
         closures = closures.map { it.toEtsLocal() },
