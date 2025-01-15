@@ -51,6 +51,7 @@ interface EtsType : CommonType, CommonTypeName {
         fun visit(type: EtsAliasType): R
         fun visit(type: EtsAnnotationNamespaceType): R
         fun visit(type: EtsAnnotationTypeQueryType): R
+        fun visit(type: EtsLexicalEnvType): R
 
         interface Default<R> : Visitor<R> {
             override fun visit(type: EtsAnyType): R = defaultVisit(type)
@@ -74,6 +75,7 @@ interface EtsType : CommonType, CommonTypeName {
             override fun visit(type: EtsAliasType): R = defaultVisit(type)
             override fun visit(type: EtsAnnotationNamespaceType): R = defaultVisit(type)
             override fun visit(type: EtsAnnotationTypeQueryType): R = defaultVisit(type)
+            override fun visit(type: EtsLexicalEnvType): R = defaultVisit(type)
 
             fun defaultVisit(type: EtsType): R
         }
@@ -367,6 +369,20 @@ data class EtsAnnotationTypeQueryType(
     override fun toString(): String {
         return originType
     }
+
+    override fun <R> accept(visitor: EtsType.Visitor<R>): R {
+        return visitor.visit(this)
+    }
+}
+
+data class EtsLexicalEnvType(
+    val nestedMethod: EtsMethodSignature,
+    val closures: List<EtsLocal>,
+) : EtsType {
+    override val typeName: String
+        get() = closures.joinToString(prefix = "[", postfix = "]")
+
+    override fun toString(): String = typeName
 
     override fun <R> accept(visitor: EtsType.Visitor<R>): R {
         return visitor.visit(this)

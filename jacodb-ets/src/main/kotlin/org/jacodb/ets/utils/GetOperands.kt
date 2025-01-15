@@ -19,7 +19,6 @@ package org.jacodb.ets.utils
 import org.jacodb.ets.base.EtsAddExpr
 import org.jacodb.ets.base.EtsAndExpr
 import org.jacodb.ets.base.EtsArrayAccess
-import org.jacodb.ets.base.EtsArrayLiteral
 import org.jacodb.ets.base.EtsAssignStmt
 import org.jacodb.ets.base.EtsAwaitExpr
 import org.jacodb.ets.base.EtsBitAndExpr
@@ -29,12 +28,15 @@ import org.jacodb.ets.base.EtsBitXorExpr
 import org.jacodb.ets.base.EtsBooleanConstant
 import org.jacodb.ets.base.EtsCallStmt
 import org.jacodb.ets.base.EtsCastExpr
+import org.jacodb.ets.base.EtsCaughtExceptionRef
+import org.jacodb.ets.base.EtsClosureFieldRef
 import org.jacodb.ets.base.EtsCommaExpr
 import org.jacodb.ets.base.EtsDeleteExpr
 import org.jacodb.ets.base.EtsDivExpr
 import org.jacodb.ets.base.EtsEntity
 import org.jacodb.ets.base.EtsEqExpr
 import org.jacodb.ets.base.EtsExpExpr
+import org.jacodb.ets.base.EtsGlobalRef
 import org.jacodb.ets.base.EtsGotoStmt
 import org.jacodb.ets.base.EtsGtEqExpr
 import org.jacodb.ets.base.EtsGtExpr
@@ -58,7 +60,6 @@ import org.jacodb.ets.base.EtsNotExpr
 import org.jacodb.ets.base.EtsNullConstant
 import org.jacodb.ets.base.EtsNullishCoalescingExpr
 import org.jacodb.ets.base.EtsNumberConstant
-import org.jacodb.ets.base.EtsObjectLiteral
 import org.jacodb.ets.base.EtsOrExpr
 import org.jacodb.ets.base.EtsParameterRef
 import org.jacodb.ets.base.EtsPostDecExpr
@@ -66,6 +67,7 @@ import org.jacodb.ets.base.EtsPostIncExpr
 import org.jacodb.ets.base.EtsPreDecExpr
 import org.jacodb.ets.base.EtsPreIncExpr
 import org.jacodb.ets.base.EtsPtrCallExpr
+import org.jacodb.ets.base.EtsRawStmt
 import org.jacodb.ets.base.EtsRemExpr
 import org.jacodb.ets.base.EtsReturnStmt
 import org.jacodb.ets.base.EtsRightShiftExpr
@@ -120,6 +122,9 @@ private object StmtGetOperands : EtsStmt.Visitor<Sequence<EtsEntity>> {
 
     override fun visit(stmt: EtsSwitchStmt): Sequence<EtsEntity> =
         sequenceOf(stmt.arg) + stmt.cases.asSequence()
+
+    override fun visit(stmt: EtsRawStmt): Sequence<EtsEntity> =
+        emptySequence()
 }
 
 private object EntityGetOperands : EtsEntity.Visitor<Sequence<EtsEntity>> {
@@ -141,13 +146,6 @@ private object EntityGetOperands : EtsEntity.Visitor<Sequence<EtsEntity>> {
 
     override fun visit(value: EtsUndefinedConstant): Sequence<EtsEntity> =
         emptySequence()
-
-    override fun visit(value: EtsArrayLiteral): Sequence<EtsEntity> =
-        value.elements.asSequence()
-
-    // TODO: check
-    override fun visit(value: EtsObjectLiteral): Sequence<EtsEntity> =
-        value.properties.asSequence().map { (_, v) -> v }
 
     override fun visit(value: EtsThis): Sequence<EtsEntity> =
         emptySequence()
@@ -304,4 +302,13 @@ private object EntityGetOperands : EtsEntity.Visitor<Sequence<EtsEntity>> {
 
     override fun visit(expr: EtsTernaryExpr): Sequence<EtsEntity> =
         sequenceOf(expr.condition, expr.thenExpr, expr.elseExpr)
+
+    override fun visit(value: EtsCaughtExceptionRef): Sequence<EtsEntity> =
+        emptySequence()
+
+    override fun visit(value: EtsGlobalRef): Sequence<EtsEntity> =
+        if (value.ref != null) sequenceOf(value.ref) else emptySequence()
+
+    override fun visit(value: EtsClosureFieldRef): Sequence<EtsEntity> =
+        sequenceOf(value.base)
 }

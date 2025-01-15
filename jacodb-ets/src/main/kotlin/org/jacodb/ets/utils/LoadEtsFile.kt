@@ -17,12 +17,13 @@
 package org.jacodb.ets.utils
 
 import org.jacodb.ets.dto.EtsFileDto
-import org.jacodb.ets.dto.convertToEtsFile
+import org.jacodb.ets.dto.toEtsFile
 import org.jacodb.ets.model.EtsFile
 import org.jacodb.ets.model.EtsScene
 import java.io.FileNotFoundException
 import java.nio.file.Path
 import kotlin.io.path.Path
+import kotlin.io.path.PathWalkOption
 import kotlin.io.path.absolute
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.exists
@@ -95,17 +96,17 @@ fun generateSdkIR(sdkPath: Path): Path = generateEtsIR(
 )
 
 fun loadEtsFileAutoConvert(
-    projectPath: Path,
+    path: Path,
     useArkAnalyzerTypeInference: Int? = 1,
 ): EtsFile {
     val irFilePath = generateEtsIR(
-        projectPath,
+        path,
         isProject = false,
         useArkAnalyzerTypeInference = useArkAnalyzerTypeInference,
     )
     irFilePath.inputStream().use { stream ->
         val etsFileDto = EtsFileDto.loadFromJson(stream)
-        return convertToEtsFile(etsFileDto)
+        return etsFileDto.toEtsFile()
     }
 }
 
@@ -142,13 +143,13 @@ fun loadEtsProjectFromMultipleIR(input: List<Path>, sdkPaths: List<Path>): EtsSc
     return EtsScene(projectFiles, sdkFiles)
 }
 
-private val walker = { irFolder: Path ->
-    irFolder.walk()
+private val walker = { dir: Path ->
+    dir.walk(PathWalkOption.BREADTH_FIRST)
         .filter { it.extension == "json" }
         .map {
             it.inputStream().use { stream ->
                 val etsFileDto = EtsFileDto.loadFromJson(stream)
-                convertToEtsFile(etsFileDto)
+                etsFileDto.toEtsFile()
             }
         }
         .toList()

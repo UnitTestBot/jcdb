@@ -272,11 +272,12 @@ data class AnnotationTypeQueryTypeDto(
 }
 
 @Serializable
-@SerialName("UNKNOWN_TYPE")
-data class AbsolutelyUnknownTypeDto(
-    val type: String? = null,
+@SerialName("LexicalEnvType")
+data class LexicalEnvTypeDto(
+    val nestedMethod: MethodSignatureDto,
+    val closures: List<LocalDto>,
 ) : TypeDto {
     override fun toString(): String {
-        return type ?: "UNKNOWN"
+        return closures.joinToString(prefix = "[", postfix = "]")
     }
 }

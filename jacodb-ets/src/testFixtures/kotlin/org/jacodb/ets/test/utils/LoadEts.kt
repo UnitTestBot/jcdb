@@ -18,11 +18,10 @@ package org.jacodb.ets.test.utils
 
 import mu.KotlinLogging
 import org.jacodb.ets.dto.EtsFileDto
-import org.jacodb.ets.dto.convertToEtsFile
+import org.jacodb.ets.dto.toEtsFile
 import org.jacodb.ets.model.EtsFile
 import org.jacodb.ets.model.EtsScene
 import java.nio.file.Path
-import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.extension
 import kotlin.io.path.inputStream
 import kotlin.io.path.relativeTo
@@ -56,7 +55,7 @@ fun loadEtsFileDtoFromResource(jsonPath: String): EtsFileDto {
  */
 fun loadEtsFileFromResource(jsonPath: String): EtsFile {
     val etsFileDto = loadEtsFileDtoFromResource(jsonPath)
-    return convertToEtsFile(etsFileDto)
+    return etsFileDto.toEtsFile()
 }
 
 /**
@@ -84,7 +83,7 @@ fun loadEtsProjectFromResources(
     modules: List<String>,
     prefix: String,
 ): EtsScene {
-    logger.info { "Loading Ets project with modules $modules from '$prefix/<module>'" }
+    logger.info { "Loading project with ${modules.size} modules $modules from '$prefix/<module>'" }
     val dirPaths = modules.map { "$prefix/$it" }
     val files = loadMultipleEtsFilesFromMultipleResourceDirectories(dirPaths).toList()
     logger.info { "Loaded ${files.size} files" }
@@ -118,7 +117,7 @@ fun loadEtsFileDto(path: Path): EtsFileDto {
  */
 fun loadEtsFile(path: Path): EtsFile {
     val etsFileDto = loadEtsFileDto(path)
-    return convertToEtsFile(etsFileDto)
+    return etsFileDto.toEtsFile()
 }
 
 /**

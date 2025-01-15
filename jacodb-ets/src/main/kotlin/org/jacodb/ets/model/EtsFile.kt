@@ -31,6 +31,6 @@ class EtsFile(
     }
 
     override fun toString(): String {
-        return name
+        return signature.toString()
     }
 }
