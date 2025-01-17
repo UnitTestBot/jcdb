@@ -20,8 +20,6 @@ import org.jacodb.ets.base.CONSTRUCTOR_NAME
 import org.jacodb.ets.base.EtsAddExpr
 import org.jacodb.ets.base.EtsAliasType
 import org.jacodb.ets.base.EtsAndExpr
-import org.jacodb.ets.base.EtsAnnotationNamespaceType
-import org.jacodb.ets.base.EtsAnnotationTypeQueryType
 import org.jacodb.ets.base.EtsAnyType
 import org.jacodb.ets.base.EtsArrayAccess
 import org.jacodb.ets.base.EtsArrayType
@@ -36,9 +34,7 @@ import org.jacodb.ets.base.EtsBooleanType
 import org.jacodb.ets.base.EtsCallExpr
 import org.jacodb.ets.base.EtsCallStmt
 import org.jacodb.ets.base.EtsCastExpr
-import org.jacodb.ets.base.EtsCaughtExceptionRef
 import org.jacodb.ets.base.EtsClassType
-import org.jacodb.ets.base.EtsClosureFieldRef
 import org.jacodb.ets.base.EtsCommaExpr
 import org.jacodb.ets.base.EtsConstant
 import org.jacodb.ets.base.EtsDeleteExpr
@@ -50,7 +46,6 @@ import org.jacodb.ets.base.EtsExpr
 import org.jacodb.ets.base.EtsFieldRef
 import org.jacodb.ets.base.EtsFunctionType
 import org.jacodb.ets.base.EtsGenericType
-import org.jacodb.ets.base.EtsGlobalRef
 import org.jacodb.ets.base.EtsGotoStmt
 import org.jacodb.ets.base.EtsGtEqExpr
 import org.jacodb.ets.base.EtsGtExpr
@@ -62,7 +57,6 @@ import org.jacodb.ets.base.EtsInstanceFieldRef
 import org.jacodb.ets.base.EtsInstanceOfExpr
 import org.jacodb.ets.base.EtsLeftShiftExpr
 import org.jacodb.ets.base.EtsLengthExpr
-import org.jacodb.ets.base.EtsLexicalEnvType
 import org.jacodb.ets.base.EtsLiteralType
 import org.jacodb.ets.base.EtsLocal
 import org.jacodb.ets.base.EtsLtEqExpr
@@ -85,7 +79,9 @@ import org.jacodb.ets.base.EtsParameterRef
 import org.jacodb.ets.base.EtsPreDecExpr
 import org.jacodb.ets.base.EtsPreIncExpr
 import org.jacodb.ets.base.EtsPtrCallExpr
+import org.jacodb.ets.base.EtsRawEntity
 import org.jacodb.ets.base.EtsRawStmt
+import org.jacodb.ets.base.EtsRawType
 import org.jacodb.ets.base.EtsRemExpr
 import org.jacodb.ets.base.EtsReturnStmt
 import org.jacodb.ets.base.EtsRightShiftExpr
@@ -274,28 +270,13 @@ class EtsMethodBuilder(
         is RawStmtDto -> {
             EtsRawStmt(
                 location = loc(),
-                type = type,
-                text = text,
+                kind = kind,
+                extra = extra,
             )
         }
-
-        // else -> error("Unknown Stmt: $stmt")
     }
 
     private fun ValueDto.toEtsEntity(): EtsEntity = when (this) {
-        is UnknownValueDto -> object : EtsEntity {
-            override val type: EtsType = EtsUnknownType
-
-            override fun toString(): String = "UnknownValue($value)"
-
-            override fun <R> accept(visitor: EtsEntity.Visitor<R>): R {
-                if (visitor is EtsEntity.Visitor.Default<R>) {
-                    return visitor.defaultVisit(this)
-                }
-                error("Cannot handle $this")
-            }
-        }
-
         is LocalDto -> toEtsLocal()
 
         is ConstantDto -> toEtsConstant()
@@ -338,8 +319,6 @@ class EtsMethodBuilder(
             arg = arg.toEtsEntity(),
             type = type.toEtsType(),
         )
-
-        is PhiExprDto -> error("PhiExpr is not supported")
 
         is UnaryOperationDto -> {
             val arg = arg.toEtsEntity()
@@ -424,21 +403,6 @@ class EtsMethodBuilder(
             type = type.toEtsType(),
         )
 
-        is CaughtExceptionRefDto -> EtsCaughtExceptionRef(
-            type = type.toEtsType(),
-        )
-
-        is GlobalRefDto -> EtsGlobalRef(
-            name = name,
-            ref = ref?.toEtsEntity() as EtsValue, // TODO: check whether the cast is safe
-        )
-
-        is ClosureFieldRefDto -> EtsClosureFieldRef(
-            base = base.toEtsLocal(),
-            fieldName = fieldName,
-            type = type.toEtsType(),
-        )
-
         is ArrayRefDto -> EtsArrayAccess(
             array = array.toEtsEntity() as EtsValue, // TODO: check whether the cast is safe
             index = index.toEtsEntity() as EtsValue, // TODO: check whether the cast is safe
@@ -447,7 +411,11 @@ class EtsMethodBuilder(
 
         is FieldRefDto -> toEtsFieldRef()
 
-        // else -> error("Unknown Value: $value")
+        is RawValueDto -> EtsRawEntity(
+            kind = kind,
+            extra = extra,
+            type = type.toEtsType(),
+        )
     }
 
     private fun FieldRefDto.toEtsFieldRef(): EtsFieldRef {
@@ -591,15 +559,6 @@ fun TypeDto.toEtsType(): EtsType = when (this) {
         signature = signature.toEtsLocalSignature(),
     )
 
-    is AnnotationNamespaceTypeDto -> EtsAnnotationNamespaceType(
-        originType = originType,
-        namespaceSignature = namespaceSignature.toEtsNamespaceSignature(),
-    )
-
-    is AnnotationTypeQueryTypeDto -> EtsAnnotationTypeQueryType(
-        originType = originType,
-    )
-
     AnyTypeDto -> EtsAnyType
 
     is ArrayTypeDto -> EtsArrayType(
@@ -620,11 +579,6 @@ fun TypeDto.toEtsType(): EtsType = when (this) {
         name = name,
         defaultType = defaultType?.toEtsType(),
         constraint = constraint?.toEtsType(),
-    )
-
-    is LexicalEnvTypeDto -> EtsLexicalEnvType(
-        nestedMethod = nestedMethod.toEtsMethodSignature(),
-        closures = closures.map { it.toEtsLocal() },
     )
 
     is LiteralTypeDto -> EtsLiteralType(
@@ -657,6 +611,11 @@ fun TypeDto.toEtsType(): EtsType = when (this) {
     UnknownTypeDto -> EtsUnknownType
 
     VoidTypeDto -> EtsVoidType
+
+    is RawTypeDto -> EtsRawType(
+        kind = kind,
+        extra = extra,
+    )
 }
 
 fun ClassTypeDto.toEtsClassType(): EtsClassType {

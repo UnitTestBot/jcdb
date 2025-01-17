@@ -17,14 +17,25 @@
 package org.jacodb.ets.dto
 
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.KeepGeneratedSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonClassDiscriminator
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 @OptIn(ExperimentalSerializationApi::class)
 @JsonClassDiscriminator("_")
 sealed interface StmtDto
+
+@Serializable(with = RawStmtSerializer::class)
+@SerialName("RawStmt")
+@OptIn(ExperimentalSerializationApi::class)
+@KeepGeneratedSerializer
+data class RawStmtDto(
+    val kind: String, // constructor name
+    val extra: JsonObject,
+) : StmtDto
 
 @Serializable
 @SerialName("NopStmt")
@@ -35,21 +46,13 @@ data object NopStmtDto : StmtDto
 data class AssignStmtDto(
     val left: ValueDto,
     val right: ValueDto,
-) : StmtDto {
-    override fun toString(): String {
-        return "$left = $right"
-    }
-}
+) : StmtDto
 
 @Serializable
 @SerialName("CallStmt")
 data class CallStmtDto(
     val expr: CallExprDto,
-) : StmtDto {
-    override fun toString(): String {
-        return expr.toString()
-    }
-}
+) : StmtDto
 
 @Serializable
 sealed interface TerminatingStmtDto : StmtDto
@@ -62,11 +65,7 @@ data object ReturnVoidStmtDto : TerminatingStmtDto
 @SerialName("ReturnStmt")
 data class ReturnStmtDto(
     val arg: ValueDto,
-) : TerminatingStmtDto {
-    override fun toString(): String {
-        return "return $arg"
-    }
-}
+) : TerminatingStmtDto
 
 @Serializable
 @SerialName("ThrowStmt")
@@ -93,10 +92,3 @@ data class SwitchStmtDto(
     val arg: ValueDto,
     val cases: List<ValueDto>,
 ) : BranchingStmtDto
-
-@Serializable
-@SerialName("RawStmt")
-data class RawStmtDto(
-    val type: String, // constructor name
-    val text: String, // toString
-) : StmtDto

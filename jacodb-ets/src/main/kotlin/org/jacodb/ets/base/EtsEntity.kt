@@ -28,6 +28,13 @@ interface EtsEntity : CommonExpr {
         EtsValue.Visitor<R>,
         EtsExpr.Visitor<R> {
 
+        fun visit(value: EtsRawEntity): R {
+            if (this is Default) {
+                return defaultVisit(value)
+            }
+            error("Cannot handle ${value::class.java.simpleName}: $value")
+        }
+
         interface Default<out R> : Visitor<R>,
             EtsValue.Visitor.Default<R>,
             EtsExpr.Visitor.Default<R> {
@@ -40,4 +47,18 @@ interface EtsEntity : CommonExpr {
     }
 
     fun <R> accept(visitor: Visitor<R>): R
+}
+
+data class EtsRawEntity(
+    val kind: String,
+    val extra: Map<String, Any> = emptyMap(),
+    override val type: EtsType,
+) : EtsEntity {
+    override fun toString(): String {
+        return "$kind $extra: $type"
+    }
+
+    override fun <R> accept(visitor: EtsEntity.Visitor<R>): R {
+        return visitor.visit(this)
+    }
 }

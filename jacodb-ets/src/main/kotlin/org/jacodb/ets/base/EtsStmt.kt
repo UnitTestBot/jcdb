@@ -42,7 +42,13 @@ interface EtsStmt : CommonInst {
         fun visit(stmt: EtsGotoStmt): R
         fun visit(stmt: EtsIfStmt): R
         fun visit(stmt: EtsSwitchStmt): R
-        fun visit(stmt: EtsRawStmt): R
+
+        fun visit(stmt: EtsRawStmt): R {
+            if (this is Default) {
+                return defaultVisit(stmt)
+            }
+            error("Cannot handle ${stmt::class.java.simpleName}: $stmt")
+        }
 
         interface Default<out R> : Visitor<R> {
             override fun visit(stmt: EtsNopStmt): R = defaultVisit(stmt)
@@ -60,6 +66,20 @@ interface EtsStmt : CommonInst {
     }
 
     fun <R> accept(visitor: Visitor<R>): R
+}
+
+data class EtsRawStmt(
+    override val location: EtsInstLocation,
+    val kind: String,
+    val extra: Map<String, Any> = emptyMap(),
+) : EtsStmt {
+    override fun toString(): String {
+        return "$kind $extra"
+    }
+
+    override fun <R> accept(visitor: EtsStmt.Visitor<R>): R {
+        return visitor.visit(this)
+    }
 }
 
 data class EtsNopStmt(
@@ -163,20 +183,6 @@ data class EtsSwitchStmt(
 ) : EtsBranchingStmt {
     override fun toString(): String {
         return "switch ($arg)"
-    }
-
-    override fun <R> accept(visitor: EtsStmt.Visitor<R>): R {
-        return visitor.visit(this)
-    }
-}
-
-data class EtsRawStmt(
-    override val location: EtsInstLocation,
-    val type: String,
-    val text: String,
-) : EtsStmt {
-    override fun toString(): String {
-        return text
     }
 
     override fun <R> accept(visitor: EtsStmt.Visitor<R>): R {

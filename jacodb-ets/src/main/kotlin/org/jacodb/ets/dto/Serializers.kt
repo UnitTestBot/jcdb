@@ -14,11 +14,8 @@
  *  limitations under the License.
  */
 
-@file:OptIn(ExperimentalSerializationApi::class)
-
 package org.jacodb.ets.dto
 
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -28,12 +25,36 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonEncoder
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.double
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.modules.SerializersModule
+
+internal val stmtModule = SerializersModule {
+    polymorphicDefaultDeserializer(StmtDto::class) { RawStmtSerializer }
+}
+
+internal val valueModule = SerializersModule {
+    polymorphicDefaultDeserializer(ValueDto::class) { RawValueSerializer }
+}
+
+internal val typeModule = SerializersModule {
+    polymorphicDefaultDeserializer(TypeDto::class) { RawTypeSerializer }
+}
+
+internal val dtoModule = SerializersModule {
+    include(stmtModule)
+    include(valueModule)
+    include(typeModule)
+}
 
 object PrimitiveLiteralSerializer : KSerializer<PrimitiveLiteralDto> {
-    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("PrimitiveLiteral", PrimitiveKind.STRING)
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("PrimitiveLiteral", PrimitiveKind.STRING)
 
     override fun serialize(encoder: Encoder, value: PrimitiveLiteralDto) {
         require(encoder is JsonEncoder)
@@ -59,5 +80,64 @@ object PrimitiveLiteralSerializer : KSerializer<PrimitiveLiteralDto> {
         } else {
             return PrimitiveLiteralDto.NumberLiteral(element.double)
         }
+    }
+}
+
+object RawStmtSerializer : KSerializer<RawStmtDto> {
+    private val serializer = RawStmtDto.generatedSerializer()
+
+    override val descriptor: SerialDescriptor = serializer.descriptor
+
+    override fun deserialize(decoder: Decoder): RawStmtDto {
+        require(decoder is JsonDecoder)
+        val element = decoder.decodeJsonElement().jsonObject
+        val kind = element.getValue("_").jsonPrimitive.content
+        val details = element.toMutableMap()
+        details.remove("_")
+        return RawStmtDto(kind, JsonObject(details))
+    }
+
+    override fun serialize(encoder: Encoder, value: RawStmtDto) {
+        encoder.encodeSerializableValue(serializer, value)
+    }
+}
+
+object RawValueSerializer : KSerializer<RawValueDto> {
+    private val serializer = RawValueDto.generatedSerializer()
+
+    override val descriptor: SerialDescriptor = serializer.descriptor
+
+    override fun deserialize(decoder: Decoder): RawValueDto {
+        require(decoder is JsonDecoder)
+        val element = decoder.decodeJsonElement().jsonObject
+        val kind = element.getValue("_").jsonPrimitive.content
+        val type = decoder.json.decodeFromJsonElement<TypeDto>(element.getValue("type"))
+        val details = element.toMutableMap()
+        details.remove("_")
+        details.remove("type")
+        return RawValueDto(kind, JsonObject(details), type)
+    }
+
+    override fun serialize(encoder: Encoder, value: RawValueDto) {
+        encoder.encodeSerializableValue(serializer, value)
+    }
+}
+
+object RawTypeSerializer : KSerializer<RawTypeDto> {
+    private val serializer = RawTypeDto.generatedSerializer()
+
+    override val descriptor: SerialDescriptor = serializer.descriptor
+
+    override fun deserialize(decoder: Decoder): RawTypeDto {
+        require(decoder is JsonDecoder)
+        val element = decoder.decodeJsonElement().jsonObject
+        val kind = element.getValue("_").jsonPrimitive.content
+        val details = element.toMutableMap()
+        details.remove("_")
+        return RawTypeDto(kind, JsonObject(details))
+    }
+
+    override fun serialize(encoder: Encoder, value: RawTypeDto) {
+        encoder.encodeSerializableValue(serializer, value)
     }
 }
