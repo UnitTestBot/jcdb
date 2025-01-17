@@ -17,9 +17,11 @@
 package org.jacodb.ets.dto
 
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.KeepGeneratedSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonClassDiscriminator
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 @OptIn(ExperimentalSerializationApi::class)
@@ -28,18 +30,15 @@ sealed interface ValueDto {
     val type: TypeDto
 }
 
-@Serializable
-@SerialName("UNKNOWN_VALUE")
-data class UnknownValueDto(
-    val value: String,
-) : ValueDto {
-    override val type: TypeDto
-        get() = UnknownTypeDto
-
-    override fun toString(): String {
-        return "UNKNOWN($value)"
-    }
-}
+@Serializable(with = RawValueSerializer::class)
+@SerialName("RawValue")
+@OptIn(ExperimentalSerializationApi::class)
+@KeepGeneratedSerializer
+data class RawValueDto(
+    val kind: String, // constructor name
+    val extra: JsonObject,
+    override val type: TypeDto,
+) : ValueDto
 
 @Serializable
 sealed interface ImmediateDto : ValueDto
@@ -49,22 +48,14 @@ sealed interface ImmediateDto : ValueDto
 data class LocalDto(
     val name: String,
     override val type: TypeDto,
-) : ImmediateDto {
-    override fun toString(): String {
-        return name
-    }
-}
+) : ImmediateDto
 
 @Serializable
 @SerialName("Constant")
 data class ConstantDto(
     val value: String,
     override val type: TypeDto,
-) : ImmediateDto {
-    override fun toString(): String {
-        return "'$value': $type"
-    }
-}
+) : ImmediateDto
 
 // TODO: uncomment and adapt the following code for different constants
 //       Currently, ArkIR stores all constants as strings (see ConstantDto above),
@@ -140,11 +131,7 @@ data class NewExprDto(
     val classType: TypeDto, // ClassType
 ) : ExprDto {
     override val type: TypeDto
-        get() = classType as ClassTypeDto // safe cast
-
-    override fun toString(): String {
-        return "new $type()"
-    }
+        get() = classType
 }
 
 @Serializable
@@ -155,10 +142,6 @@ data class NewArrayExprDto(
 ) : ExprDto {
     override val type: TypeDto
         get() = ArrayTypeDto(elementType, 1)
-
-    override fun toString(): String {
-        return "new Array<$elementType>($size)"
-    }
 }
 
 @Serializable
@@ -168,10 +151,6 @@ data class DeleteExprDto(
 ) : ExprDto {
     override val type: TypeDto
         get() = BooleanTypeDto
-
-    override fun toString(): String {
-        return "delete $arg"
-    }
 }
 
 @Serializable
@@ -181,10 +160,6 @@ data class AwaitExprDto(
 ) : ExprDto {
     override val type: TypeDto
         get() = arg.type
-
-    override fun toString(): String {
-        return "await $arg"
-    }
 }
 
 @Serializable
@@ -194,10 +169,6 @@ data class YieldExprDto(
 ) : ExprDto {
     override val type: TypeDto
         get() = arg.type
-
-    override fun toString(): String {
-        return "yield $arg"
-    }
 }
 
 @Serializable
@@ -207,10 +178,6 @@ data class TypeOfExprDto(
 ) : ExprDto {
     override val type: TypeDto
         get() = StringTypeDto
-
-    override fun toString(): String {
-        return "typeof $arg"
-    }
 }
 
 @Serializable
@@ -221,10 +188,6 @@ data class InstanceOfExprDto(
 ) : ExprDto {
     override val type: TypeDto
         get() = BooleanTypeDto
-
-    override fun toString(): String {
-        return "$arg instanceof $checkType"
-    }
 }
 
 @Serializable
@@ -234,10 +197,6 @@ data class LengthExprDto(
 ) : ExprDto {
     override val type: TypeDto
         get() = NumberTypeDto
-
-    override fun toString(): String {
-        return "$arg.length"
-    }
 }
 
 @Serializable
@@ -245,23 +204,7 @@ data class LengthExprDto(
 data class CastExprDto(
     val arg: ValueDto,
     override val type: TypeDto,
-) : ExprDto {
-    override fun toString(): String {
-        return "$arg as $type"
-    }
-}
-
-@Serializable
-@SerialName("PhiExpr")
-data class PhiExprDto(
-    val args: List<ValueDto>,
-    val blocks: List<Int>,
-    override val type: TypeDto,
-) : ExprDto {
-    override fun toString(): String {
-        return "phi(${args.joinToString()})"
-    }
-}
+) : ExprDto
 
 @Serializable
 sealed interface UnaryExprDto : ExprDto {
@@ -276,11 +219,7 @@ sealed interface UnaryExprDto : ExprDto {
 data class UnaryOperationDto(
     val op: String,
     override val arg: ValueDto,
-) : UnaryExprDto {
-    override fun toString(): String {
-        return "$op $arg"
-    }
-}
+) : UnaryExprDto
 
 @Serializable
 sealed interface BinaryExprDto : ExprDto {
@@ -295,11 +234,7 @@ data class BinaryOperationDto(
     override val left: ValueDto,
     override val right: ValueDto,
     override val type: TypeDto = UnknownTypeDto,
-) : BinaryExprDto {
-    override fun toString(): String {
-        return "$left $op $right"
-    }
-}
+) : BinaryExprDto
 
 @Serializable
 sealed interface ConditionExprDto : BinaryExprDto
@@ -311,11 +246,7 @@ data class RelationOperationDto(
     override val left: ValueDto,
     override val right: ValueDto,
     override val type: TypeDto = UnknownTypeDto,
-) : ConditionExprDto {
-    override fun toString(): String {
-        return "$left $op $right"
-    }
-}
+) : ConditionExprDto
 
 @Serializable
 sealed interface CallExprDto : ExprDto {
@@ -332,22 +263,14 @@ data class InstanceCallExprDto(
     val instance: ValueDto, // Local
     override val method: MethodSignatureDto,
     override val args: List<ValueDto>,
-) : CallExprDto {
-    override fun toString(): String {
-        return "$instance.${method.name}(${args.joinToString()})"
-    }
-}
+) : CallExprDto
 
 @Serializable
 @SerialName("StaticCallExpr")
 data class StaticCallExprDto(
     override val method: MethodSignatureDto,
     override val args: List<ValueDto>,
-) : CallExprDto {
-    override fun toString(): String {
-        return "${method.name}(${args.joinToString()})"
-    }
-}
+) : CallExprDto
 
 @Serializable
 @SerialName("PtrCallExpr")
@@ -355,11 +278,7 @@ data class PtrCallExprDto(
     val ptr: ValueDto, // Local
     override val method: MethodSignatureDto,
     override val args: List<ValueDto>,
-) : CallExprDto {
-    override fun toString(): String {
-        return "$ptr@${method.declaringClass.name}::${method.name}(${args.joinToString()})"
-    }
-}
+) : CallExprDto
 
 @Serializable
 sealed interface RefDto : ValueDto
@@ -368,58 +287,38 @@ sealed interface RefDto : ValueDto
 @SerialName("ThisRef")
 data class ThisRefDto(
     override val type: TypeDto, // ClassType
-) : RefDto {
-    override fun toString(): String {
-        return "this"
-    }
-}
+) : RefDto
 
 @Serializable
 @SerialName("ParameterRef")
 data class ParameterRefDto(
     val index: Int,
     override val type: TypeDto,
-) : RefDto {
-    override fun toString(): String {
-        return "arg$index"
-    }
-}
+) : RefDto
 
-@Serializable
-@SerialName("CaughtExceptionRef")
-data class CaughtExceptionRefDto(
-    override val type: TypeDto,
-) : RefDto {
-    override fun toString(): String {
-        return "catch($type)"
-    }
-}
-
-@Serializable
-@SerialName("GlobalRef")
-data class GlobalRefDto(
-    val name: String,
-    val ref: ValueDto?,
-) : RefDto {
-    override val type: TypeDto
-        get() = ref?.type ?: UnknownTypeDto
-
-    override fun toString(): String {
-        return "global $name"
-    }
-}
-
-@Serializable
-@SerialName("ClosureFieldRef")
-data class ClosureFieldRefDto(
-    val base: LocalDto,
-    val fieldName: String,
-    override val type: TypeDto,
-) : RefDto {
-    override fun toString(): String {
-        return "$base.$fieldName"
-    }
-}
+// @Serializable
+// @SerialName("CaughtExceptionRef")
+// data class CaughtExceptionRefDto(
+//     override val type: TypeDto,
+// ) : RefDto
+//
+// @Serializable
+// @SerialName("GlobalRef")
+// data class GlobalRefDto(
+//     val name: String,
+//     val ref: ValueDto?,
+// ) : RefDto {
+//     override val type: TypeDto
+//         get() = ref?.type ?: UnknownTypeDto
+// }
+//
+// @Serializable
+// @SerialName("ClosureFieldRef")
+// data class ClosureFieldRefDto(
+//     val base: LocalDto,
+//     val fieldName: String,
+//     override val type: TypeDto,
+// ) : RefDto
 
 @Serializable
 @SerialName("ArrayRef")
@@ -427,11 +326,7 @@ data class ArrayRefDto(
     val array: ValueDto,
     val index: ValueDto,
     override val type: TypeDto,
-) : RefDto {
-    override fun toString(): String {
-        return "$array[$index]"
-    }
-}
+) : RefDto
 
 @Serializable
 sealed interface FieldRefDto : RefDto {
@@ -446,18 +341,10 @@ sealed interface FieldRefDto : RefDto {
 data class InstanceFieldRefDto(
     val instance: ValueDto, // Local
     override val field: FieldSignatureDto,
-) : FieldRefDto {
-    override fun toString(): String {
-        return "$instance.${field.name}"
-    }
-}
+) : FieldRefDto
 
 @Serializable
 @SerialName("StaticFieldRef")
 data class StaticFieldRefDto(
     override val field: FieldSignatureDto,
-) : FieldRefDto {
-    override fun toString(): String {
-        return "${field.declaringClass.name}.${field.name}"
-    }
-}
+) : FieldRefDto

@@ -16,9 +16,8 @@
 
 package org.jacodb.ets.test
 
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonPrimitive
 import mu.KotlinLogging
 import org.jacodb.ets.base.DEFAULT_ARK_CLASS_NAME
 import org.jacodb.ets.base.DEFAULT_ARK_METHOD_NAME
@@ -38,9 +37,14 @@ import org.jacodb.ets.dto.LocalDto
 import org.jacodb.ets.dto.MethodDto
 import org.jacodb.ets.dto.NumberTypeDto
 import org.jacodb.ets.dto.PrimitiveLiteralDto
+import org.jacodb.ets.dto.RawStmtDto
+import org.jacodb.ets.dto.RawTypeDto
+import org.jacodb.ets.dto.RawValueDto
 import org.jacodb.ets.dto.ReturnVoidStmtDto
 import org.jacodb.ets.dto.StmtDto
 import org.jacodb.ets.dto.TypeDto
+import org.jacodb.ets.dto.ValueDto
+import org.jacodb.ets.dto.dtoModule
 import org.jacodb.ets.dto.toEtsLocal
 import org.jacodb.ets.dto.toEtsMethod
 import org.jacodb.ets.model.EtsClassSignature
@@ -76,6 +80,7 @@ class EtsFromJsonTest {
         private val json = Json {
             // classDiscriminator = "_"
             prettyPrint = true
+            serializersModule = dtoModule
         }
 
         @JvmStatic
@@ -419,5 +424,52 @@ class EtsFromJsonTest {
         logger.info { "typeDto = $typeDto" }
         assertIs<LiteralTypeDto>(typeDto)
         assertEquals(PrimitiveLiteralDto.StringLiteral("hello"), typeDto.literal)
+    }
+
+    @Test
+    fun testLoadRawTypeFromJson() {
+        val jsonString = """
+            {
+              "_": "DummyType",
+              "value": 42
+            }
+        """.trimIndent()
+        val typeDto = json.decodeFromString<TypeDto>(jsonString)
+        logger.info { "typeDto = $typeDto" }
+        assertIs<RawTypeDto>(typeDto)
+        assertEquals("DummyType", typeDto.kind)
+        assertEquals(42, typeDto.extra.getValue("value").jsonPrimitive.content.toInt())
+    }
+
+    @Test
+    fun testLoadRawValueFromJson() {
+        val jsonString = """
+            {
+              "_": "DummyValue",
+              "value": 42,
+              "type": { "_": "NumberType" }
+            }
+        """.trimIndent()
+        val valueDto = json.decodeFromString<ValueDto>(jsonString)
+        logger.info { "valueDto = $valueDto" }
+        assertIs<RawValueDto>(valueDto)
+        assertEquals("DummyValue", valueDto.kind)
+        assertEquals(NumberTypeDto, valueDto.type)
+        assertEquals(42, valueDto.extra.getValue("value").jsonPrimitive.content.toInt())
+    }
+
+    @Test
+    fun testLoadRawStmtFromJson() {
+        val jsonString = """
+            {
+              "_": "DummyStmt",
+              "value": 42
+            }
+        """.trimIndent()
+        val stmtDto = json.decodeFromString<StmtDto>(jsonString)
+        logger.info { "stmtDto = $stmtDto" }
+        assertIs<RawStmtDto>(stmtDto)
+        assertEquals("DummyStmt", stmtDto.kind)
+        assertEquals(42, stmtDto.extra.getValue("value").jsonPrimitive.content.toInt())
     }
 }

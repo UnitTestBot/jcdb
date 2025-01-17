@@ -19,7 +19,6 @@ package org.jacodb.ets.dto
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import java.io.InputStream
@@ -33,13 +32,17 @@ data class EtsFileDto(
     val exportInfos: List<ExportInfoDto>,
 ) {
     companion object {
+        private val json = Json {
+            serializersModule = dtoModule
+        }
+
         fun loadFromJson(jsonString: String): EtsFileDto {
-            return Json.decodeFromString(jsonString)
+            return json.decodeFromString(jsonString)
         }
 
         @OptIn(ExperimentalSerializationApi::class)
         fun loadFromJson(stream: InputStream): EtsFileDto {
-            return Json.decodeFromStream(stream)
+            return json.decodeFromStream(stream)
         }
     }
 }

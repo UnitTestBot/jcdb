@@ -16,89 +16,53 @@
 
 package org.jacodb.ets.dto
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class FileSignatureDto(
     val projectName: String,
     val fileName: String,
-) {
-    override fun toString(): String {
-        return "@$projectName/$fileName"
-    }
-}
+)
 
 @Serializable
 data class NamespaceSignatureDto(
     val name: String,
     val declaringFile: FileSignatureDto,
     val declaringNamespace: NamespaceSignatureDto? = null,
-) {
-    override fun toString(): String {
-        return if (declaringNamespace != null) {
-            "$declaringNamespace::$name"
-        } else {
-            "$declaringFile::$name"
-        }
-    }
-}
-
+)
 @Serializable
 data class ClassSignatureDto(
     val name: String,
     val declaringFile: FileSignatureDto,
     val declaringNamespace: NamespaceSignatureDto? = null,
-) {
-    override fun toString(): String {
-        return if (declaringNamespace != null) {
-            "$declaringNamespace::$name"
-        } else {
-            "$declaringFile::$name"
-        }
-    }
-}
+)
 
 @Serializable
 data class FieldSignatureDto(
     val declaringClass: ClassSignatureDto,
     val name: String,
     val type: TypeDto,
-) {
-    override fun toString(): String {
-        return "${declaringClass.name}::$name: $type"
-    }
-}
+)
 
 @Serializable
+@SerialName("MethodSignature")
 data class MethodSignatureDto(
     val declaringClass: ClassSignatureDto,
     val name: String,
     val parameters: List<MethodParameterDto>,
     val returnType: TypeDto,
-) {
-    override fun toString(): String {
-        val params = parameters.joinToString()
-        return "${declaringClass.name}::$name($params): $returnType"
-    }
-}
+)
 
 @Serializable
 data class MethodParameterDto(
     val name: String,
     val type: TypeDto,
     val isOptional: Boolean = false,
-) {
-    override fun toString(): String {
-        return "$name: $type"
-    }
-}
+)
 
 @Serializable
 data class LocalSignatureDto(
     val name: String,
     val method: MethodSignatureDto,
-) {
-    override fun toString(): String {
-        return "${method}#${name}"
-    }
-}
+)
