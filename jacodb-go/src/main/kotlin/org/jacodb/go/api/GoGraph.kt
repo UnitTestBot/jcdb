@@ -21,7 +21,7 @@ import org.jacodb.api.common.cfg.BytecodeGraph
 
 class GoGraph(
     override val instructions: List<GoInst>,
-    private val blocksNum: List<Int>,
+    private val firstInstruction: List<GoInst>
 ) : BytecodeGraph<GoInst> {
     private val predecessorMap: MutableMap<GoInst, MutableSet<GoInst>> = hashMapOf()
     private val successorMap: MutableMap<GoInst, Set<GoInst>> = hashMapOf()
@@ -30,7 +30,7 @@ class GoGraph(
         for (inst in instructions) {
             val successors = when (inst) {
                 is GoTerminatingInst -> emptySet()
-                is GoBranchingInst -> inst.successors.map { instructions[blocksNum.indexOf(it.index)] }.toSet()
+                is GoBranchingInst -> inst.successors.map { firstInstruction[it.index] }.toSet()
                 else -> setOf(next(inst))
             }
             successorMap[inst] = successors
@@ -46,14 +46,7 @@ class GoGraph(
     override val exits: List<GoInst>
         get() = instructions.filterIsInstance<GoTerminatingInst>()
 
-    fun index(inst: GoInst): Int {
-        return instructions.indexOf(inst)
-    }
-
-    fun ref(inst: GoInst): GoInstRef = GoInstRef(index(inst))
-    fun inst(ref: GoInstRef): GoInst = instructions[ref.index]
-    fun next(inst: GoInst): GoInst = instructions[ref(inst).index + 1]
-    fun previous(inst: GoInst): GoInst = instructions[ref(inst).index - 1]
+    fun next(inst: GoInst): GoInst = instructions[inst.location.lineNumber + 1]
 
     override fun successors(node: GoInst): Set<GoInst> = successorMap[node].orEmpty()
     override fun predecessors(node: GoInst): Set<GoInst> = predecessorMap[node].orEmpty()
@@ -78,9 +71,9 @@ data class GoBasicBlock(
 class GoBlockGraph(
     override val instructions: List<GoBasicBlock>,
     instList: List<GoInst>,
-    blocksNum: List<Int>,
+    firstInstruction: List<GoInst>,
 ) : BytecodeGraph<GoBasicBlock> {
-    val graph: GoGraph = GoGraph(instList, blocksNum)
+    val graph: GoGraph = GoGraph(instList, firstInstruction)
 
     override val entries: List<GoBasicBlock>
         get() = instructions.take(1)

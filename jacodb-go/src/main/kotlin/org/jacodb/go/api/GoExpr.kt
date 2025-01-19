@@ -1216,16 +1216,10 @@ data class GoFunction(
 
     override fun flowGraph(): GoGraph {
         if (flowGraph == null) {
-            val blocksNum = mutableListOf<Int>()
-            blocks.forEachIndexed { index, b ->
-                for (i in b.instructions) {
-                    blocksNum.add(index)
-                }
-            }
             flowGraph = GoBlockGraph(
                 blocks,
                 blocks.flatMap { it.instructions },
-                blocksNum,
+                blocks.map { it.instructions[0] },
             ).graph
         }
         return flowGraph!!
@@ -1256,7 +1250,7 @@ data class GoFunction(
         flowGraph = GoBlockGraph(
             listOf(recover!!),
             recover!!.instructions,
-            listOf(0),
+            listOf(recover!!.instructions[0]),
         ).graph
     }
 }
