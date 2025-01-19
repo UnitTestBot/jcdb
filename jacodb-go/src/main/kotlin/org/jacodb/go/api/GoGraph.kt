@@ -23,8 +23,8 @@ class GoGraph(
     override val instructions: List<GoInst>,
     private val firstInstruction: List<GoInst>
 ) : BytecodeGraph<GoInst> {
-    private val predecessorMap: MutableMap<GoInst, MutableSet<GoInst>> = hashMapOf()
-    private val successorMap: MutableMap<GoInst, Set<GoInst>> = hashMapOf()
+    private val predecessorsList: MutableList<MutableSet<GoInst>> = MutableList(instructions.size) { mutableSetOf() }
+    private val successorsList: MutableList<Set<GoInst>> = MutableList(instructions.size) { setOf() }
 
     init {
         for (inst in instructions) {
@@ -33,9 +33,9 @@ class GoGraph(
                 is GoBranchingInst -> inst.successors.map { firstInstruction[it.index] }.toSet()
                 else -> setOf(next(inst))
             }
-            successorMap[inst] = successors
+            successorsList[inst.location.lineNumber] = successors
             for (successor in successors) {
-                predecessorMap.computeIfAbsent(successor) { mutableSetOf() }.add(inst)
+                predecessorsList[successor.location.lineNumber].add(inst)
             }
         }
     }
@@ -48,8 +48,8 @@ class GoGraph(
 
     fun next(inst: GoInst): GoInst = instructions[inst.location.lineNumber + 1]
 
-    override fun successors(node: GoInst): Set<GoInst> = successorMap[node].orEmpty()
-    override fun predecessors(node: GoInst): Set<GoInst> = predecessorMap[node].orEmpty()
+    override fun successors(node: GoInst): Set<GoInst> = successorsList[node.location.lineNumber]
+    override fun predecessors(node: GoInst): Set<GoInst> = predecessorsList[node.location.lineNumber]
 
     override fun throwers(node: GoInst): Set<GoInst> {
         return exits.filterIsInstance<GoPanicInst>().toSet()
