@@ -27,7 +27,10 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 
-abstract class ParameterNamesTest : BaseTest() {
+open class ParameterNamesTest : BaseTest() {
+
+    // NB! Cannot use WithDbImmutable here since new location is being loaded in test
+    companion object : WithDb()
 
     private val target = Files.createTempDirectory("jcdb-temp")
 
@@ -53,10 +56,6 @@ abstract class ParameterNamesTest : BaseTest() {
         }
 }
 
-class ParameterNamesSqlTest : ParameterNamesTest() {
-    companion object : WithDB()
-}
-
-class ParameterNamesRAMTest : ParameterNamesTest() {
-    companion object : WithRAMDB()
+class ParameterNamesSQLiteTest : ParameterNamesTest() {
+    companion object : WithSQLiteDb()
 }

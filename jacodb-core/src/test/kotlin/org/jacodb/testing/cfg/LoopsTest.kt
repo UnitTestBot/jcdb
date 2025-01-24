@@ -22,7 +22,7 @@ import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.impl.cfg.util.JcLoop
 import org.jacodb.impl.cfg.util.loops
 import org.jacodb.testing.BaseTest
-import org.jacodb.testing.WithGlobalDB
+import org.jacodb.testing.WithGlobalDbImmutable
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -31,7 +31,7 @@ import org.junit.jupiter.api.condition.JRE
 
 class LoopsTest : BaseTest() {
 
-    companion object : WithGlobalDB()
+    companion object : WithGlobalDbImmutable()
 
     @Test
     fun `loop inside loop should work`() {

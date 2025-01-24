@@ -45,15 +45,16 @@ kotlin.sourceSets["main"].kotlin {
 
 dependencies {
     api(project(":jacodb-api-jvm"))
-    compileOnly(project(":jacodb-storage"))
+    api(project(":jacodb-storage"))
+    compileOnly(Libs.jooq)
+    compileOnly(Libs.sqlite)
+    compileOnly(Libs.hikaricp)
 
     implementation(Libs.kotlin_logging)
     implementation(Libs.kotlin_metadata_jvm)
     implementation(Libs.kotlinx_serialization_cbor)
     implementation(Libs.jdot)
     implementation(Libs.guava)
-    implementation(Libs.sqlite)
-    implementation(Libs.hikaricp)
     implementation(Libs.xodusUtils)
 
     testImplementation(testFixtures(project(":jacodb-storage")))
@@ -66,7 +67,10 @@ dependencies {
     testImplementation(Libs.lmdb_java)
     testImplementation(Libs.rocks_db)
 
-    testFixturesImplementation(project(":jacodb-api-jvm"))
+    testFixturesApi(Libs.jooq)
+    testFixturesApi(Libs.sqlite)
+    testFixturesApi(Libs.hikaricp)
+    testFixturesApi(project(":jacodb-storage"))
     testFixturesImplementation(kotlin("reflect"))
     testFixturesImplementation(platform(Libs.junit_bom))
     testFixturesImplementation(Libs.junit_jupiter)

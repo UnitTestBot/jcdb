@@ -29,8 +29,8 @@ import org.jacodb.impl.features.classpaths.virtual.JcVirtualMethodImpl
 import org.jacodb.impl.features.classpaths.virtual.JcVirtualParameter
 import org.jacodb.impl.types.TypeNameImpl
 import org.jacodb.testing.BaseTest
-import org.jacodb.testing.WithDB
-import org.jacodb.testing.WithRAMDB
+import org.jacodb.testing.WithDbImmutable
+import org.jacodb.testing.WithSQLiteDb
 import org.jacodb.testing.allClasspath
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -38,7 +38,7 @@ import org.junit.jupiter.api.Test
 
 open class ConfigurationTest : BaseTest() {
 
-    companion object : WithDB()
+    companion object : WithDbImmutable()
 
     override val cp: JcClasspath = runBlocking {
         val configPath = "/testJsonConfig.json"
@@ -175,7 +175,7 @@ open class ConfigurationTest : BaseTest() {
     }
 }
 
-class ConfigurationRAMTest : ConfigurationTest() {
+class ConfigurationSQLiteTest : ConfigurationTest() {
 
-    companion object : WithRAMDB()
+    companion object : WithSQLiteDb()
 }

@@ -28,11 +28,11 @@ import org.jacodb.impl.storage.jooq.tables.references.CLASSES
 import org.jacodb.impl.storage.txn
 import org.jacodb.testing.BaseTest
 import org.jacodb.testing.LifecycleTest
-import org.jacodb.testing.WithDB
-import org.jacodb.testing.WithGlobalDB
-import org.jacodb.testing.WithGlobalRAMDB
-import org.jacodb.testing.WithRAMDB
-import org.jacodb.testing.WithRestoredDB
+import org.jacodb.testing.WithDbImmutable
+import org.jacodb.testing.WithGlobalDbImmutable
+import org.jacodb.testing.WithGlobalSQLiteDb
+import org.jacodb.testing.WithRestoredDb
+import org.jacodb.testing.WithSQLiteDb
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -99,7 +99,7 @@ abstract class BaseInMemoryHierarchyTest : BaseTest() {
         assertEquals(numberOfClasses - 1, findSubClasses<Any>(allHierarchy = true).count())
     }
 
-    protected open fun getNumberOfClasses() = cp.db.persistence.read { it.dslContext.fetchCount(CLASSES) }
+    protected open fun getNumberOfClasses(): Int = cp.db.persistence.read { it.txn.all("Class").size.toInt() }
 
     @Test
     fun `find subclasses of Comparable`() {
@@ -135,31 +135,33 @@ abstract class BaseInMemoryHierarchyTest : BaseTest() {
 }
 
 class InMemoryHierarchyTest : BaseInMemoryHierarchyTest() {
-    companion object : WithGlobalDB()
+    companion object : WithGlobalDbImmutable()
 }
 
-class InMemoryHierarchyRAMTest : BaseInMemoryHierarchyTest() {
-    companion object : WithGlobalRAMDB()
+class InMemoryHierarchySQLiteTest : BaseInMemoryHierarchyTest() {
+    companion object : WithGlobalSQLiteDb()
 
-    override fun getNumberOfClasses(): Int = cp.db.persistence.read { it.txn.all("Class").size.toInt() }
+    override fun getNumberOfClasses() = cp.db.persistence.read { it.dslContext.fetchCount(CLASSES) }
 }
 
 class RegularHierarchyTest : BaseInMemoryHierarchyTest() {
-    companion object : WithDB()
+    companion object : WithDbImmutable()
 
     override val isInMemory = false
 }
 
-class RegularHierarchyRAMTest : BaseInMemoryHierarchyTest() {
-    companion object : WithRAMDB()
+class RegularHierarchySQLiteTest : BaseInMemoryHierarchyTest() {
+    companion object : WithSQLiteDb()
 
     override val isInMemory = false
 
-    override fun getNumberOfClasses(): Int = cp.db.persistence.read { it.txn.all("Class").size.toInt() }
+    override fun getNumberOfClasses() = cp.db.persistence.read { it.dslContext.fetchCount(CLASSES) }
 }
 
 @LifecycleTest
 class RestoredInMemoryHierarchyTest : BaseInMemoryHierarchyTest() {
 
-    companion object : WithRestoredDB(InMemoryHierarchy)
+    companion object : WithRestoredDb(InMemoryHierarchy)
+
+    override fun getNumberOfClasses() = cp.db.persistence.read { it.dslContext.fetchCount(CLASSES) }
 }

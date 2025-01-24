@@ -16,7 +16,7 @@
 
 package org.jacodb.testing
 
-import org.jacodb.impl.JcSettings
+import org.jacodb.api.jvm.JcSettings
 import org.jacodb.impl.fs.JavaRuntime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test

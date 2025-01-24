@@ -17,7 +17,7 @@
 package org.jacodb.impl.storage
 
 import mu.KLogging
-import org.jacodb.api.jvm.JCDBContext
+import org.jacodb.api.storage.StorageContext
 import org.jacodb.impl.storage.jooq.tables.references.APPLICATIONMETADATA
 import java.util.*
 
@@ -28,7 +28,7 @@ data class AppVersion(val major: Int, val minor: Int) : Comparable<AppVersion> {
         val currentAppVersion = current()
         private val defaultVersion = AppVersion(1, 3)
 
-        fun read(context: JCDBContext): AppVersion {
+        fun read(context: StorageContext): AppVersion {
             return try {
                 val appVersion = context.execute(
                     sqlAction = { jooq ->
@@ -65,7 +65,7 @@ data class AppVersion(val major: Int, val minor: Int) : Comparable<AppVersion> {
         }
     }
 
-    fun write(context: JCDBContext) {
+    fun write(context: StorageContext) {
         context.execute(
             sqlAction = { jooq ->
                 jooq.deleteFrom(APPLICATIONMETADATA).execute()

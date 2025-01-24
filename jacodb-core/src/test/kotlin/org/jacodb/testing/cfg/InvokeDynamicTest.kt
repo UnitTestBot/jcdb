@@ -19,14 +19,14 @@ package org.jacodb.testing.cfg
 import org.jacodb.api.jvm.cfg.JcAssignInst
 import org.jacodb.api.jvm.cfg.JcLambdaExpr
 import org.jacodb.api.jvm.ext.findClass
-import org.jacodb.testing.WithGlobalDB
+import org.jacodb.testing.WithGlobalDbImmutable
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class InvokeDynamicTest : BaseInstructionsTest() {
 
-    companion object : WithGlobalDB()
+    companion object : WithGlobalDbImmutable()
 
     @Test
     fun `test unary function`() = runStaticMethod<InvokeDynamicExamples>("testUnaryFunction")

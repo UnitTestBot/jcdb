@@ -20,12 +20,10 @@ import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.cfg.callExpr
 import org.jacodb.api.jvm.ext.cfg.fieldRef
 import org.jacodb.api.jvm.ext.findClass
-import org.jacodb.api.jvm.ext.findDeclaredMethodOrNull
 import org.jacodb.api.jvm.ext.findFieldOrNull
 import org.jacodb.api.jvm.ext.findMethodOrNull
 import org.jacodb.api.jvm.ext.objectClass
 import org.jacodb.impl.features.classpaths.JcUnknownClass
-import org.jacodb.impl.features.classpaths.UnknownClassMethodsAndFields
 import org.jacodb.impl.features.classpaths.UnknownClasses
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -34,7 +32,7 @@ import org.junit.jupiter.api.Test
 
 class UnknownClassesTest : BaseTest() {
 
-    companion object : WithGlobalDB(UnknownClasses)
+    companion object : WithGlobalDbImmutable(UnknownClasses)
 
     @Test
     fun `unknown class is resolved`() {

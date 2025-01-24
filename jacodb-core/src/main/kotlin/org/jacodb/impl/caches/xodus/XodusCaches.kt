@@ -19,8 +19,12 @@ package org.jacodb.impl.caches.xodus
 import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase
 import jetbrains.exodus.core.dataStructures.SoftConcurrentObjectCache
-import org.jacodb.impl.ValueStoreType
-import org.jacodb.impl.caches.*
+import org.jacodb.api.jvm.ValueStoreType
+import org.jacodb.impl.caches.PluggableCache
+import org.jacodb.impl.caches.PluggableCacheBuilder
+import org.jacodb.impl.caches.PluggableCacheException
+import org.jacodb.impl.caches.PluggableCacheProvider
+import org.jacodb.impl.caches.PluggableCacheStats
 
 const val XODUS_CACHE_PROVIDER_ID = "org.jacodb.impl.caches.xodus.XodusCacheProvider"
 

@@ -56,8 +56,8 @@ import org.jacodb.impl.features.classpaths.ClasspathCache
 import org.jacodb.impl.features.classpaths.StringConcatSimplifier
 import org.jacodb.impl.features.classpaths.UnknownClasses
 import org.jacodb.impl.fs.JarLocation
-import org.jacodb.testing.WithDB
-import org.jacodb.testing.WithRAMDB
+import org.jacodb.testing.WithDbImmutable
+import org.jacodb.testing.WithSQLiteDb
 import org.jacodb.testing.asmLib
 import org.jacodb.testing.commonsCompressLib
 import org.jacodb.testing.guavaLib
@@ -291,7 +291,9 @@ class JcGraphChecker(
     }
 }
 
-abstract class IRTest : BaseInstructionsTest() {
+open class IRTest : BaseInstructionsTest() {
+
+    companion object : WithDbImmutable(StringConcatSimplifier, UnknownClasses)
 
     @Test
     fun `get ir of simple method`() {
@@ -389,12 +391,7 @@ abstract class IRTest : BaseInstructionsTest() {
     }
 }
 
-class IRSqlTest : IRTest() {
+class IRSQLiteTest : IRTest() {
 
-    companion object : WithDB(StringConcatSimplifier, UnknownClasses)
-}
-
-class IRRAMTest : IRTest() {
-
-    companion object : WithRAMDB(StringConcatSimplifier, UnknownClasses)
+    companion object : WithSQLiteDb(StringConcatSimplifier, UnknownClasses)
 }

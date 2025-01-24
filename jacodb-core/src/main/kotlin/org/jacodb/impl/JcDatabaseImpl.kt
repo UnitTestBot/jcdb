@@ -16,6 +16,7 @@
 
 package org.jacodb.impl
 
+import com.google.common.hash.Hashing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -35,6 +36,7 @@ import org.jacodb.api.jvm.JcClasspathFeature
 import org.jacodb.api.jvm.JcDatabase
 import org.jacodb.api.jvm.JcDatabasePersistence
 import org.jacodb.api.jvm.JcFeature
+import org.jacodb.api.jvm.JcSettings
 import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.impl.features.classpaths.ClasspathCache
 import org.jacodb.impl.features.classpaths.KotlinMetadata
@@ -46,13 +48,13 @@ import org.jacodb.impl.fs.asByteCodeLocation
 import org.jacodb.impl.fs.filterExisting
 import org.jacodb.impl.fs.lazySources
 import org.jacodb.impl.fs.sources
-import org.jacodb.impl.storage.SQLITE_DATABASE_PERSISTENCE_SPI
+import org.jacodb.impl.storage.ers.ERS_DATABASE_PERSISTENCE_SPI
 import org.jacodb.impl.vfs.GlobalClassesVfs
 import org.jacodb.impl.vfs.RemoveLocationsVisitor
 import java.io.File
 import java.math.BigInteger
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class JcDatabaseImpl(
@@ -69,7 +71,8 @@ class JcDatabaseImpl(
 
     private val backgroundJobs = ConcurrentHashMap<Int, Job>()
 
-    private val isClosed = AtomicBoolean()
+    @Volatile
+    private var isClosed = false
     private val jobId = AtomicInteger()
 
     private val backgroundScope = BackgroundScope()
@@ -77,34 +80,40 @@ class JcDatabaseImpl(
     @Volatile
     private var isImmutable = false
 
+    private val featuresHash: BigInteger
+
     init {
-        val persistenceId = (settings.persistenceId ?: SQLITE_DATABASE_PERSISTENCE_SPI)
+        val persistenceId = (settings.persistenceId ?: ERS_DATABASE_PERSISTENCE_SPI)
         val persistenceSPI = JcDatabasePersistenceSPI.getProvider(persistenceId)
         persistence = persistenceSPI.newPersistence(javaRuntime, settings)
         featuresRegistry = FeaturesRegistry(settings.features).apply { bind(this@JcDatabaseImpl) }
         locationsRegistry = persistenceSPI.newLocationsRegistry(this)
+        featuresHash = settings.features.fold(BigInteger.ZERO) { result, feature ->
+            result xor BigInteger(Hashing.sha256().hashString(feature.javaClass.name, StandardCharsets.UTF_8).asBytes())
+        }
     }
 
     override val id: String
         get() = locations.mapNotNull { it.jcLocation?.fileSystemIdHash }
-            .fold(BigInteger.ZERO) { result, hash -> result xor hash }.toString(Character.MAX_RADIX)
+            .fold(featuresHash) { result, hash -> result xor hash }.toString(Character.MAX_RADIX)
 
     override val locations: List<RegisteredLocation> get() = locationsRegistry.actualLocations
 
     suspend fun restore() {
-        featuresRegistry.broadcast(JcInternalSignal.BeforeIndexing(settings.persistenceClearOnStart ?: false))
         persistence.setup()
         locationsRegistry.cleanup()
-        val runtime = JavaRuntime(settings.jre).allLocations
-        val runtimeNew = locationsRegistry.setup(runtime).new
+        val runtime = JavaRuntime(settings.jre).allLocations.takeIf { settings.buildModelForJRE }
+        val runtimeNew = runtime?.let { locationsRegistry.setup(it).new }
         val registeredNew = locationsRegistry.registerIfNeeded(
             settings.predefinedDirOrJars.filter { it.exists() }
                 .flatMap { it.asByteCodeLocation(javaRuntime.version, isRuntime = false) }.distinct()
         ).new
         if (canBeDumped() && persistence.tryLoad(id)) {
             isImmutable = true
-        } else {
-            runtimeNew.process(false)
+        }
+        featuresRegistry.broadcast(JcInternalSignal.BeforeIndexing(settings.persistenceClearOnStart ?: false))
+        if (!isImmutable) {
+            runtimeNew?.process(false)
             registeredNew.process(true)
         }
     }
@@ -235,7 +244,7 @@ class JcDatabaseImpl(
     }
 
     override fun close() {
-        isClosed.set(true)
+        isClosed = true
         locationsRegistry.close()
         runBlocking {
             cancelBackgroundJobs()
@@ -255,6 +264,10 @@ class JcDatabaseImpl(
         }
 
     private suspend fun List<RegisteredLocation>.process(createIndexes: Boolean): List<RegisteredLocation> {
+        if (isEmpty()) {
+            return this
+        }
+        assertIsMutable()
         withContext(Dispatchers.IO) {
             map { location ->
                 async {
@@ -293,9 +306,11 @@ class JcDatabaseImpl(
     }
 
     private fun assertNotClosed() {
-        if (isClosed.get()) {
-            throw IllegalStateException("Database is already closed")
-        }
+        check(!isClosed) { "Database is already closed" }
+    }
+
+    private fun assertIsMutable() {
+        check(!isImmutable) { "Database is immutable" }
     }
 
     private inline fun CoroutineScope.ifActive(action: () -> Unit) {

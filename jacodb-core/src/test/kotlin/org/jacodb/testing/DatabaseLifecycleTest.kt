@@ -27,6 +27,7 @@ import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findClassOrNull
 import org.jacodb.impl.JcDatabaseImpl
+import org.jacodb.impl.JcSQLitePersistenceSettings
 import org.jacodb.impl.fs.BuildFolderLocation
 import org.jacodb.impl.jacodb
 import org.jacodb.impl.storage.PersistentLocationsRegistry
@@ -216,6 +217,7 @@ class DatabaseLifecycleTest {
                 jacodb {
                     useProcessJavaRuntime()
                     persistent(location)
+                    persistenceImpl(JcSQLitePersistenceSettings)
                 }
             }
 
@@ -227,6 +229,7 @@ class DatabaseLifecycleTest {
                 jacodb {
                     useProcessJavaRuntime()
                     persistent(location)
+                    persistenceImpl(JcSQLitePersistenceSettings)
                 }
             }
             db.persistence.read {

@@ -19,12 +19,14 @@ package org.jacodb.testing.types
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcType
 import org.jacodb.testing.BaseTest
-import org.jacodb.testing.WithGlobalDB
-import org.junit.jupiter.api.Assertions.*
+import org.jacodb.testing.WithGlobalDbImmutable
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertNotNull
 
 abstract class BaseTypesTest : BaseTest() {
 
-    companion object : WithGlobalDB()
+    companion object : WithGlobalDbImmutable()
 
     protected inline fun <reified T> findType(): JcClassType {
         val found = cp.findTypeOrNull(T::class.java.name)

@@ -17,7 +17,7 @@
 package org.jacodb.impl.storage
 
 import mu.KLogging
-import org.jacodb.api.jvm.JCDBContext
+import org.jacodb.api.storage.StorageContext
 import org.jacodb.impl.features.Builders
 import org.jacodb.impl.features.Usages
 import org.jacodb.impl.storage.jooq.tables.references.APPLICATIONMETADATA
@@ -34,7 +34,7 @@ abstract class JcRefactoring {
     /**
      * executed inside transaction
      */
-    abstract fun run(context: JCDBContext)
+    abstract fun run(context: StorageContext)
 }
 
 class JcRefactoringChain(private val chain: List<JcRefactoring>) {
@@ -42,7 +42,7 @@ class JcRefactoringChain(private val chain: List<JcRefactoring>) {
     companion object : KLogging()
 
     @OptIn(ExperimentalTime::class)
-    fun execute(context: JCDBContext) {
+    fun execute(context: StorageContext) {
         context.execute(
             sqlAction = { jooq ->
                 val applied = hashSetOf<String>()
@@ -81,7 +81,7 @@ class JcRefactoringChain(private val chain: List<JcRefactoring>) {
 
 class AddAppMetadataAndRefactoring : JcRefactoring() {
 
-    override fun run(context: JCDBContext) {
+    override fun run(context: StorageContext) {
         // This refactoring is applicable only for SQL context
         if (context.isSqlContext) {
             val jooq = context.dslContext
@@ -97,7 +97,7 @@ class AddAppMetadataAndRefactoring : JcRefactoring() {
 
 class UpdateUsageAndBuildersSchemeRefactoring : JcRefactoring() {
 
-    override fun run(context: JCDBContext) {
+    override fun run(context: StorageContext) {
         Usages.create(context, true)
         Builders.create(context, true)
     }

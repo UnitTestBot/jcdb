@@ -17,6 +17,8 @@
 package org.jacodb.impl.features.classpaths
 
 import mu.KLogging
+import org.jacodb.api.jvm.JcCacheSegmentSettings
+import org.jacodb.api.jvm.JcCacheSettings
 import org.jacodb.api.jvm.JcClassType
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcClasspathExtFeature
@@ -33,11 +35,10 @@ import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.cfg.JcInstList
 import org.jacodb.api.jvm.cfg.JcRawInst
 import org.jacodb.api.jvm.ext.JAVA_OBJECT
-import org.jacodb.impl.JcCacheSegmentSettings
-import org.jacodb.impl.JcCacheSettings
 import org.jacodb.impl.caches.PluggableCache
 import org.jacodb.impl.caches.PluggableCacheProvider
 import org.jacodb.impl.caches.PluggableCacheStats
+import org.jacodb.impl.caches.xodus.XODUS_CACHE_PROVIDER_ID
 import org.jacodb.impl.features.classpaths.AbstractJcInstResult.JcFlowGraphResultImpl
 import org.jacodb.impl.features.classpaths.AbstractJcInstResult.JcInstListResultImpl
 import org.jacodb.impl.features.classpaths.AbstractJcInstResult.JcRawInstListResultImpl
@@ -48,7 +49,7 @@ import java.text.NumberFormat
  */
 open class ClasspathCache(settings: JcCacheSettings) : JcClasspathExtFeature, JcMethodExtFeature, KLogging() {
 
-    private val cacheProvider = PluggableCacheProvider.getProvider(settings.cacheSpiId)
+    private val cacheProvider = PluggableCacheProvider.getProvider(settings.cacheSpiId ?: XODUS_CACHE_PROVIDER_ID)
 
     private val classesCache = newSegment<String, JcResolvedClassResult>(settings.classes)
 

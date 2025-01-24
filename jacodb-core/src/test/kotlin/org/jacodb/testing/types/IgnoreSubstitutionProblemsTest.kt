@@ -25,8 +25,8 @@ import org.jacodb.api.jvm.ext.toType
 import org.jacodb.impl.bytecode.JcDatabaseClassWriter
 import org.jacodb.impl.types.substition.IgnoreSubstitutionProblems
 import org.jacodb.testing.BaseTest
-import org.jacodb.testing.WithDB
-import org.jacodb.testing.WithRAMDB
+import org.jacodb.testing.WithDb
+import org.jacodb.testing.WithSQLiteDb
 import org.junit.jupiter.api.Test
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.tree.ClassNode
@@ -35,7 +35,8 @@ import java.nio.file.Files
 
 open class IgnoreSubstitutionProblemsTest : BaseTest() {
 
-    companion object : WithDB(IgnoreSubstitutionProblems)
+    // NB! Cannot use WithDbImmutable here since new location is being loaded in test
+    companion object : WithDb(IgnoreSubstitutionProblems)
 
     private val target = Files.createTempDirectory("jcdb-temp")
 
@@ -60,7 +61,9 @@ open class IgnoreSubstitutionProblemsTest : BaseTest() {
         runBlocking {
             cp.db.load(target.toFile())
         }
-        return runBlocking { db.classpath(listOf(target.toFile()), listOf(IgnoreSubstitutionProblems)).findClass("GenericsApiConsumer") }
+        return runBlocking {
+            db.classpath(listOf(target.toFile()), listOf(IgnoreSubstitutionProblems)).findClass("GenericsApiConsumer")
+        }
     }
 
     private fun JcClassOrInterface.tweakClass(action: ClassNode.() -> Unit = {}): Unit = withAsmNode { classNode ->
@@ -76,6 +79,6 @@ open class IgnoreSubstitutionProblemsTest : BaseTest() {
     }
 }
 
-class IgnoreSubstitutionProblemsRAMTest : IgnoreSubstitutionProblemsTest() {
-    companion object : WithRAMDB(IgnoreSubstitutionProblems)
+class IgnoreSubstitutionProblemsSQLiteTest : IgnoreSubstitutionProblemsTest() {
+    companion object : WithSQLiteDb(IgnoreSubstitutionProblems)
 }

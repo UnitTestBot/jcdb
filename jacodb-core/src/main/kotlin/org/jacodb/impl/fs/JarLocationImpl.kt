@@ -16,14 +16,15 @@
 
 package org.jacodb.impl.fs
 
+import com.google.common.hash.Hashing
 import mu.KLogging
 import org.jacodb.api.jvm.JavaVersion
 import org.jacodb.api.jvm.LocationType
 import org.jacodb.impl.softLazy
-import org.jacodb.util.io.mapReadonly
 import java.io.File
 import java.math.BigInteger
 import java.util.jar.JarFile
+import kotlin.text.Charsets.UTF_8
 
 open class JarLocation(
     file: File,
@@ -33,8 +34,20 @@ open class JarLocation(
 
     companion object : KLogging()
 
+    @Suppress("UnstableApiUsage")
     override val currentHash: BigInteger
-        get() = BigInteger(jarOrFolder.mapReadonly().shaHash)
+        get() {
+            val jarFile = jarFile() ?: return BigInteger.ZERO
+            return Hashing.sha256().newHasher().let { h ->
+                jarFile.entries().asSequence().filter { !it.isDirectory }.sortedBy { it.name }.forEach { entry ->
+                    h.putString(entry.name, UTF_8)
+                    h.putLong(entry.crc)
+                    h.putLong(entry.size)
+                    h.putLong(entry.compressedSize)
+                }
+                BigInteger(h.hash().asBytes())
+            }
+        }
 
     override val type: LocationType
         get() = when {
@@ -61,16 +74,18 @@ open class JarLocation(
     }
 
     protected open val jarFacade: JarFacade by lazy {
-        JarFacade(runtimeVersion.majorVersion) {
-            if (!jarOrFolder.exists() || !jarOrFolder.isFile) {
+        JarFacade(runtimeVersion.majorVersion) { jarFile() }
+    }
+
+    private fun jarFile(): JarFile? {
+        return if (!jarOrFolder.exists() || !jarOrFolder.isFile) {
+            null
+        } else {
+            try {
+                JarFile(jarOrFolder)
+            } catch (e: Exception) {
+                logger.warn(e) { "error processing jar ${jarOrFolder.absolutePath}" }
                 null
-            } else {
-                try {
-                    JarFile(jarOrFolder)
-                } catch (e: Exception) {
-                    logger.warn(e) { "error processing jar ${jarOrFolder.absolutePath}" }
-                    null
-                }
             }
         }
     }

@@ -17,11 +17,11 @@
 package org.jacodb.testing.performance
 
 import kotlinx.coroutines.runBlocking
+import org.jacodb.api.jvm.JcCacheSettings
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcDatabase
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.findClass
-import org.jacodb.impl.JcCacheSettings
 import org.jacodb.impl.JcClasspathImpl
 import org.jacodb.impl.features.classpaths.ClasspathCache
 import org.jacodb.impl.jacodb
@@ -36,7 +36,6 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Warmup
-import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime

@@ -16,6 +16,7 @@
 
 package org.jacodb.api.jvm
 
+import org.jacodb.api.storage.StorageContext
 import org.objectweb.asm.tree.ClassNode
 
 /** index builder */
@@ -23,7 +24,7 @@ interface ByteCodeIndexer {
 
     fun index(classNode: ClassNode)
 
-    fun flush(context: JCDBContext)
+    fun flush(context: StorageContext)
 }
 
 interface JcFeature<REQ, RES> {

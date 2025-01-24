@@ -20,8 +20,6 @@ import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcDatabasePersistence
 import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.storage.ers.getEntityOrNull
-import org.jacodb.impl.JCDBSymbolsInternerImpl
-import org.jacodb.impl.asSymbolId
 import org.jacodb.impl.caches.PluggableCache
 import org.jacodb.impl.caches.PluggableCacheProvider
 import org.jacodb.impl.caches.xodus.XODUS_CACHE_PROVIDER_ID
@@ -82,8 +80,6 @@ abstract class AbstractJcDbPersistence(
             }
         }
 
-    abstract override val symbolInterner: JCDBSymbolsInternerImpl
-
     override fun findBytecode(classId: Long): ByteArray {
         return byteCodeCache.get(classId) {
             read { context ->
@@ -100,7 +96,7 @@ abstract class AbstractJcDbPersistence(
     }
 
     override fun findSymbolId(symbol: String): Long {
-        return symbol.asSymbolId(symbolInterner)
+        return symbol.asSymbolId()
     }
 
     override fun findSymbolName(symbolId: Long): String {

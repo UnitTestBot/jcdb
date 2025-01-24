@@ -25,15 +25,17 @@ import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.api.jvm.ext.findTypeOrNull
 import org.jacodb.impl.features.duplicatedClasses
 import org.jacodb.impl.features.hierarchyExt
-import org.jacodb.testing.structure.EnumExamples.*
+import org.jacodb.testing.structure.EnumExamples.EnumWithField
+import org.jacodb.testing.structure.EnumExamples.EnumWithStaticInstance
+import org.jacodb.testing.structure.EnumExamples.SimpleEnum
 import org.jacodb.testing.tests.DatabaseEnvTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-class ClassesTest : DatabaseEnvTest() {
+open class ClassesTest : DatabaseEnvTest() {
 
-    companion object : WithGlobalRAMDB()
+    companion object : WithGlobalDbImmutable()
 
     override val cp: JcClasspath = runBlocking { db.classpath(allClasspath) }
 
@@ -75,4 +77,9 @@ class ClassesTest : DatabaseEnvTest() {
         assertEquals(2, enumType.enumValues!!.size)
         assertEquals(listOf("C1", "C2"), enumType.enumValues!!.map { it.name })
     }
+}
+
+class ClassesWithoutJRETest : ClassesTest() {
+
+    companion object : WithGlobalDbWithoutJRE()
 }

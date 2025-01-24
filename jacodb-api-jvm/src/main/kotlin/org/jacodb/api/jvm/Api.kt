@@ -18,13 +18,12 @@ package org.jacodb.api.jvm
 
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.future.future
+import org.jacodb.api.storage.StorageContext
+import org.jacodb.api.storage.SymbolInterner
+import org.jacodb.api.storage.asSymbolId
 import org.jacodb.api.storage.ers.EntityRelationshipStorage
-import org.jacodb.api.storage.ers.Transaction
-import org.jooq.DSLContext
 import java.io.Closeable
 import java.io.File
-import java.sql.Connection
-import java.util.concurrent.ConcurrentHashMap
 
 enum class LocationType {
     RUNTIME,
@@ -166,15 +165,15 @@ interface JcDatabasePersistence : Closeable {
      */
     fun tryLoad(databaseId: String): Boolean = false
 
-    fun <T> write(action: (JCDBContext) -> T): T
-    fun <T> read(action: (JCDBContext) -> T): T
+    fun <T> write(action: (StorageContext) -> T): T
+    fun <T> read(action: (StorageContext) -> T): T
 
     fun persist(location: RegisteredLocation, classes: List<ClassSource>)
     fun findSymbolId(symbol: String): Long
     fun findSymbolName(symbolId: Long): String
     fun findLocation(locationId: Long): RegisteredLocation
 
-    val symbolInterner: JCDBSymbolsInterner
+    val symbolInterner: SymbolInterner
     fun findBytecode(classId: Long): ByteArray
 
     fun findClassSourceByName(cp: JcClasspath, fullName: String): ClassSource?
@@ -190,55 +189,15 @@ interface JcDatabasePersistence : Closeable {
      * Generally, there is no way to switch the persistence back to mutable.
      */
     fun setImmutable(databaseId: String) {}
-}
 
-/**
- * Abstract database access context contains several named context objects.
- * Normally, there should be implemented specific context classes for each persistence
- * implementation with its specific context objects.
- *
- * For SQLite persistence, JCDBContext should contain [DSLContext] object and may contain [Connection] object.
- *
- * For [EntityRelationshipStorage] persistence, JCDBContext should contain [Transaction] object.
- */
-@Suppress("UNCHECKED_CAST")
-class JCDBContext private constructor() {
-
-    private val contextObjects = ConcurrentHashMap<ContextProperty<*>, Any>()
-
-    fun <T : Any> setContextObject(contextKey: ContextProperty<T>, contextObject: T) = apply {
-        contextObjects[contextKey] = contextObject
-    }
-
-    fun <T : Any> getContextObject(property: ContextProperty<T>): T =
-        contextObjects[property] as? T?
-            ?: throw NullPointerException("JCDBContext doesn't contain context object $property")
-
-    fun <T : Any> hasContextObject(property: ContextProperty<T>): Boolean = contextObjects.containsKey(property)
-
-    companion object {
-        fun <T : Any> of(contextKey: ContextProperty<T>, contextObject: T): JCDBContext {
-            return JCDBContext().apply { this(contextKey, contextObject) }
-        }
-
-        fun empty() = JCDBContext()
+    fun String.asSymbolId(): Long {
+        return asSymbolId(symbolInterner)
     }
 }
-
-interface ContextProperty<T : Any>
-
-operator fun <T : Any> JCDBContext.invoke(contextKey: ContextProperty<T>, contextObject: T) =
-    setContextObject(contextKey, contextObject)
 
 interface RegisteredLocation {
     val jcLocation: JcByteCodeLocation?
     val id: Long
     val path: String
     val isRuntime: Boolean
-}
-
-interface JCDBSymbolsInterner {
-    fun findOrNew(symbol: String): Long
-    fun findSymbolName(symbolId: Long): String?
-    fun flush(context: JCDBContext)
 }

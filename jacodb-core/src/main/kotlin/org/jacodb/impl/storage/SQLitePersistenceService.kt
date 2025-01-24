@@ -18,7 +18,7 @@ package org.jacodb.impl.storage
 
 import mu.KLogging
 import org.jacodb.api.jvm.RegisteredLocation
-import org.jacodb.impl.asSymbolId
+import org.jacodb.api.storage.asSymbolId
 import org.jacodb.impl.storage.AppVersion.Companion.currentAppVersion
 import org.jacodb.impl.storage.jooq.tables.references.ANNOTATIONS
 import org.jacodb.impl.storage.jooq.tables.references.ANNOTATIONVALUES
@@ -118,7 +118,7 @@ class SQLitePersistenceService(private val persistence: SQLitePersistenceImpl) {
         persistence.write { context ->
             val jooq = context.dslContext
             jooq.withoutAutoCommit { conn ->
-                symbolInterner.flush(toJCDBContext(jooq, conn))
+                symbolInterner.flush(toStorageContext(jooq, conn))
                 conn.insertElements(CLASSES, classes) { classInfo ->
                     val id = ++classIdCount
                     val packageName = classInfo.name.substringBeforeLast('.')

@@ -18,6 +18,7 @@ package org.jacodb.impl
 
 import org.jacodb.api.jvm.JcDatabase
 import org.jacodb.api.jvm.JcDatabasePersistence
+import org.jacodb.api.jvm.JcSettings
 import org.jacodb.api.spi.CommonSPI
 import org.jacodb.api.spi.SPILoader
 import org.jacodb.impl.fs.JavaRuntime

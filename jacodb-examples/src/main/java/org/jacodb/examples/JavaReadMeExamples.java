@@ -19,7 +19,6 @@ package org.jacodb.examples;
 import org.jacodb.api.jvm.*;
 import org.jacodb.api.jvm.ext.JcClasses;
 import org.jacodb.impl.JacoDB;
-import org.jacodb.impl.JcSettings;
 import org.objectweb.asm.tree.MethodNode;
 
 import java.io.File;

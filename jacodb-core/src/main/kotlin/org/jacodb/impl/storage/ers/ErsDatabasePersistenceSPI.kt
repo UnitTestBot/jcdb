@@ -18,14 +18,16 @@ package org.jacodb.impl.storage.ers
 
 import org.jacodb.api.jvm.JcDatabase
 import org.jacodb.api.jvm.JcDatabasePersistence
+import org.jacodb.api.jvm.JcSettings
 import org.jacodb.api.storage.ers.EntityRelationshipStorageSPI
 import org.jacodb.impl.JcDatabaseImpl
 import org.jacodb.impl.JcDatabasePersistenceSPI
 import org.jacodb.impl.JcErsSettings
-import org.jacodb.impl.JcSettings
 import org.jacodb.impl.LocationsRegistry
+import org.jacodb.impl.RamErsSettings
 import org.jacodb.impl.fs.JavaRuntime
 import org.jacodb.impl.storage.PersistentLocationsRegistry
+import org.jacodb.impl.storage.ers.ram.RAM_ERS_SPI
 
 const val ERS_DATABASE_PERSISTENCE_SPI = "org.jacodb.impl.storage.ers.ErsDatabasePersistenceSPI"
 
@@ -35,7 +37,8 @@ class ErsDatabasePersistenceSPI : JcDatabasePersistenceSPI {
 
     override fun newPersistence(runtime: JavaRuntime, settings: JcSettings): JcDatabasePersistence {
         val persistenceSettings = settings.persistenceSettings
-        val jcErsSettings = persistenceSettings.implSettings as JcErsSettings
+        val jcErsSettings = persistenceSettings.implSettings as? JcErsSettings
+            ?: JcErsSettings(RAM_ERS_SPI, RamErsSettings())
         return ErsPersistenceImpl(
             javaRuntime = runtime,
             clearOnStart = settings.persistenceClearOnStart ?: false,

@@ -21,6 +21,7 @@ package org.jacodb.impl
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.future.future
 import org.jacodb.api.jvm.JcDatabase
+import org.jacodb.api.jvm.JcSettings
 import org.jacodb.impl.fs.JavaRuntime
 
 suspend fun jacodb(builder: JcSettings.() -> Unit): JcDatabase {

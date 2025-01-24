@@ -16,11 +16,17 @@
 
 package org.jacodb.impl.features
 
-import org.jacodb.api.jvm.*
+import org.jacodb.api.jvm.ByteCodeIndexer
+import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.api.jvm.JcDatabase
+import org.jacodb.api.jvm.JcFeature
+import org.jacodb.api.jvm.JcSignal
+import org.jacodb.api.jvm.RegisteredLocation
+import org.jacodb.api.storage.StorageContext
+import org.jacodb.api.storage.asSymbolId
 import org.jacodb.api.storage.ers.compressed
 import org.jacodb.api.storage.ers.links
 import org.jacodb.api.storage.ers.nonSearchable
-import org.jacodb.impl.asSymbolId
 import org.jacodb.impl.fs.PersistenceClassSource
 import org.jacodb.impl.fs.className
 import org.jacodb.impl.storage.BatchedSequence
@@ -101,7 +107,7 @@ class UsagesIndexer(private val jcdb: JcDatabase, private val location: Register
         }
     }
 
-    override fun flush(context: JCDBContext) {
+    override fun flush(context: StorageContext) {
         context.execute(
             sqlAction = { jooq ->
                 jooq.withoutAutoCommit { conn ->
@@ -127,30 +133,31 @@ class UsagesIndexer(private val jcdb: JcDatabase, private val location: Register
             },
             noSqlAction = { txn ->
                 val locationValue = location.id.compressed
-                val symbolInterner = jcdb.persistence.symbolInterner
-                usages.forEach { (calleeClass, calleeEntry) ->
-                    val calleeClassId = calleeClass.className.asSymbolId(symbolInterner).compressed.nonSearchable
-                    calleeEntry.forEach { (info, callers) ->
-                        val (calleeName, calleeDesc, opcode) = info
-                        val calleeNameId = calleeName.asSymbolId(symbolInterner).compressed
-                        val calleeDescValue = calleeDesc?.longHash?.nonSearchable
-                        val opcodeValue = opcode.compressed.nonSearchable
-                        val callee = txn.newEntity("Callee").also { callee ->
-                            callee["locationId"] = locationValue
-                            callee["calleeClassId"] = calleeClassId
-                            callee["calleeNameId"] = calleeNameId
-                            if (calleeDescValue != null) {
-                                callee["calleeDesc"] = calleeDescValue
+                with(jcdb.persistence) {
+                    usages.forEach { (calleeClass, calleeEntry) ->
+                        val calleeClassId = calleeClass.className.asSymbolId().compressed.nonSearchable
+                        calleeEntry.forEach { (info, callers) ->
+                            val (calleeName, calleeDesc, opcode) = info
+                            val calleeNameId = calleeName.asSymbolId().compressed
+                            val calleeDescValue = calleeDesc?.longHash?.nonSearchable
+                            val opcodeValue = opcode.compressed.nonSearchable
+                            val callee = txn.newEntity("Callee").also { callee ->
+                                callee["locationId"] = locationValue
+                                callee["calleeClassId"] = calleeClassId
+                                callee["calleeNameId"] = calleeNameId
+                                if (calleeDescValue != null) {
+                                    callee["calleeDesc"] = calleeDescValue
+                                }
+                                callee["opcode"] = opcodeValue
                             }
-                            callee["opcode"] = opcodeValue
-                        }
-                        val calls = links(callee, "calls")
-                        callers.forEach { (callerClass, offsets) ->
-                            txn.newEntity("Call").also { call ->
-                                calls += call
-                                call["callerId"] =
-                                    callerClass.className.asSymbolId(symbolInterner).compressed.nonSearchable
-                                call.setRawBlob("offsets", offsets.result())
+                            val calls = links(callee, "calls")
+                            callers.forEach { (callerClass, offsets) ->
+                                txn.newEntity("Call").also { call ->
+                                    calls += call
+                                    call["callerId"] =
+                                        callerClass.className.asSymbolId().compressed.nonSearchable
+                                    call.setRawBlob("offsets", offsets.result())
+                                }
                             }
                         }
                     }
@@ -162,7 +169,7 @@ class UsagesIndexer(private val jcdb: JcDatabase, private val location: Register
 
 object Usages : JcFeature<UsageFeatureRequest, UsageFeatureResponse> {
 
-    fun create(context: JCDBContext, drop: Boolean) {
+    fun create(context: StorageContext, drop: Boolean) {
         if (context.isSqlContext) {
             val jooq = context.dslContext
             if (drop) {
@@ -287,7 +294,7 @@ object Usages : JcFeature<UsageFeatureRequest, UsageFeatureResponse> {
 
     override fun newIndexer(jcdb: JcDatabase, location: RegisteredLocation) = UsagesIndexer(jcdb, location)
 
-    private fun drop(context: JCDBContext) {
+    private fun drop(context: StorageContext) {
         context.execute(
             sqlAction = { jooq ->
                 jooq.deleteFrom(CALLS).execute()
@@ -299,7 +306,7 @@ object Usages : JcFeature<UsageFeatureRequest, UsageFeatureResponse> {
         )
     }
 
-    private fun removeLocation(context: JCDBContext, locationId: Long) {
+    private fun removeLocation(context: StorageContext, locationId: Long) {
         context.execute(
             sqlAction = { jooq ->
                 jooq.deleteFrom(CALLS).where(CALLS.LOCATION_ID.eq(locationId)).execute()

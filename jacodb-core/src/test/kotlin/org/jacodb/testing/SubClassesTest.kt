@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test
 @LifecycleTest
 abstract class SubClassesTest : BaseTest() {
 
-    companion object : WithGlobalDB()
+    companion object : WithGlobalDbImmutable()
 
     protected abstract val withDB: JcDatabaseHolder
 
@@ -58,12 +58,12 @@ abstract class SubClassesTest : BaseTest() {
     }
 }
 
-class SubClassesSqlTest : SubClassesTest() {
+class SubClassesNoSqlTest : SubClassesTest() {
 
-    override val withDB: JcDatabaseHolder = WithDB()
+    override val withDB: JcDatabaseHolder = WithDbImmutable()
 }
 
-class SubClassesRAMTest : SubClassesTest() {
+class SubClassesSQLiteTest : SubClassesTest() {
 
-    override val withDB: JcDatabaseHolder = WithRAMDB()
+    override val withDB: JcDatabaseHolder = WithSQLiteDb()
 }

@@ -16,10 +16,10 @@
 
 package org.jacodb.testing;
 
+import org.jacodb.api.jvm.JcCacheSettings;
 import org.jacodb.api.jvm.JcDatabase;
+import org.jacodb.api.jvm.JcSettings;
 import org.jacodb.impl.JacoDB;
-import org.jacodb.impl.JcCacheSettings;
-import org.jacodb.impl.JcSettings;
 import org.jacodb.impl.features.Usages;
 
 import java.time.Duration;

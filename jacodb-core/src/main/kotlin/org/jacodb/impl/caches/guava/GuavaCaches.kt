@@ -18,7 +18,7 @@ package org.jacodb.impl.caches.guava
 
 import com.google.common.cache.Cache
 import com.google.common.cache.CacheBuilder
-import org.jacodb.impl.ValueStoreType
+import org.jacodb.api.jvm.ValueStoreType
 import org.jacodb.impl.caches.PluggableCache
 import org.jacodb.impl.caches.PluggableCacheBuilder
 import org.jacodb.impl.caches.PluggableCacheProvider

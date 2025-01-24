@@ -18,12 +18,11 @@ package org.jacodb.impl.storage
 
 import mu.KotlinLogging
 import org.jacodb.api.jvm.ClassSource
-import org.jacodb.api.jvm.JCDBContext
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcDatabase
 import org.jacodb.api.jvm.RegisteredLocation
+import org.jacodb.api.storage.StorageContext
 import org.jacodb.api.storage.ers.EntityRelationshipStorage
-import org.jacodb.impl.JCDBSymbolsInternerImpl
 import org.jacodb.impl.fs.JavaRuntime
 import org.jacodb.impl.fs.PersistenceClassSource
 import org.jacodb.impl.fs.info
@@ -73,14 +72,14 @@ class SQLitePersistenceImpl(
         jooq.executeQueriesFrom("sqlite/create-schema.sql")
     }
 
-    override val symbolInterner = JCDBSymbolsInternerImpl().apply { setup(this@SQLitePersistenceImpl) }
+    override val symbolInterner = SqlSymbolInterner().apply { setup(this@SQLitePersistenceImpl) }
 
-    override fun <T> read(action: (JCDBContext) -> T): T {
-        return action(toJCDBContext(jooq))
+    override fun <T> read(action: (StorageContext) -> T): T {
+        return action(toStorageContext(jooq))
     }
 
-    override fun <T> write(action: (JCDBContext) -> T): T = lock.withLock {
-        action(toJCDBContext(jooq))
+    override fun <T> write(action: (StorageContext) -> T): T = lock.withLock {
+        action(toStorageContext(jooq))
     }
 
     override fun close() {

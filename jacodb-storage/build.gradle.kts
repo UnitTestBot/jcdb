@@ -12,4 +12,7 @@ dependencies {
 
     testFixturesImplementation(platform(Libs.junit_bom))
     testFixturesImplementation(Libs.junit_jupiter)
+    testFixturesApi(Libs.xodusEnvironment)
+    testFixturesApi(Libs.lmdb_java)
+    testFixturesApi(Libs.rocks_db)
 }

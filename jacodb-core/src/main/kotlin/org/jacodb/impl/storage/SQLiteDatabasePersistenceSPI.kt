@@ -18,9 +18,9 @@ package org.jacodb.impl.storage
 
 import org.jacodb.api.jvm.JcDatabase
 import org.jacodb.api.jvm.JcDatabasePersistence
+import org.jacodb.api.jvm.JcSettings
 import org.jacodb.impl.JcDatabaseImpl
 import org.jacodb.impl.JcDatabasePersistenceSPI
-import org.jacodb.impl.JcSettings
 import org.jacodb.impl.LocationsRegistry
 import org.jacodb.impl.fs.JavaRuntime
 

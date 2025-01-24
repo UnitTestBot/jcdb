@@ -18,9 +18,9 @@ package org.jacodb.testing.performance
 
 import kotlinx.coroutines.runBlocking
 import org.jacodb.api.jvm.JcDatabase
+import org.jacodb.api.jvm.JcSettings
 import org.jacodb.impl.JcErsSettings
 import org.jacodb.impl.JcRamErsSettings
-import org.jacodb.impl.JcSettings
 import org.jacodb.impl.RamErsSettings
 import org.jacodb.impl.features.InMemoryHierarchy
 import org.jacodb.impl.features.Usages

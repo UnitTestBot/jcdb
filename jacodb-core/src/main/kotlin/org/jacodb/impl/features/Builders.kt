@@ -18,7 +18,6 @@ package org.jacodb.impl.features
 
 import org.jacodb.api.jvm.ByteCodeIndexer
 import org.jacodb.api.jvm.ClassSource
-import org.jacodb.api.jvm.JCDBContext
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcDatabase
 import org.jacodb.api.jvm.JcDatabasePersistence
@@ -26,7 +25,9 @@ import org.jacodb.api.jvm.JcFeature
 import org.jacodb.api.jvm.JcSignal
 import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.jvm.ext.jvmPrimitiveNames
+import org.jacodb.api.storage.StorageContext
 import org.jacodb.api.storage.ers.compressed
+import org.jacodb.api.storage.ers.nonSearchable
 import org.jacodb.impl.fs.PersistenceClassSource
 import org.jacodb.impl.fs.className
 import org.jacodb.impl.storage.execute
@@ -90,7 +91,7 @@ class BuildersIndexer(val persistence: JcDatabasePersistence, private val locati
     }
 
 
-    override fun flush(context: JCDBContext) {
+    override fun flush(context: StorageContext) {
         context.execute(
             sqlAction = { jooq ->
                 jooq.withoutAutoCommit { conn ->
@@ -116,12 +117,12 @@ class BuildersIndexer(val persistence: JcDatabasePersistence, private val locati
                     val returnTypeId = persistence.findSymbolId(returnedClassInternalName.className)
                     builders.forEach { builder ->
                         val entity = txn.newEntity(BuilderEntity.BUILDER_ENTITY_TYPE)
-                        entity[BuilderEntity.BUILDER_LOCATION_ID_PROPERTY] = location.id
-                        entity[BuilderEntity.RETURNED_CLASS_NAME_ID_PROPERTY] = returnTypeId
+                        entity[BuilderEntity.BUILDER_LOCATION_ID_PROPERTY] = location.id.compressed
+                        entity[BuilderEntity.RETURNED_CLASS_NAME_ID_PROPERTY] = returnTypeId.compressed
                         entity[BuilderEntity.BUILDER_CLASS_NAME_ID] =
-                            persistence.findSymbolId(builder.callerClass.className)
-                        entity[BuilderEntity.METHOD_OFFSET_PROPERTY] = builder.methodOffset
-                        entity[BuilderEntity.PRIORITY_PROPERTY] = builder.priority
+                            persistence.findSymbolId(builder.callerClass.className).compressed.nonSearchable
+                        entity[BuilderEntity.METHOD_OFFSET_PROPERTY] = builder.methodOffset.compressed.nonSearchable
+                        entity[BuilderEntity.PRIORITY_PROPERTY] = builder.priority.compressed.nonSearchable
                     }
                 }
             }
@@ -138,7 +139,7 @@ data class BuildersResponse(
 
 object Builders : JcFeature<Set<String>, BuildersResponse> {
 
-    fun create(context: JCDBContext, drop: Boolean) {
+    fun create(context: StorageContext, drop: Boolean) {
         context.execute(
             sqlAction = { jooq ->
                 if (drop) {
@@ -203,7 +204,7 @@ object Builders : JcFeature<Set<String>, BuildersResponse> {
                             txn.find(
                                 type = BuilderEntity.BUILDER_ENTITY_TYPE,
                                 propertyName = BuilderEntity.BUILDER_LOCATION_ID_PROPERTY,
-                                value = signal.location.id
+                                value = signal.location.id.compressed
                             ).deleteAll()
                         }
                     )
@@ -275,14 +276,17 @@ object Builders : JcFeature<Set<String>, BuildersResponse> {
                                 txn.find(
                                     type = BuilderEntity.BUILDER_ENTITY_TYPE,
                                     propertyName = BuilderEntity.RETURNED_CLASS_NAME_ID_PROPERTY,
-                                    value = returnedClassNameId
+                                    value = returnedClassNameId.compressed
                                 )
                             }
                             .flatten()
-                            .filter { builder -> builder[BuilderEntity.BUILDER_LOCATION_ID_PROPERTY] in locationIds }
-                            .flatMap { builder ->
-                                val builderLocationId: Long = builder[BuilderEntity.BUILDER_LOCATION_ID_PROPERTY]!!
-                                val builderClassNameId: Long = builder[BuilderEntity.BUILDER_CLASS_NAME_ID]!!
+                            .mapNotNull { builder ->
+                                val locationId = builder.getCompressed<Long>(BuilderEntity.BUILDER_LOCATION_ID_PROPERTY)
+                                if (locationId != null && locationId in locationIds) builder to locationId else null
+                            }
+                            .flatMap { (builder, builderLocationId) ->
+                                val builderClassNameId: Long =
+                                    builder.getCompressedBlob<Long>(BuilderEntity.BUILDER_CLASS_NAME_ID)!!
                                 txn.find("Class", "nameId", builderClassNameId.compressed)
                                     .mapNotNull { builderClass ->
                                         if (builderClass.getCompressed<Long>("locationId") != builderLocationId) {
@@ -295,8 +299,9 @@ object Builders : JcFeature<Set<String>, BuildersResponse> {
                                                     classId = builderClass.id.instanceId,
                                                     className = persistence.findSymbolName(builderClassNameId),
                                                 ),
-                                                methodOffset = builder[BuilderEntity.METHOD_OFFSET_PROPERTY]!!,
-                                                priority = builder[BuilderEntity.PRIORITY_PROPERTY] ?: 0
+                                                methodOffset = builder.getCompressedBlob<Int>(BuilderEntity.METHOD_OFFSET_PROPERTY)!!,
+                                                priority = builder.getCompressedBlob<Int>(BuilderEntity.PRIORITY_PROPERTY)
+                                                    ?: 0
                                             )
                                         }
                                     }

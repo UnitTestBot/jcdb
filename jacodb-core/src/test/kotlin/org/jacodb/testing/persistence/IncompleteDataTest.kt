@@ -17,7 +17,8 @@
 package org.jacodb.testing.persistence
 
 import kotlinx.coroutines.runBlocking
-import org.jacodb.impl.JcSettings
+import org.jacodb.api.jvm.JcSettings
+import org.jacodb.impl.JcSQLitePersistenceSettings
 import org.jacodb.impl.features.Builders
 import org.jacodb.impl.features.Usages
 import org.jacodb.impl.fs.JavaRuntime
@@ -52,6 +53,7 @@ class IncompleteDataTest {
                 persistent(jdbcLocation)
                 installFeatures(Usages, Builders)
                 loadByteCode(allClasspath)
+                persistenceImpl(JcSQLitePersistenceSettings)
             }.also {
                 if (awaitBackground) {
                     it.awaitBackgroundJobs()

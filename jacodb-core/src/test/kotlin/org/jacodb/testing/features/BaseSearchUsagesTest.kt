@@ -22,8 +22,8 @@ import org.jacodb.api.jvm.ext.CONSTRUCTOR
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.impl.features.usagesExt
 import org.jacodb.testing.BaseTest
-import org.jacodb.testing.WithGlobalDB
-import org.jacodb.testing.WithGlobalRAMDB
+import org.jacodb.testing.WithGlobalDb
+import org.jacodb.testing.WithGlobalSQLiteDb
 import org.jacodb.testing.usages.fields.FieldA
 import org.jacodb.testing.usages.fields.FieldB
 import org.jacodb.testing.usages.methods.MethodA
@@ -187,14 +187,10 @@ abstract class BaseSearchUsagesTest : BaseTest() {
 
 }
 
-class InMemoryHierarchySearchUsagesTest : BaseSearchUsagesTest() {
-    companion object : WithGlobalDB()
-}
-
 class SearchUsagesTest : BaseSearchUsagesTest() {
-    companion object : WithGlobalDB()
+    companion object : WithGlobalDb()
 }
 
-class SearchUsagesRAMTest : BaseSearchUsagesTest() {
-    companion object : WithGlobalRAMDB()
+class SearchUsagesSQLiteTest : BaseSearchUsagesTest() {
+    companion object : WithGlobalSQLiteDb()
 }

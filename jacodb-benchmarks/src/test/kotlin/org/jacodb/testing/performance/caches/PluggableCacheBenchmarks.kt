@@ -17,7 +17,7 @@
 package org.jacodb.testing.performance.caches
 
 import kotlinx.benchmark.Blackhole
-import org.jacodb.impl.ValueStoreType
+import org.jacodb.api.jvm.ValueStoreType
 import org.jacodb.impl.caches.PluggableCache
 import org.jacodb.impl.caches.xodus.XODUS_CACHE_PROVIDER_ID
 import org.openjdk.jmh.annotations.Benchmark

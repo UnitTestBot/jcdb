@@ -23,19 +23,19 @@ import org.jacodb.api.jvm.ext.HierarchyExtension
 import org.jacodb.impl.JcXodusKvErsSettings
 import org.jacodb.impl.features.hierarchyExt
 import org.jacodb.testing.LifecycleTest
-import org.jacodb.testing.WithRestoredDB
+import org.jacodb.testing.WithRestoredDb
 import org.jacodb.testing.allClasspath
 import org.jacodb.testing.tests.DatabaseEnvTest
-import org.jacodb.testing.withDB
+import org.jacodb.testing.withDb
 
 @LifecycleTest
 open class RestoredDBTest : DatabaseEnvTest() {
 
-    companion object : WithRestoredDB()
+    companion object : WithRestoredDb()
 
     override val cp: JcClasspath by lazy {
         runBlocking {
-            val withDB = this@RestoredDBTest.javaClass.withDB
+            val withDB = this@RestoredDBTest.javaClass.withDb
             withDB.db.classpath(allClasspath)
         }
     }
@@ -46,7 +46,7 @@ open class RestoredDBTest : DatabaseEnvTest() {
 @LifecycleTest
 class RestoredXodusDBTest : RestoredDBTest() {
 
-    companion object : WithRestoredDB() {
+    companion object : WithRestoredDb() {
 
         override val implSettings: JcPersistenceImplSettings get() = JcXodusKvErsSettings
     }

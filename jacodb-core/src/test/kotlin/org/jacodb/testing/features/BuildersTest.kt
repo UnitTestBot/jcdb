@@ -24,19 +24,23 @@ import org.jacodb.impl.features.Builders
 import org.jacodb.impl.features.InMemoryHierarchy
 import org.jacodb.impl.features.buildersExtension
 import org.jacodb.testing.BaseTest
-import org.jacodb.testing.WithGlobalDB
-import org.jacodb.testing.WithRAMDB
+import org.jacodb.testing.WithGlobalDbImmutable
+import org.jacodb.testing.WithSQLiteDb
 import org.jacodb.testing.builders.Hierarchy.HierarchyInterface
 import org.jacodb.testing.builders.Interfaces.Interface
 import org.jacodb.testing.builders.Simple
 import org.jooq.DSLContext
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.DisabledOnJre
 import org.junit.jupiter.api.condition.JRE
 import javax.xml.parsers.DocumentBuilderFactory
 
-abstract class BuildersTest : BaseTest() {
+open class BuildersTest : BaseTest() {
+
+    companion object : WithGlobalDbImmutable()
 
     private val ext = runBlocking {
         cp.buildersExtension()
@@ -96,10 +100,6 @@ abstract class BuildersTest : BaseTest() {
     private val JcMethod.loggable get() = enclosingClass.name + "#" + name
 }
 
-class BuildersSqlTest : BuildersTest() {
-    companion object : WithGlobalDB()
-}
-
-class BuildersRamTest : BuildersTest() {
-    companion object : WithRAMDB(Builders, InMemoryHierarchy)
+class BuildersSQLiteTest : BuildersTest() {
+    companion object : WithSQLiteDb(Builders, InMemoryHierarchy)
 }

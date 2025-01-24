@@ -16,8 +16,8 @@
 
 package org.jacodb.impl.types
 
-import org.jacodb.api.jvm.JCDBSymbolsInterner
-import org.jacodb.impl.asSymbolId
+import org.jacodb.api.storage.SymbolInterner
+import org.jacodb.api.storage.asSymbolId
 import org.jacodb.impl.storage.AnnotationValueKind
 
 fun collectSymbols(classes: List<ClassInfo>): Set<String> = hashSetOf<String>().apply {
@@ -99,7 +99,7 @@ data class AnnotationValueItem(
 class AnnotationCollector(
     private val annotationIdGen: LongRef,
     private val annotationValueIdGen: LongRef,
-    private val symbolInterner: JCDBSymbolsInterner
+    private val symbolInterner: SymbolInterner
 ) {
     val collected = ArrayList<AnnotationItem>()
     val collectedValues = ArrayList<AnnotationValueItem>()

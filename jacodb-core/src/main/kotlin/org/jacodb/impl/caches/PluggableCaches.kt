@@ -16,7 +16,7 @@
 
 package org.jacodb.impl.caches
 
-import org.jacodb.impl.ValueStoreType
+import org.jacodb.api.jvm.ValueStoreType
 import java.time.Duration
 
 class PluggableCacheException(message: String) : RuntimeException(message)

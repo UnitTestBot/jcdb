@@ -22,44 +22,53 @@ import org.jacodb.api.jvm.JcClasspathFeature
 import org.jacodb.api.jvm.JcDatabase
 import org.jacodb.api.jvm.JcFeature
 import org.jacodb.api.jvm.JcPersistenceImplSettings
+import org.jacodb.impl.JcErsSettings
 import org.jacodb.impl.JcRamErsSettings
 import org.jacodb.impl.JcSQLitePersistenceSettings
+import org.jacodb.impl.RamErsSettings
 import org.jacodb.impl.features.Builders
 import org.jacodb.impl.features.InMemoryHierarchy
 import org.jacodb.impl.features.Usages
+import org.jacodb.impl.features.classpaths.UnknownClassMethodsAndFields
+import org.jacodb.impl.features.classpaths.UnknownClasses
 import org.jacodb.impl.jacodb
+import org.jacodb.impl.storage.ers.ram.RAM_ERS_SPI
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Tag
 import java.nio.file.Files
+import java.nio.file.Paths
+import kotlin.io.path.absolutePathString
 import kotlin.reflect.full.companionObjectInstance
 
 @Tag("lifecycle")
 annotation class LifecycleTest
 
 
-abstract class BaseTest {
+abstract class BaseTest(getAdditionalFeatures: (() -> List<JcClasspathFeature>)? = null) {
 
-    protected open val cp: JcClasspath = runBlocking {
-        val withDB = this@BaseTest.javaClass.withDB
-        withDB.db.classpath(allClasspath, withDB.classpathFeatures.toList())
+    protected open val cp: JcClasspath by lazy {
+        runBlocking {
+            val withDb = this@BaseTest.javaClass.withDb
+            val additionalFeatures = getAdditionalFeatures?.invoke().orEmpty()
+            withDb.db.classpath(allClasspath, additionalFeatures + withDb.classpathFeatures.toList())
+        }
     }
 
     @AfterEach
     open fun close() {
         cp.close()
     }
-
 }
 
-val Class<*>.withDB: JcDatabaseHolder
+val Class<*>.withDb: JcDatabaseHolder
     get() {
         val comp = kotlin.companionObjectInstance
         if (comp is JcDatabaseHolder) {
             return comp
         }
         val s = superclass
-            ?: throw IllegalStateException("can't find WithDB companion object. Please check that test class has it.")
-        return s.withDB
+            ?: throw IllegalStateException("can't find WithDb companion object. Please check that test class has it.")
+        return s.withDb
     }
 
 
@@ -70,7 +79,7 @@ interface JcDatabaseHolder {
     fun cleanup()
 }
 
-open class WithDB(vararg features: Any) : JcDatabaseHolder {
+open class WithDb(vararg features: Any) : JcDatabaseHolder {
 
     protected var allFeatures = features.toList().toTypedArray()
 
@@ -98,23 +107,63 @@ open class WithDB(vararg features: Any) : JcDatabaseHolder {
         db.close()
     }
 
-    internal open fun persistenceImpl(): JcPersistenceImplSettings = JcSQLitePersistenceSettings
+    internal open fun persistenceImpl(): JcPersistenceImplSettings = JcRamErsSettings
 }
 
-open class WithRAMDB(vararg features: Any) : WithDB(*features) {
+open class WithDbImmutable(vararg features: Any) : JcDatabaseHolder {
 
-    override fun persistenceImpl() = JcRamErsSettings
+    protected var allFeatures = features.toList().toTypedArray()
+
+    val dbFeatures = allFeatures.mapNotNull { it as? JcFeature<*, *> }
+    override val classpathFeatures = allFeatures.mapNotNull { it as? JcClasspathFeature }
+
+    override var db = runBlocking {
+        jacodb {
+            persistenceImpl(JcErsSettings(RAM_ERS_SPI, RamErsSettings(immutableDumpsPath = tempDir)))
+            loadByteCode(allClasspath)
+            useProcessJavaRuntime()
+            keepLocalVariableNames()
+            installFeatures(*dbFeatures.toTypedArray())
+        }.also {
+            it.setImmutable()
+        }
+    }
+
+    override fun cleanup() {
+        db.close()
+    }
+
+    companion object {
+        private val tempDir by lazy {
+            Paths.get(System.getProperty("java.io.tmpdir"), "jcdb-ers-immutable")
+                .also {
+                    if (!Files.exists(it)) {
+                        Files.createDirectories(it)
+                    }
+                }
+                .absolutePathString()
+        }
+    }
+}
+
+open class WithSQLiteDb(vararg features: Any) : WithDb(*features) {
+
+    override fun persistenceImpl() = JcSQLitePersistenceSettings
 }
 
 val globalDb by lazy {
-    WithDB(Usages, Builders, InMemoryHierarchy).db
+    WithDb(Usages, Builders, InMemoryHierarchy).db
 }
 
-val globalRAMDb by lazy {
-    WithRAMDB(Usages, Builders, InMemoryHierarchy).db
+val globalDbImmutable by lazy {
+    WithDbImmutable(Usages, Builders, InMemoryHierarchy).db
 }
 
-open class WithGlobalDB(vararg _classpathFeatures: JcClasspathFeature) : JcDatabaseHolder {
+val globalSQLiteDb by lazy {
+    WithSQLiteDb(Usages, Builders, InMemoryHierarchy).db
+}
+
+open class WithGlobalDb(vararg _classpathFeatures: JcClasspathFeature) : JcDatabaseHolder {
 
     init {
         System.setProperty("org.jacodb.impl.storage.defaultBatchSize", "500")
@@ -128,7 +177,7 @@ open class WithGlobalDB(vararg _classpathFeatures: JcClasspathFeature) : JcDatab
     }
 }
 
-open class WithGlobalRAMDB(vararg _classpathFeatures: JcClasspathFeature) : JcDatabaseHolder {
+open class WithGlobalDbImmutable(vararg _classpathFeatures: JcClasspathFeature) : JcDatabaseHolder {
 
     init {
         System.setProperty("org.jacodb.impl.storage.defaultBatchSize", "500")
@@ -136,13 +185,46 @@ open class WithGlobalRAMDB(vararg _classpathFeatures: JcClasspathFeature) : JcDa
 
     override val classpathFeatures: List<JcClasspathFeature> = _classpathFeatures.toList()
 
-    override val db: JcDatabase get() = globalRAMDb
+    override val db: JcDatabase get() = globalDbImmutable
 
     override fun cleanup() {
     }
 }
 
-open class WithRestoredDB(vararg features: JcFeature<*, *>) : WithDB(*features) {
+open class WithGlobalSQLiteDb(vararg _classpathFeatures: JcClasspathFeature) : JcDatabaseHolder {
+
+    init {
+        System.setProperty("org.jacodb.impl.storage.defaultBatchSize", "500")
+    }
+
+    override val classpathFeatures: List<JcClasspathFeature> = _classpathFeatures.toList()
+
+    override val db: JcDatabase get() = globalSQLiteDb
+
+    override fun cleanup() {
+    }
+}
+
+open class WithGlobalDbWithoutJRE(vararg _classpathFeatures: JcClasspathFeature) :
+    WithGlobalDb(*_classpathFeatures) {
+
+    override val classpathFeatures: List<JcClasspathFeature> =
+        super.classpathFeatures + UnknownClasses + UnknownClassMethodsAndFields
+
+    override val db: JcDatabase = runBlocking {
+        jacodb {
+            persistenceImpl(JcRamErsSettings)
+            loadByteCode(allClasspath)
+            keepLocalVariableNames()
+            buildModelForJRE(build = false)
+            installFeatures(Usages, Builders, InMemoryHierarchy)
+        }.also {
+            it.awaitBackgroundJobs()
+        }
+    }
+}
+
+open class WithRestoredDb(vararg features: JcFeature<*, *>) : WithDb(*features) {
 
     private val location by lazy {
         if (implSettings is JcSQLitePersistenceSettings) {
@@ -152,16 +234,16 @@ open class WithRestoredDB(vararg features: JcFeature<*, *>) : WithDB(*features) 
         }
     }
 
-    var tempDb: JcDatabase? = newDB()
+    var tempDb: JcDatabase? = newDb()
 
-    override var db: JcDatabase = newDB {
+    override var db: JcDatabase = newDb {
         tempDb?.close()
         tempDb = null
     }
 
     open val implSettings: JcPersistenceImplSettings get() = JcSQLitePersistenceSettings
 
-    private fun newDB(before: () -> Unit = {}): JcDatabase {
+    private fun newDb(before: () -> Unit = {}): JcDatabase {
         before()
         return runBlocking {
             jacodb {
@@ -179,5 +261,4 @@ open class WithRestoredDB(vararg features: JcFeature<*, *>) : WithDB(*features) 
             }
         }
     }
-
 }

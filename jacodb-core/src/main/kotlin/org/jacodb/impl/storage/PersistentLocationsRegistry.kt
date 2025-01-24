@@ -16,10 +16,10 @@
 
 package org.jacodb.impl.storage
 
-import org.jacodb.api.jvm.JCDBContext
 import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.LocationType
 import org.jacodb.api.jvm.RegisteredLocation
+import org.jacodb.api.storage.StorageContext
 import org.jacodb.api.storage.ers.getEntityOrNull
 import org.jacodb.impl.CleanupResult
 import org.jacodb.impl.JcDatabaseImpl
@@ -117,7 +117,7 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
 
     override val snapshots: KeySetView<LocationsRegistrySnapshot, Boolean> = ConcurrentHashMap.newKeySet()
 
-    private fun JCDBContext.save(location: JcByteCodeLocation) =
+    private fun StorageContext.save(location: JcByteCodeLocation) =
         PersistentByteCodeLocation(jcdb, location.findOrNew(this), location)
 
     override fun setup(runtimeLocations: List<JcByteCodeLocation>): RegistrationResult {
@@ -229,7 +229,7 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
         }
     }
 
-    private fun JCDBContext.deprecate(locations: List<RegisteredLocation>) {
+    private fun StorageContext.deprecate(locations: List<RegisteredLocation>) {
         locations.forEach {
             jcdb.featuresRegistry.broadcast(JcInternalSignal.LocationRemoved(it))
         }
@@ -344,7 +344,7 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
         runtimeLocations = emptyList()
     }
 
-    private fun JcByteCodeLocation.findOrNew(context: JCDBContext): PersistentByteCodeLocationData {
+    private fun JcByteCodeLocation.findOrNew(context: StorageContext): PersistentByteCodeLocationData {
         val existed = findOrNull(context)
         if (existed != null) {
             return existed
@@ -369,7 +369,7 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
         )
     }
 
-    private fun JcByteCodeLocation.findOrNull(context: JCDBContext): PersistentByteCodeLocationData? {
+    private fun JcByteCodeLocation.findOrNull(context: StorageContext): PersistentByteCodeLocationData? {
         return context.execute(
             sqlAction = { jooq ->
                 jooq.selectFrom(BYTECODELOCATIONS)

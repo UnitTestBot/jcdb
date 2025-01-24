@@ -14,15 +14,18 @@
  *  limitations under the License.
  */
 
-package org.jacodb.api.jvm
+package org.jacodb.impl.storage
 
-class JcPersistenceSettings {
-    val persistenceId: String? get() = implSettings?.persistenceId
-    var persistenceLocation: String? = null
-    var persistenceClearOnStart: Boolean? = null
-    var implSettings: JcPersistenceImplSettings? = null
+import org.jacodb.api.storage.ContextProperty
+import org.jacodb.api.storage.StorageContext
+import org.jacodb.api.storage.ers.Transaction
+
+private object ERSTransactionProperty : ContextProperty<Transaction> {
+    override fun toString() = "transaction"
 }
 
-interface JcPersistenceImplSettings {
-    val persistenceId: String
-}
+fun toStorageContext(txn: Transaction) = StorageContext.of(ERSTransactionProperty, txn)
+
+val StorageContext.txn: Transaction get() = getContextObject(ERSTransactionProperty)
+
+val StorageContext.isErsContext: Boolean get() = hasContextObject(ERSTransactionProperty)

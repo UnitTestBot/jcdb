@@ -22,19 +22,18 @@ package org.jacodb.impl.features
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.future.future
 import org.jacodb.api.jvm.ClassSource
-import org.jacodb.api.jvm.JCDBContext
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcMethod
 import org.jacodb.api.jvm.ext.HierarchyExtension
 import org.jacodb.api.jvm.ext.JAVA_OBJECT
 import org.jacodb.api.jvm.ext.findDeclaredMethodOrNull
+import org.jacodb.api.storage.StorageContext
 import org.jacodb.api.storage.ers.CollectionEntityIterable
 import org.jacodb.api.storage.ers.Entity
 import org.jacodb.api.storage.ers.EntityIterable
 import org.jacodb.api.storage.ers.Transaction
 import org.jacodb.api.storage.ers.compressed
-import org.jacodb.impl.asSymbolId
 import org.jacodb.impl.fs.PersistenceClassSource
 import org.jacodb.impl.storage.BatchedSequence
 import org.jacodb.impl.storage.defaultBatchSize
@@ -46,12 +45,12 @@ import org.jacodb.impl.storage.jooq.tables.references.CLASSES
 import org.jacodb.impl.storage.jooq.tables.references.CLASSHIERARCHIES
 import org.jacodb.impl.storage.jooq.tables.references.SYMBOLS
 import org.jacodb.impl.storage.txn
+import org.jacodb.impl.util.Sequence
 import org.jooq.Condition
 import org.jooq.Record3
 import org.jooq.SelectConditionStep
 import org.jooq.impl.DSL
 import java.util.concurrent.Future
-import org.jacodb.impl.util.Sequence as Sequence
 
 suspend fun JcClasspath.hierarchyExt(): HierarchyExtension {
     db.awaitBackgroundJobs()
@@ -63,7 +62,7 @@ suspend fun JcClasspath.hierarchyExt(): HierarchyExtension {
 
 fun JcClasspath.asyncHierarchyExt(): Future<HierarchyExtension> = GlobalScope.future { hierarchyExt() }
 
-internal fun JcClasspath.allClassesExceptObject(context: JCDBContext, direct: Boolean): Sequence<ClassSource> {
+internal fun JcClasspath.allClassesExceptObject(context: StorageContext, direct: Boolean): Sequence<ClassSource> {
     val locationIds = registeredLocationIds
     return context.execute(
         sqlAction = { jooq ->
@@ -157,21 +156,22 @@ private class HierarchyExtensionERS(cp: JcClasspath) : HierarchyExtensionBase(cp
             return cp.findSubclassesInMemory(name, entireHierarchy, full)
         }
         return Sequence {
-            val persistence = db.persistence
-            persistence.read { context ->
-                val txn = context.txn
-                if (name == JAVA_OBJECT) {
-                    cp.allClassesExceptObject(context, !entireHierarchy)
-                } else {
-                    val locationIds = cp.registeredLocationIds
-                    val nameId = name.asSymbolId(persistence.symbolInterner)
-                    if (entireHierarchy) {
-                        entireHierarchy(txn, nameId, mutableSetOf())
+            with(db.persistence) {
+                read { context ->
+                    val txn = context.txn
+                    if (name == JAVA_OBJECT) {
+                        cp.allClassesExceptObject(context, !entireHierarchy)
                     } else {
-                        directSubClasses(txn, nameId)
-                    }.filter { clazz -> clazz.getCompressed<Long>("locationId") in locationIds }
-                        .toClassSourceSequence(db)
-                }.mapTo(mutableListOf()) { cp.toJcClass(it) }
+                        val locationIds = cp.registeredLocationIds
+                        val nameId = name.asSymbolId()
+                        if (entireHierarchy) {
+                            entireHierarchy(txn, nameId, mutableSetOf())
+                        } else {
+                            directSubClasses(txn, nameId)
+                        }.filter { clazz -> clazz.getCompressed<Long>("locationId") in locationIds }
+                            .toClassSourceSequence(db)
+                    }.mapTo(mutableListOf()) { cp.toJcClass(it) }
+                }
             }
         }
     }

@@ -17,7 +17,6 @@
 package org.jacodb.approximation
 
 import org.jacodb.api.jvm.ByteCodeIndexer
-import org.jacodb.api.jvm.JCDBContext
 import org.jacodb.api.jvm.JcClassExtFeature
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
@@ -30,6 +29,7 @@ import org.jacodb.api.jvm.JcSignal
 import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.jvm.cfg.JcInstList
 import org.jacodb.api.jvm.cfg.JcRawInst
+import org.jacodb.api.storage.StorageContext
 import org.jacodb.api.storage.ers.compressed
 import org.jacodb.approximation.TransformerIntoVirtual.transformMethodIntoVirtual
 import org.jacodb.approximation.annotation.Approximate
@@ -193,7 +193,7 @@ private class ApproximationIndexer(
         approximationToOriginal[approximationClassName] = originalClassName
     }
 
-    override fun flush(context: JCDBContext) {
+    override fun flush(context: StorageContext) {
         // do nothing
     }
 }

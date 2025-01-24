@@ -18,7 +18,6 @@ package org.jacodb.impl.features
 
 import org.jacodb.api.jvm.ByteCodeIndexer
 import org.jacodb.api.jvm.ClassSource
-import org.jacodb.api.jvm.JCDBContext
 import org.jacodb.api.jvm.JcClassOrInterface
 import org.jacodb.api.jvm.JcClasspath
 import org.jacodb.api.jvm.JcDatabase
@@ -27,9 +26,10 @@ import org.jacodb.api.jvm.JcFeature
 import org.jacodb.api.jvm.JcSignal
 import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.jvm.ext.JAVA_OBJECT
+import org.jacodb.api.storage.StorageContext
+import org.jacodb.api.storage.asSymbolId
 import org.jacodb.api.storage.ers.compressed
 import org.jacodb.api.storage.ers.links
-import org.jacodb.impl.asSymbolId
 import org.jacodb.impl.fs.PersistenceClassSource
 import org.jacodb.impl.fs.className
 import org.jacodb.impl.storage.BatchedSequence
@@ -38,14 +38,14 @@ import org.jacodb.impl.storage.execute
 import org.jacodb.impl.storage.jooq.tables.references.CLASSES
 import org.jacodb.impl.storage.jooq.tables.references.CLASSHIERARCHIES
 import org.jacodb.impl.storage.jooq.tables.references.SYMBOLS
-import org.jacodb.impl.storage.toJCDBContext
+import org.jacodb.impl.storage.toStorageContext
 import org.jacodb.impl.storage.withoutAutoCommit
+import org.jacodb.impl.util.Sequence
 import org.jooq.impl.DSL
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.ClassNode
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.min
-import org.jacodb.impl.util.Sequence as Sequence
 
 typealias InMemoryHierarchyCache = ConcurrentHashMap<Long, ConcurrentHashMap<Long, MutableSet<Long>>>
 
@@ -74,11 +74,11 @@ class InMemoryHierarchyIndexer(
             }
     }
 
-    override fun flush(context: JCDBContext) {
+    override fun flush(context: StorageContext) {
         context.execute(
             sqlAction = { jooq ->
                 jooq.withoutAutoCommit { conn ->
-                    interner.flush(toJCDBContext(jooq, conn))
+                    interner.flush(toStorageContext(jooq, conn))
                 }
             },
             noSqlAction = {
@@ -112,7 +112,7 @@ object InMemoryHierarchy : JcFeature<InMemoryHierarchyReq, ClassSource> {
                                 }
                         },
                         noSqlAction = { txn ->
-                            txn.all("Class").map { clazz ->
+                            txn.all("Class").forEach { clazz ->
                                 val locationId: Long? = clazz.getCompressed("locationId")
                                 val classSymbolId: Long? = clazz.getCompressed("nameId")
                                 val superClasses = mutableListOf<Long>()
