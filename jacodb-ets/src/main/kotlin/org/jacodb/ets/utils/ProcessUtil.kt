@@ -41,19 +41,19 @@ object ProcessUtil {
 
         // Handle process input
         val stdinJob = scope.launch {
-            process.outputWriter().use { writer ->
+            process.outputStream.bufferedWriter().use { writer ->
                 input.copyTo(writer)
             }
         }
 
         // Launch output capture coroutines
         val stdoutJob = scope.launch {
-            process.inputReader().useLines { lines ->
+            process.inputStream.bufferedReader().useLines { lines ->
                 lines.forEach { stdout.appendLine(it) }
             }
         }
         val stderrJob = scope.launch {
-            process.errorReader().useLines { lines ->
+            process.errorStream.bufferedReader().useLines { lines ->
                 lines.forEach { stderr.appendLine(it) }
             }
         }
