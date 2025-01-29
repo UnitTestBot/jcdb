@@ -38,6 +38,8 @@ import org.jacodb.impl.fs.PersistenceClassSource
 import org.jacodb.impl.storage.BatchedSequence
 import org.jacodb.impl.storage.defaultBatchSize
 import org.jacodb.impl.storage.dslContext
+import org.jacodb.impl.storage.ers.filterDeleted
+import org.jacodb.impl.storage.ers.filterLocations
 import org.jacodb.impl.storage.ers.toClassSourceSequence
 import org.jacodb.impl.storage.execute
 import org.jacodb.impl.storage.isSqlContext
@@ -95,12 +97,14 @@ internal fun JcClasspath.allClassesExceptObject(context: StorageContext, direct:
             }
         },
         noSqlAction = { txn ->
-            val objectNameId = db.persistence.findSymbolId(JAVA_OBJECT)
-            txn.all("Class").filter { clazz ->
-                (!direct || clazz.getCompressed<Long>("inherits") == null) &&
-                        clazz.getCompressed<Long>("locationId") in locationIds &&
-                        clazz.getCompressed<Long>("nameId") != objectNameId
-            }.toClassSourceSequence(db).toList().asSequence()
+            val objectNameId by lazy(LazyThreadSafetyMode.NONE) { db.persistence.findSymbolId(JAVA_OBJECT) }
+            txn.all("Class")
+                .filterLocations(locationIds)
+                .filterDeleted()
+                .filter { clazz ->
+                    (!direct || clazz.getCompressed<Long>("inherits") == null) &&
+                            clazz.getCompressed<Long>("nameId") != objectNameId
+                }.toClassSourceSequence(db).toList().asSequence()
         }
     )
 }

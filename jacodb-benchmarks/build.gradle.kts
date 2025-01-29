@@ -85,6 +85,9 @@ benchmark {
             include("RAMEntityRelationshipStorageMutableBenchmarks")
             include("RAMEntityRelationshipStorageImmutableBenchmarks")
         }
+        register("hash") {
+            include("HashBenchmarks")
+        }
     }
 }
 
