@@ -24,6 +24,7 @@ import org.jacodb.impl.features.InMemoryHierarchy
 import org.jacodb.impl.features.findSubclassesInMemory
 import org.jacodb.impl.features.hierarchyExt
 import org.jacodb.impl.storage.dslContext
+import org.jacodb.impl.storage.ers.filterDeleted
 import org.jacodb.impl.storage.jooq.tables.references.CLASSES
 import org.jacodb.impl.storage.txn
 import org.jacodb.testing.BaseTest
@@ -99,7 +100,8 @@ abstract class BaseInMemoryHierarchyTest : BaseTest() {
         assertEquals(numberOfClasses - 1, findSubClasses<Any>(allHierarchy = true).count())
     }
 
-    protected open fun getNumberOfClasses(): Int = cp.db.persistence.read { it.txn.all("Class").size.toInt() }
+    protected open fun getNumberOfClasses(): Int =
+        cp.db.persistence.read { it.txn.all("Class").filterDeleted().count() }
 
     @Test
     fun `find subclasses of Comparable`() {

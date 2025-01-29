@@ -30,6 +30,9 @@ import org.jacodb.api.storage.ers.compressed
 import org.jacodb.api.storage.ers.nonSearchable
 import org.jacodb.impl.fs.PersistenceClassSource
 import org.jacodb.impl.fs.className
+import org.jacodb.impl.storage.ers.filterDeleted
+import org.jacodb.impl.storage.ers.filterLocations
+import org.jacodb.impl.storage.ers.toClassSource
 import org.jacodb.impl.storage.execute
 import org.jacodb.impl.storage.executeQueries
 import org.jacodb.impl.storage.jooq.tables.references.BUILDERS
@@ -288,25 +291,21 @@ object Builders : JcFeature<Set<String>, BuildersResponse> {
                                 val builderClassNameId: Long =
                                     builder.getCompressedBlob<Long>(BuilderEntity.BUILDER_CLASS_NAME_ID)!!
                                 txn.find("Class", "nameId", builderClassNameId.compressed)
-                                    .mapNotNull { builderClass ->
-                                        if (builderClass.getCompressed<Long>("locationId") != builderLocationId) {
-                                            null
-                                        } else {
-                                            BuildersResponse(
-                                                source = PersistenceClassSource(
-                                                    db = classpath.db,
-                                                    locationId = builderLocationId,
-                                                    classId = builderClass.id.instanceId,
-                                                    className = persistence.findSymbolName(builderClassNameId),
-                                                ),
-                                                methodOffset = builder.getCompressedBlob<Int>(BuilderEntity.METHOD_OFFSET_PROPERTY)!!,
-                                                priority = builder.getCompressedBlob<Int>(BuilderEntity.PRIORITY_PROPERTY)
-                                                    ?: 0
-                                            )
-                                        }
+                                    .filterLocations(builderLocationId)
+                                    .filterDeleted()
+                                    .map { builderClass ->
+                                        BuildersResponse(
+                                            source = builderClass.toClassSource(
+                                                persistence = persistence,
+                                                className = persistence.findSymbolName(builderClassNameId),
+                                                nameId = builderClassNameId
+                                            ),
+                                            methodOffset = builder.getCompressedBlob<Int>(BuilderEntity.METHOD_OFFSET_PROPERTY)!!,
+                                            priority = builder.getCompressedBlob<Int>(BuilderEntity.PRIORITY_PROPERTY)
+                                                ?: 0
+                                        )
                                     }
-                            }
-                            .toList()
+                            }.toList()
                     }
                 )
             }.sortedByDescending { it.priority }

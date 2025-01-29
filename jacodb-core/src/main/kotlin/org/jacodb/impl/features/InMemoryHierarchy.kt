@@ -34,6 +34,9 @@ import org.jacodb.impl.fs.PersistenceClassSource
 import org.jacodb.impl.fs.className
 import org.jacodb.impl.storage.BatchedSequence
 import org.jacodb.impl.storage.defaultBatchSize
+import org.jacodb.impl.storage.ers.filterDeleted
+import org.jacodb.impl.storage.ers.filterLocations
+import org.jacodb.impl.storage.ers.toClassSource
 import org.jacodb.impl.storage.execute
 import org.jacodb.impl.storage.jooq.tables.references.CLASSES
 import org.jacodb.impl.storage.jooq.tables.references.CLASSHIERARCHIES
@@ -112,7 +115,7 @@ object InMemoryHierarchy : JcFeature<InMemoryHierarchyReq, ClassSource> {
                                 }
                         },
                         noSqlAction = { txn ->
-                            txn.all("Class").forEach { clazz ->
+                            txn.all("Class").filterDeleted().forEach { clazz ->
                                 val locationId: Long? = clazz.getCompressed("locationId")
                                 val classSymbolId: Long? = clazz.getCompressed("nameId")
                                 val superClasses = mutableListOf<Long>()
@@ -234,17 +237,16 @@ object InMemoryHierarchy : JcFeature<InMemoryHierarchyReq, ClassSource> {
                         allSubclasses.asSequence()
                             .flatMap { classNameId ->
                                 txn.find("Class", "nameId", classNameId.compressed)
-                                    .filter { clazz ->
-                                        clazz.getCompressed<Long>("locationId") in locationIds
-                                    }
+                                    .filterLocations(locationIds)
+                                    .filterDeleted()
                             }
                             .map { clazz ->
+                                val nameId = clazz.getCompressed<Long>("nameId")!!
                                 val classId: Long = clazz.id.instanceId
-                                PersistenceClassSource(
-                                    db = classpath.db,
-                                    className = persistence.findSymbolName(clazz.getCompressed<Long>("nameId")!!),
-                                    classId = classId,
-                                    locationId = clazz.getCompressed<Long>("locationId")!!,
+                                clazz.toClassSource(
+                                    persistence = persistence,
+                                    className = persistence.findSymbolName(nameId),
+                                    nameId = nameId,
                                     cachedByteCode = if (req.full) persistence.findBytecode(classId) else null
                                 )
                             }

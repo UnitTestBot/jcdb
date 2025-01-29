@@ -33,6 +33,8 @@ import org.jacodb.impl.storage.BatchedSequence
 import org.jacodb.impl.storage.defaultBatchSize
 import org.jacodb.impl.storage.dslContext
 import org.jacodb.impl.storage.eqOrNull
+import org.jacodb.impl.storage.ers.filterDeleted
+import org.jacodb.impl.storage.ers.toClassSource
 import org.jacodb.impl.storage.execute
 import org.jacodb.impl.storage.executeQueries
 import org.jacodb.impl.storage.isSqlContext
@@ -275,13 +277,15 @@ object Usages : JcFeature<UsageFeatureRequest, UsageFeatureResponse> {
                         .map { (call, locationId) ->
                             val callerId = call.getCompressedBlob<Long>("callerId")!!
                             val caller = symbolInterner.findSymbolName(callerId)!!
-                            val classId = txn.find("Class", "nameId", callerId.compressed).first().id.instanceId
+                            val clazz = txn.find("Class", "nameId", callerId.compressed)
+                                .filterDeleted()
+                                .first()
+                            val classId = clazz.id.instanceId
                             UsageFeatureResponse(
-                                source = PersistenceClassSource(
-                                    db = classpath.db,
+                                source = clazz.toClassSource(
+                                    persistence = persistence,
                                     className = caller,
-                                    classId = classId,
-                                    locationId = locationId,
+                                    nameId = callerId,
                                     cachedByteCode = persistence.findBytecode(classId)
                                 ),
                                 offsets = call.getRawBlob("offsets")!!.toShortArray()

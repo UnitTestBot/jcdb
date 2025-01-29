@@ -23,10 +23,13 @@ import org.jacodb.api.jvm.JcDatabasePersistence
 import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.storage.ers.Entity
 import org.jacodb.api.storage.ers.getEntityOrNull
-import org.jacodb.impl.fs.asByteCodeLocation
+import org.jacodb.impl.fs.BuildFolderLocation
+import org.jacodb.impl.fs.JarLocation
+import org.jacodb.impl.fs.isJar
 import org.jacodb.impl.storage.jooq.tables.records.BytecodelocationsRecord
 import org.jacodb.impl.storage.jooq.tables.references.BYTECODELOCATIONS
 import java.io.File
+import java.math.BigInteger
 
 data class PersistentByteCodeLocationData(
     val id: Long,
@@ -65,14 +68,6 @@ class PersistentByteCodeLocation(
         data.id,
         data,
         location
-    )
-
-    constructor(db: JcDatabase, locationId: Long) : this(
-        db.persistence,
-        db.runtimeVersion,
-        locationId,
-        null,
-        null
     )
 
     val data by lazy {
@@ -116,14 +111,28 @@ class PersistentByteCodeLocation(
     }
 
     private fun PersistentByteCodeLocationData.toJcLocation(): JcByteCodeLocation? {
-        try {
-            val newOne = File(path).asByteCodeLocation(runtimeVersion, isRuntime = runtime).singleOrNull()
-            if (newOne?.fileSystemId != fileSystemId) {
-                return null
+        return try {
+            with(File(path)) {
+                if (!exists()) {
+                    null
+                } else if (isJar()) {
+                    // NB! This JarLocation inheritor is necessary for hacking PersistentLocationsRegistry
+                    // so that isChanged() would work properly in PersistentLocationsRegistry.refresh()
+                    val fsId = fileSystemId
+                    object : JarLocation(this@with, isRuntime, runtimeVersion) {
+                        override val fileSystemIdHash: BigInteger
+                            get() {
+                                return BigInteger(fsId, Character.MAX_RADIX)
+                            }
+                    }
+                } else if (isDirectory) {
+                    BuildFolderLocation(this)
+                } else {
+                    error("$absolutePath is nether a jar file nor a build directory")
+                }
             }
-            return newOne
         } catch (e: Exception) {
-            return null
+            null
         }
     }
 }

@@ -16,6 +16,7 @@
 
 package org.jacodb.impl.storage.ers
 
+import com.google.common.hash.Hashing
 import mu.KotlinLogging
 import org.jacodb.api.jvm.ClassSource
 import org.jacodb.api.jvm.JcClasspath
@@ -31,9 +32,7 @@ import org.jacodb.api.storage.ers.compressed
 import org.jacodb.api.storage.ers.findOrNew
 import org.jacodb.api.storage.ers.links
 import org.jacodb.api.storage.ers.nonSearchable
-import org.jacodb.impl.cfg.identityMap
 import org.jacodb.impl.fs.JavaRuntime
-import org.jacodb.impl.fs.PersistenceClassSource
 import org.jacodb.impl.fs.info
 import org.jacodb.impl.storage.AbstractJcDbPersistence
 import org.jacodb.impl.storage.AnnotationValueKind
@@ -43,11 +42,11 @@ import org.jacodb.impl.storage.txn
 import org.jacodb.impl.types.AnnotationInfo
 import org.jacodb.impl.types.AnnotationValue
 import org.jacodb.impl.types.AnnotationValueList
-import org.jacodb.impl.types.ClassInfo
 import org.jacodb.impl.types.ClassRef
 import org.jacodb.impl.types.EnumRef
 import org.jacodb.impl.types.PrimitiveValue
 import org.jacodb.impl.types.RefKind
+import java.nio.ByteBuffer
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -112,31 +111,57 @@ class ErsPersistenceImpl(
             return
         }
         val allClasses = classes.map { it.info }
-        val locationId = location.id.compressed
-        val classEntities = identityMap<ClassInfo, Entity>()
+        val locationId = location.id
+        val locationIdValue = locationId.compressed
         write { context ->
             val txn = context.txn
-            allClasses.forEach { classInfo ->
+            for (classInfo in allClasses) {
+                val classNameId = classInfo.name.asSymbolId()
+                // oldie is a non-deleted class with the same name & location
+                // there should be only one such class, or none
+                val oldie = txn.find("Class", "nameId", classNameId.compressed)
+                    .filterLocations(locationId)
+                    .filterDeleted()
+                    .exactSingleOrNull()
+                val bytecode = classInfo.bytecode
+                val hc = bytecode.hash()
+                if (oldie != null) {
+                    if (oldie.get<Long>("hc") == hc && oldie.getRawBlob("bytecode") contentEquals bytecode) {
+                        // class hasn't changed
+                        continue
+                    }
+                    // try to find deleted class with the same name, location & bytecode
+                    val sameClass = txn.find("Class", "hc", hc)
+                        .filterLocations(locationId)
+                        .filter {
+                            it.getCompressed<Long>("nameId") == classNameId &&
+                                    it.getRawBlob("bytecode") contentEquals bytecode
+                        }
+                        .exactSingleOrNull()
+                    if (sameClass != null) {
+                        // same class should be deleted
+                        check(sameClass.get<Boolean>("isDeleted") == true)
+                        // We found a deleted class with the same name, location & bytecode.
+                        // So undelete it, delete previously found class (oldie) and continue
+                        sameClass.deleteProperty("isDeleted")
+                        oldie["isDeleted"] = true
+                        continue
+                    }
+                }
+                // create new class
                 txn.newEntity("Class").also { clazz ->
-                    classEntities[classInfo] = clazz
-                    clazz["nameId"] = classInfo.name.asSymbolId().compressed
-                    clazz["locationId"] = locationId
-                    clazz.setRawBlob("bytecode", classInfo.bytecode)
+                    oldie?.set("isDeleted", true)
+                    clazz["nameId"] = classNameId.compressed
+                    clazz["locationId"] = locationIdValue
+                    clazz.setRawBlob("bytecode", bytecode)
+                    clazz["hc"] = hc
                     classInfo.annotations.forEach { annotationInfo ->
                         annotationInfo.save(txn, clazz, RefKind.CLASS)
                     }
-                }
-            }
-            allClasses.forEach { classInfo ->
-                if (classInfo.superClass != null) {
-                    classEntities[classInfo]?.let { clazz ->
-                        classInfo.superClass.takeIf { JAVA_OBJECT != it }?.let { superClassName ->
-                            clazz["inherits"] = superClassName.asSymbolId().compressed
-                        }
+                    classInfo.superClass.takeIf { JAVA_OBJECT != it }?.let { superClassName ->
+                        clazz["inherits"] = superClassName.asSymbolId().compressed
                     }
-                }
-                if (classInfo.interfaces.isNotEmpty()) {
-                    classEntities[classInfo]?.let { clazz ->
+                    if (classInfo.interfaces.isNotEmpty()) {
                         val implements = links(clazz, "implements")
                         classInfo.interfaces.forEach { interfaceName ->
                             txn.findOrNew("Interface", "nameId", interfaceName.asSymbolId().compressed)
@@ -160,9 +185,12 @@ class ErsPersistenceImpl(
 
     override fun findClassSources(db: JcDatabase, location: RegisteredLocation): List<ClassSource> {
         return read { context ->
-            context.txn.find("Class", "locationId", location.id.compressed).map {
-                it.toClassSource(db, findSymbolName(it.getCompressed<Long>("nameId") ?: throw NullPointerException()))
-            }.toList()
+            context.txn.find("Class", "locationId", location.id.compressed)
+                .filterDeleted()
+                .mapTo(mutableListOf()) {
+                    val nameId = requireNotNull(it.getCompressed<Long>("nameId")) { "nameId property isn't set" }
+                    it.toClassSource(this, findSymbolName(nameId), nameId)
+                }
         }
     }
 
@@ -194,10 +222,12 @@ class ErsPersistenceImpl(
         cp: JcClasspath,
         fullName: String
     ): Sequence<ClassSource> {
-        val ids = cp.registeredLocationIds
-        return context.txn.find("Class", "nameId", findSymbolId(fullName).compressed)
-            .filter { it.getCompressed<Long>("locationId") in ids }
-            .map { it.toClassSource(cp.db, fullName) }
+        val locationsIds = cp.registeredLocationIds
+        val nameId = findSymbolId(fullName)
+        return context.txn.find("Class", "nameId", nameId.compressed)
+            .filterDeleted()
+            .filterLocations(locationsIds)
+            .map { it.toClassSource(this, fullName, nameId) }
     }
 
     private fun AnnotationInfo.save(txn: Transaction, ref: Entity, refKind: RefKind): Entity {
@@ -259,13 +289,14 @@ class ErsPersistenceImpl(
             }
         }
     }
-}
 
-private fun Entity.toClassSource(db: JcDatabase, fullName: String) =
-    PersistenceClassSource(
-        db = db,
-        className = fullName,
-        classId = id.instanceId,
-        locationId = getCompressed<Long>("locationId") ?: throw NullPointerException("locationId property isn't set"),
-        cachedByteCode = getRawBlob("bytecode")
-    )
+    @Suppress("UnstableApiUsage")
+    private fun ByteArray.hash(): Long {
+        return Hashing.murmur3_128().newHasher().putBytes(this).hash().asBytes().let {
+            check(it.size == 16) { "MurMur3_128 hash function should return byte array of size 16" }
+            with(ByteBuffer.wrap(it)) {
+                long xor long
+            }
+        }
+    }
+}

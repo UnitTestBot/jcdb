@@ -21,6 +21,7 @@ package org.jacodb.impl.features
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.future.future
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.impl.storage.ers.filterDeleted
 import org.jacodb.impl.storage.execute
 import org.jacodb.impl.storage.jooq.tables.references.CLASSES
 import org.jacodb.impl.storage.jooq.tables.references.SYMBOLS
@@ -48,7 +49,7 @@ suspend fun JcClasspath.duplicatedClasses(): Map<String, Int> {
             },
             noSqlAction = { txn ->
                 val result = mutableMapOf<String, Int>().also { result ->
-                    txn.all("Class").forEach { clazz ->
+                    txn.all("Class").filterDeleted().forEach { clazz ->
                         val className = persistence.findSymbolName(clazz.getCompressed<Long>("nameId")!!)
                         result[className] = result.getOrDefault(className, 0) + 1
                     }
