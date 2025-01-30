@@ -92,13 +92,12 @@ data class ProgramGoto(
 data class Program(
     val nodes: List<ProgramNode>,
 ) {
-    fun toText(): String {
+    fun toText(indent: Int = 2): String {
         val lines = mutableListOf<String>()
-        val indentStep = 2
 
-        fun process(nodes: List<ProgramNode>, indent: Int = 0) {
+        fun process(nodes: List<ProgramNode>, currentIndent: Int = 0) {
             fun line(line: String) {
-                lines += " ".repeat(indent) + line
+                lines += " ".repeat(currentIndent) + line
             }
 
             for (node in nodes) {
@@ -108,10 +107,10 @@ data class Program(
                     is ProgramReturn -> line("return ${node.expr}")
                     is ProgramIf -> {
                         line("if (${node.condition}) {")
-                        process(node.thenBranch, indent + indentStep)
+                        process(node.thenBranch, currentIndent + indent)
                         if (node.elseBranch.isNotEmpty()) {
                             line("} else {")
-                            process(node.elseBranch, indent + indentStep)
+                            process(node.elseBranch, currentIndent + indent)
                         }
                         line("}")
                     }
