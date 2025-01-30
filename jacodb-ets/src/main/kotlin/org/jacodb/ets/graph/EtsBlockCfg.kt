@@ -300,15 +300,13 @@ private fun EtsStmt.toDotLabel(): String = when (this) {
     else -> this.toString()
 }
 
-fun EtsBlockCfg.toDot(): String {
-    val useHtml = true
+private fun String.htmlEncode(): String = this
+    .replace("&", "&amp;")
+    .replace("<", "&lt;")
+    .replace(">", "&gt;")
+    .replace("\"", "&quot;")
 
-    fun String.htmlEncode(): String = this
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace("\"", "&quot;")
-
+fun EtsBlockCfg.toDot(useHtml: Boolean = true): String {
     val lines = mutableListOf<String>()
     lines += "digraph cfg {"
     lines += "  node [shape=${if (useHtml) "none" else "rect"} fontname=\"monospace\"]"
