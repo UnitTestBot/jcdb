@@ -486,7 +486,7 @@ fun BlockCfg.toDot(): String {
     // Nodes
     for (block in blocks) {
         val s = block.statements.joinToString("") { it.toDotLabel() + "\\l" }
-        lines += "  ${block.id} [label=\"Block #${block.id}\\n${s}\"]"
+        lines += "  ${block.id} [label=\"Block #\\N\\n${s}\"]"
     }
 
     // Edges
@@ -609,7 +609,7 @@ fun LinearizedCfg.toDot(): String {
 
     // Nodes
     for (stmt in statements) {
-        lines += "  ${stmt.location} [label=\"${stmt.location}: ${stmt.toDotLabel()}\"]"
+        lines += "  ${stmt.location} [label=\"\\N: ${stmt.toDotLabel()}\"]"
     }
 
     // Edges
