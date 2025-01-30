@@ -145,7 +145,7 @@ class EtsBlockCfgBuilder(
 
         is Parameter -> EtsParameterRef(
             index = index,
-            type = EtsUnknownType,
+            type = method.parameters[index].type,
         )
 
         ThisRef -> EtsThis(type = EtsClassType(EtsClassSignature.DEFAULT))
