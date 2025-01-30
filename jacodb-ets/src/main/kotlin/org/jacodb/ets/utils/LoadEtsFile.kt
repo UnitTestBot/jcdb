@@ -16,6 +16,7 @@
 
 package org.jacodb.ets.utils
 
+import mu.KotlinLogging
 import org.jacodb.ets.dto.EtsFileDto
 import org.jacodb.ets.dto.toEtsFile
 import org.jacodb.ets.model.EtsFile
@@ -35,6 +36,8 @@ import kotlin.io.path.pathString
 import kotlin.io.path.walk
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+
+private val logger = KotlinLogging.logger {}
 
 private const val ENV_VAR_ARK_ANALYZER_DIR = "ARKANALYZER_DIR"
 private const val DEFAULT_ARK_ANALYZER_DIR = "arkanalyzer"
@@ -86,8 +89,18 @@ fun generateEtsIR(
         useArkAnalyzerTypeInference?.let { "-t $it" },
         projectPath.pathString,
         output.pathString,
+        "-v",
     )
-    ProcessUtil.run(cmd, timeout = timeout)
+    val res = ProcessUtil.run(cmd, timeout = timeout)
+    if (res.exitCode != 0) {
+        logger.error { "ARKANALYZER failed with exit code ${res.exitCode}" }
+        logger.error { "STDOUT:\n${res.stdout}" }
+        logger.error { "STDERR:\n${res.stderr}" }
+    } else if (res.isTimeout) {
+        logger.error { "ARKANALYZER timed out after $timeout" }
+        logger.error { "STDOUT:\n${res.stdout}" }
+        logger.error { "STDERR:\n${res.stderr}" }
+    }
     return output
 }
 
