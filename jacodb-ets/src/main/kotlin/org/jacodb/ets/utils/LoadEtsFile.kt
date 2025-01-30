@@ -26,12 +26,14 @@ import kotlin.io.path.Path
 import kotlin.io.path.PathWalkOption
 import kotlin.io.path.absolute
 import kotlin.io.path.createTempDirectory
+import kotlin.io.path.createTempFile
 import kotlin.io.path.exists
 import kotlin.io.path.extension
 import kotlin.io.path.inputStream
 import kotlin.io.path.nameWithoutExtension
 import kotlin.io.path.pathString
 import kotlin.io.path.walk
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 private const val ENV_VAR_ARK_ANALYZER_DIR = "ARKANALYZER_DIR"
@@ -48,6 +50,7 @@ fun generateEtsIR(
     isProject: Boolean = false,
     loadEntrypoints: Boolean = true,
     useArkAnalyzerTypeInference: Int? = null,
+    timeout: Duration? = 10.seconds,
 ): Path {
     val arkAnalyzerDir = Path(System.getenv(ENV_VAR_ARK_ANALYZER_DIR) ?: DEFAULT_ARK_ANALYZER_DIR)
     if (!arkAnalyzerDir.exists()) {
@@ -70,9 +73,9 @@ fun generateEtsIR(
 
     val node = System.getenv(ENV_VAR_NODE_EXECUTABLE) ?: DEFAULT_NODE_EXECUTABLE
     val output = if (isProject) {
-        createTempDirectory(prefix = projectPath.nameWithoutExtension)
+        createTempDirectory(projectPath.nameWithoutExtension)
     } else {
-        kotlin.io.path.createTempFile(prefix = projectPath.nameWithoutExtension, suffix = ".json")
+        createTempFile(projectPath.nameWithoutExtension, suffix = ".json")
     }
 
     val cmd = listOfNotNull(
@@ -84,7 +87,7 @@ fun generateEtsIR(
         projectPath.pathString,
         output.pathString,
     )
-    runProcess(cmd, 10.seconds)
+    ProcessUtil.run(cmd, timeout = timeout)
     return output
 }
 

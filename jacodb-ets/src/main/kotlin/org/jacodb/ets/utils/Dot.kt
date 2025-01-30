@@ -44,7 +44,11 @@ fun render(
             "-o",
             "$formatFile"
         )
-        runProcess(cmd, 10.seconds)
-        logger.info { "Generated ${format.uppercase()} file: ${formatFile.absolute()}" }
+        val res = ProcessUtil.run(cmd, timeout = 30.seconds)
+        if (res.isTimeout) {
+            logger.error { "Rendering DOT to ${format.uppercase()} timed out" }
+        } else {
+            logger.info { "Generated ${format.uppercase()} file: ${formatFile.absolute()}" }
+        }
     }
 }
