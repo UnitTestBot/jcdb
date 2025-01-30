@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import java.io.Reader
+import java.util.concurrent.TimeUnit
 
 private val logger = KotlinLogging.logger {}
 
@@ -30,20 +31,33 @@ object ProcessUtil {
         val exitCode: Int,
         val stdout: String,
         val stderr: String,
+        val isTimeout: Boolean, // true if the process was terminated due to timeout
     )
 
-    fun run(command: List<String>, input: String? = null): Result {
+    fun run(
+        command: List<String>,
+        input: String? = null,
+        timeout: Long? = null,
+    ): Result {
         val reader = input?.reader() ?: "".reader()
-        return run(command, reader)
+        return run(command, reader, timeout)
     }
 
-    fun run(command: List<String>, input: Reader): Result {
+    fun run(
+        command: List<String>,
+        input: Reader,
+        timeout: Long? = null,
+    ): Result {
         logger.debug { "Running command: $command" }
         val process = ProcessBuilder(command).start()
-        return communicate(process, input)
+        return communicate(process, input, timeout)
     }
 
-    private fun communicate(process: Process, input: Reader): Result {
+    private fun communicate(
+        process: Process,
+        input: Reader,
+        timeout: Long? = null,
+    ): Result {
         val stdout = StringBuilder()
         val stderr = StringBuilder()
 
@@ -69,7 +83,12 @@ object ProcessUtil {
         }
 
         // Wait for completion
-        val exitCode = process.waitFor()
+        val isTimeout = if (timeout != null) {
+            !process.waitFor(timeout, TimeUnit.SECONDS)
+        } else {
+            process.waitFor()
+            false
+        }
         runBlocking {
             stdinJob.join()
             stdoutJob.join()
@@ -77,9 +96,10 @@ object ProcessUtil {
         }
 
         return Result(
-            exitCode = exitCode,
+            exitCode = process.exitValue(),
             stdout = stdout.toString(),
             stderr = stderr.toString(),
+            isTimeout = isTimeout,
         )
     }
 }
@@ -88,6 +108,6 @@ fun main() {
     // Note: `ls -l /bin/` has big enough output to demonstrate the necessity
     //   of separate output capture threads/coroutines.
     val result = ProcessUtil.run(listOf("ls", "-l", "/bin/"))
-    println("STDOUR:\n${result.stdout}")
-    println("STDERR:\n${result.stderr}")
+    println("STDOUT: ${result.stdout}")
+    println("STDERR: ${result.stderr}")
 }
