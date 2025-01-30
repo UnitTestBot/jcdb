@@ -45,6 +45,28 @@ import org.jacodb.ets.base.EtsThis
 import org.jacodb.ets.base.EtsType
 import org.jacodb.ets.base.EtsUnknownType
 import org.jacodb.ets.base.EtsValue
+import org.jacodb.ets.dsl.BinaryExpr
+import org.jacodb.ets.dsl.BinaryOperator
+import org.jacodb.ets.dsl.Block
+import org.jacodb.ets.dsl.BlockAssign
+import org.jacodb.ets.dsl.BlockCfg
+import org.jacodb.ets.dsl.BlockIf
+import org.jacodb.ets.dsl.BlockNop
+import org.jacodb.ets.dsl.BlockReturn
+import org.jacodb.ets.dsl.Constant
+import org.jacodb.ets.dsl.Expr
+import org.jacodb.ets.dsl.Local
+import org.jacodb.ets.dsl.Parameter
+import org.jacodb.ets.dsl.ThisRef
+import org.jacodb.ets.dsl.UnaryExpr
+import org.jacodb.ets.dsl.UnaryOperator
+import org.jacodb.ets.dsl.add
+import org.jacodb.ets.dsl.and
+import org.jacodb.ets.dsl.const
+import org.jacodb.ets.dsl.local
+import org.jacodb.ets.dsl.param
+import org.jacodb.ets.dsl.program
+import org.jacodb.ets.dsl.toBlockCfg
 import org.jacodb.ets.model.EtsClassSignature
 import org.jacodb.ets.model.EtsMethod
 import org.jacodb.ets.model.EtsMethodImpl
@@ -100,7 +122,7 @@ class EtsBlockCfgBuilder(
 
         for (stmt in statements) {
             when (stmt) {
-                BlockNop -> {
+                org.jacodb.ets.dsl.BlockNop -> {
                     etsStatements += EtsNopStmt(location = stub)
                 }
 

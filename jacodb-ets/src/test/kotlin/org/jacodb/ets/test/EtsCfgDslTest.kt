@@ -17,19 +17,19 @@
 package org.jacodb.ets.test
 
 import org.jacodb.ets.base.EtsAssignStmt
-import org.jacodb.ets.base.EtsBooleanType
 import org.jacodb.ets.base.EtsLocal
 import org.jacodb.ets.base.EtsNumberType
 import org.jacodb.ets.base.EtsUnknownType
 import org.jacodb.ets.graph.EtsBlockCfgBuilder
-import org.jacodb.ets.graph.add
-import org.jacodb.ets.graph.const
+import org.jacodb.ets.dsl.add
+import org.jacodb.ets.dsl.const
+import org.jacodb.ets.dsl.local
+import org.jacodb.ets.dsl.lt
+import org.jacodb.ets.dsl.param
+import org.jacodb.ets.dsl.program
+import org.jacodb.ets.dsl.toBlockCfg
+import org.jacodb.ets.dsl.toDot
 import org.jacodb.ets.graph.linearize
-import org.jacodb.ets.graph.local
-import org.jacodb.ets.graph.lt
-import org.jacodb.ets.graph.param
-import org.jacodb.ets.graph.program
-import org.jacodb.ets.graph.toBlockCfg
 import org.jacodb.ets.graph.toDot
 import org.jacodb.ets.model.EtsClassSignature
 import org.jacodb.ets.model.EtsFileSignature
