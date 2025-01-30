@@ -38,7 +38,8 @@ fun EtsCfg.toDot(): String {
 
     // Nodes
     stmts.forEach { stmt ->
-        lines += "  ${stmt.location.index} [label=\"\\N: ${stmt.toDotLabel()}\"]"
+        val id= stmt.location.index
+        lines += "  $id [label=\"$id: ${stmt.toDotLabel()}\"]"
     }
 
     // Edges

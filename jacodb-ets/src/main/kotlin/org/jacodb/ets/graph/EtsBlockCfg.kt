@@ -340,13 +340,13 @@ fun EtsBlockCfg.toDot(useHtml: Boolean = true): String {
                 it.toDotLabel().htmlEncode() + "<br/>"
             }
             val h = "<table border=\"0\" cellborder=\"1\" cellspacing=\"0\">" +
-                "<tr><td>" + "<b>Block #\\N</b>" + "</td></tr>" +
+                "<tr><td>" + "<b>Block #${block.id}</b>" + "</td></tr>" +
                 "<tr><td balign=\"left\">" + s + "</td></tr>" +
                 "</table>"
             lines += "  ${block.id} [label=<${h}>]"
         } else {
             val s = block.statements.joinToString("") { it.toDotLabel() + "\\l" }
-            lines += "  ${block.id} [label=\"Block #\\N\\n$s\"]"
+            lines += "  ${block.id} [label=\"Block #${block.id}\\n$s\"]"
         }
     }
 
