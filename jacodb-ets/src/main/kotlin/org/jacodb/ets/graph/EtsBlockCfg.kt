@@ -105,10 +105,12 @@ class EtsBlockCfgBuilder(
                 }
 
                 is BlockAssign -> {
+                    val lhv = stmt.target.toEtsEntity() as EtsLocal // safe cast
+                    val rhv = stmt.expr.toEtsEntity()
                     etsStatements += EtsAssignStmt(
                         location = stub,
-                        lhv = stmt.target.toEtsEntity() as EtsLocal, // safe cast
-                        rhv = stmt.expr.toEtsEntity(),
+                        lhv = lhv,
+                        rhv = rhv,
                     )
                 }
 
@@ -121,9 +123,10 @@ class EtsBlockCfgBuilder(
                 }
 
                 is BlockIf -> {
+                    val condition = stmt.condition.toEtsEntity()
                     etsStatements += EtsIfStmt(
                         location = stub,
-                        condition = stmt.condition.toEtsEntity(),
+                        condition = condition,
                     )
                 }
             }
