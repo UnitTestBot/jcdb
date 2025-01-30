@@ -61,7 +61,7 @@ data class EtsBasicBlock(
 
 class EtsBlockCfg(
     val blocks: List<EtsBasicBlock>,
-    val successors: Map<Int, List<Int>>,
+    val successors: Map<Int, List<Int>>, // for 'if-stmt' block, successors are (true, false) branches
 )
 
 class EtsBlockCfgBuilder(
@@ -281,7 +281,10 @@ fun EtsBlockCfg.linearize(): EtsCfg {
 
         val successors = successors[block.id] ?: error("No successors for block ${block.id}")
         val last = stmtMap.getValue(block.statements.last())
-        successorMap[last] = successors.map {
+        // Note: reverse the order of successors, because in all CFGs, except EtsCfg,
+        //       the successors for the if-stmt are (true, false) branches,
+        //       and only the EtsCfg (which we are building here) has the (false, true) order.
+        successorMap[last] = successors.asReversed().map {
             stmtMap.getValue(blocks[it].statements.first())
         }
     }

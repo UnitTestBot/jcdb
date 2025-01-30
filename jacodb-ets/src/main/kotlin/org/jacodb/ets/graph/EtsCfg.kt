@@ -22,7 +22,7 @@ import org.jacodb.impl.cfg.graphs.GraphDominators
 
 class EtsCfg(
     val stmts: List<EtsStmt>,
-    private val successorMap: Map<EtsStmt, List<EtsStmt>>,
+    private val successorMap: Map<EtsStmt, List<EtsStmt>>, // Note: EtsIfStmt successors are (false, true) branches
 ) : EtsBytecodeGraph<EtsStmt> {
 
     private val predecessorMap: Map<EtsStmt, Set<EtsStmt>> by lazy {
