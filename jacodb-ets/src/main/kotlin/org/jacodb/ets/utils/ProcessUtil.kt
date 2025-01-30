@@ -20,20 +20,30 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import mu.KotlinLogging
 import java.io.Reader
 
+private val logger = KotlinLogging.logger {}
+
 object ProcessUtil {
-    fun run(command: List<String>, input: String? = null): String {
+    data class Result(
+        val exitCode: Int,
+        val stdout: String,
+        val stderr: String,
+    )
+
+    fun run(command: List<String>, input: String? = null): Result {
         val reader = input?.reader() ?: "".reader()
         return run(command, reader)
     }
 
-    fun run(command: List<String>, input: Reader): String {
+    fun run(command: List<String>, input: Reader): Result {
+        logger.debug { "Running command: $command" }
         val process = ProcessBuilder(command).start()
         return communicate(process, input)
     }
 
-    private fun communicate(process: Process, input: Reader): String {
+    private fun communicate(process: Process, input: Reader): Result {
         val stdout = StringBuilder()
         val stderr = StringBuilder()
 
@@ -66,27 +76,18 @@ object ProcessUtil {
             stderrJob.join()
         }
 
-        if (exitCode != 0) {
-            throw ProcessException(
-                "Process failed with exit code $exitCode",
-                exitCode,
-                stderr.toString()
-            )
-        }
-
-        return stdout.toString()
+        return Result(
+            exitCode = exitCode,
+            stdout = stdout.toString(),
+            stderr = stderr.toString(),
+        )
     }
-
-    class ProcessException(
-        message: String,
-        val exitCode: Int,
-        val errorOutput: String,
-    ) : RuntimeException(message)
 }
 
 fun main() {
     // Note: `ls -l /bin/` has big enough output to demonstrate the necessity
     //   of separate output capture threads/coroutines.
-    val output = ProcessUtil.run(listOf("ls", "-l", "/bin/"))
-    println(output)
+    val result = ProcessUtil.run(listOf("ls", "-l", "/bin/"))
+    println("STDOUR:\n${result.stdout}")
+    println("STDERR:\n${result.stderr}")
 }
