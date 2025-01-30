@@ -16,53 +16,8 @@
 
 package org.jacodb.ets.utils
 
-import mu.KotlinLogging
 import org.jacodb.ets.dto.EtsFileDto
 import org.jacodb.ets.model.EtsFile
-import java.nio.file.Path
-import java.util.concurrent.TimeUnit
-import kotlin.time.Duration
-
-private val logger = KotlinLogging.logger {}
-
-internal fun runProcess(cmd: List<String>, timeout: Duration? = null) {
-    logger.info { "Running: '${cmd.joinToString(" ")}'" }
-    val process = ProcessBuilder(cmd).start()
-    val ok = if (timeout == null) {
-        process.waitFor()
-        true
-    } else {
-        process.waitFor(timeout.inWholeNanoseconds, TimeUnit.NANOSECONDS)
-    }
-
-    val stdout = process.inputStream.bufferedReader().readText().trim()
-    if (stdout.isNotBlank()) {
-        logger.info { "STDOUT:\n$stdout" }
-    }
-    val stderr = process.errorStream.bufferedReader().readText().trim()
-    if (stderr.isNotBlank()) {
-        logger.info { "STDERR:\n$stderr" }
-    }
-
-    if (!ok) {
-        logger.info { "Timeout!" }
-        process.destroy()
-    }
-}
-
-/**
- * Returns the path to the sibling of this path with the given name.
- *
- * Usage:
- * ```
- * val path = Path("foo/bar.jpeg")
- * val sibling = path.resolveSibling { it.nameWithoutExtension + ".png" }
- * println(sibling) // foo/bar.png
- * ```
- */
-internal fun Path.resolveSibling(name: (Path) -> String): Path {
-    return resolveSibling(name(this))
-}
 
 fun EtsFileDto.toText(): String {
     val lines: MutableList<String> = mutableListOf()
