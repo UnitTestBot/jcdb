@@ -26,6 +26,7 @@ import org.jacodb.impl.caches.xodus.XODUS_CACHE_PROVIDER_ID
 import org.jacodb.impl.fs.JavaRuntime
 import org.jacodb.impl.fs.asByteCodeLocation
 import org.jacodb.impl.fs.logger
+import org.jacodb.impl.storage.ers.bytecode
 import org.jacodb.impl.storage.jooq.tables.references.BYTECODELOCATIONS
 import org.jacodb.impl.storage.jooq.tables.references.CLASSES
 import java.io.File
@@ -88,7 +89,7 @@ abstract class AbstractJcDbPersistence(
                         jooq.select(CLASSES.BYTECODE).from(CLASSES).where(CLASSES.ID.eq(classId)).fetchAny()?.value1()
                     },
                     noSqlAction = { txn ->
-                        txn.getEntityOrNull("Class", classId)?.getRawBlob("bytecode")
+                        txn.getEntityOrNull("Class", classId).bytecode()
                     }
                 )
             } ?: throw IllegalArgumentException("Can't find bytecode for $classId")
