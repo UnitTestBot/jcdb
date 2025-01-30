@@ -23,7 +23,6 @@ import org.jacodb.ets.base.EtsLocal
 import org.jacodb.ets.base.EtsType
 import org.jacodb.ets.graph.EtsCfg
 
-// TODO: typeParameters
 interface EtsMethod : EtsBaseModel, CommonMethod {
     val signature: EtsMethodSignature
     val typeParameters: List<EtsType>
