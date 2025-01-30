@@ -61,8 +61,8 @@ class EtsCfg(
     }
 
     companion object {
-        fun empty(): EtsCfg {
-            return EtsCfg(emptyList(), emptyMap())
+        val EMPTY: EtsCfg by lazy {
+            EtsCfg(emptyList(), emptyMap())
         }
     }
 }

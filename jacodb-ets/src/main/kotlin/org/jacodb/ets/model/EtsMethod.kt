@@ -61,7 +61,7 @@ class EtsMethodImpl(
     var _cfg: EtsCfg? = null
 
     override val cfg: EtsCfg
-        get() = _cfg ?: EtsCfg.empty()
+        get() = _cfg ?: EtsCfg.EMPTY
 
     override fun toString(): String {
         return signature.toString()
