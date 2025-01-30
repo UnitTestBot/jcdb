@@ -23,6 +23,7 @@ import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import java.io.Reader
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
 
 private val logger = KotlinLogging.logger {}
 
@@ -37,7 +38,7 @@ object ProcessUtil {
     fun run(
         command: List<String>,
         input: String? = null,
-        timeout: Long? = null,
+        timeout: Duration? = null,
     ): Result {
         val reader = input?.reader() ?: "".reader()
         return run(command, reader, timeout)
@@ -46,7 +47,7 @@ object ProcessUtil {
     fun run(
         command: List<String>,
         input: Reader,
-        timeout: Long? = null,
+        timeout: Duration? = null,
     ): Result {
         logger.debug { "Running command: $command" }
         val process = ProcessBuilder(command).start()
@@ -56,7 +57,7 @@ object ProcessUtil {
     private fun communicate(
         process: Process,
         input: Reader,
-        timeout: Long? = null,
+        timeout: Duration? = null,
     ): Result {
         val stdout = StringBuilder()
         val stderr = StringBuilder()
@@ -84,7 +85,7 @@ object ProcessUtil {
 
         // Wait for completion
         val isTimeout = if (timeout != null) {
-            !process.waitFor(timeout, TimeUnit.SECONDS)
+            !process.waitFor(timeout.inWholeNanoseconds, TimeUnit.NANOSECONDS)
         } else {
             process.waitFor()
             false
