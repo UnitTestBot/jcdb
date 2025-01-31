@@ -21,10 +21,12 @@ package org.jacodb.impl.features
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.future.future
 import org.jacodb.api.jvm.JcClasspath
+import org.jacodb.impl.storage.dslContext
 import org.jacodb.impl.storage.ers.filterDeleted
 import org.jacodb.impl.storage.execute
 import org.jacodb.impl.storage.jooq.tables.references.CLASSES
 import org.jacodb.impl.storage.jooq.tables.references.SYMBOLS
+import org.jacodb.impl.storage.txn
 import org.jooq.impl.DSL
 
 /**
@@ -37,8 +39,8 @@ suspend fun JcClasspath.duplicatedClasses(): Map<String, Int> {
     val persistence = db.persistence
     return persistence.read { context ->
         context.execute(
-            sqlAction = { jooq ->
-                jooq.select(SYMBOLS.NAME, DSL.count(SYMBOLS.NAME)).from(CLASSES)
+            sqlAction = {
+                context.dslContext.select(SYMBOLS.NAME, DSL.count(SYMBOLS.NAME)).from(CLASSES)
                     .join(SYMBOLS).on(SYMBOLS.ID.eq(CLASSES.NAME))
                     .where(CLASSES.LOCATION_ID.`in`(registeredLocationIds))
                     .groupBy(SYMBOLS.NAME)
@@ -47,9 +49,9 @@ suspend fun JcClasspath.duplicatedClasses(): Map<String, Int> {
                     .map { (name, count) -> name!! to count!! }
                     .toMap()
             },
-            noSqlAction = { txn ->
+            noSqlAction = {
                 val result = mutableMapOf<String, Int>().also { result ->
-                    txn.all("Class").filterDeleted().forEach { clazz ->
+                    context.txn.all("Class").filterDeleted().forEach { clazz ->
                         val className = persistence.findSymbolName(clazz.getCompressed<Long>("nameId")!!)
                         result[className] = result.getOrDefault(className, 0) + 1
                     }

@@ -42,7 +42,7 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
     // non-null only for SQL-based persistence
     private val idGen: AtomicLong? = persistence.read { context ->
         context.execute(
-            sqlAction = { jooq -> AtomicLong(BYTECODELOCATIONS.ID.maxId(jooq) ?: 0) },
+            sqlAction = { AtomicLong(BYTECODELOCATIONS.ID.maxId(context.dslContext) ?: 0) },
             noSqlAction = { null }
         )
     }
@@ -50,14 +50,14 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
     init {
         persistence.write { context ->
             context.execute(
-                sqlAction = { jooq ->
-                    jooq.update(BYTECODELOCATIONS)
+                sqlAction = {
+                    context.dslContext.update(BYTECODELOCATIONS)
                         .set(BYTECODELOCATIONS.STATE, LocationState.OUTDATED.ordinal)
                         .where(BYTECODELOCATIONS.STATE.notEqual(LocationState.PROCESSED.ordinal))
                         .execute()
                 },
-                noSqlAction = { txn ->
-                    txn.all(BytecodeLocationEntity.BYTECODE_LOCATION_ENTITY_TYPE)
+                noSqlAction = {
+                    context.txn.all(BytecodeLocationEntity.BYTECODE_LOCATION_ENTITY_TYPE)
                         .filter { it.get<LocationState>(BytecodeLocationEntity.STATE) != LocationState.PROCESSED }
                         .forEach { it[BytecodeLocationEntity.STATE] = LocationState.OUTDATED.ordinal }
                 }
@@ -68,16 +68,16 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
     override val actualLocations: List<PersistentByteCodeLocation>
         get() = persistence.read { context ->
             context.execute(
-                sqlAction = { jooq ->
-                    jooq.selectFrom(BYTECODELOCATIONS).fetch { record ->
+                sqlAction = {
+                    context.dslContext.selectFrom(BYTECODELOCATIONS).fetch { record ->
                         PersistentByteCodeLocation(
                             jcdb,
                             PersistentByteCodeLocationData.fromSqlRecord(record)
                         )
                     }
                 },
-                noSqlAction = { txn ->
-                    txn.all(BytecodeLocationEntity.BYTECODE_LOCATION_ENTITY_TYPE).map { entity ->
+                noSqlAction = {
+                    context.txn.all(BytecodeLocationEntity.BYTECODE_LOCATION_ENTITY_TYPE).map { entity ->
                         PersistentByteCodeLocation(
                             jcdb,
                             PersistentByteCodeLocationData.fromErsEntity(entity)
@@ -90,16 +90,17 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
     private val notRuntimeLocations: List<PersistentByteCodeLocation>
         get() = persistence.read { context ->
             context.execute(
-                sqlAction = { jooq ->
-                    jooq.selectFrom(BYTECODELOCATIONS).where(BYTECODELOCATIONS.RUNTIME.ne(true)).fetch { record ->
-                        PersistentByteCodeLocation(
-                            jcdb,
-                            PersistentByteCodeLocationData.fromSqlRecord(record)
-                        )
-                    }
+                sqlAction = {
+                    context.dslContext.selectFrom(BYTECODELOCATIONS).where(BYTECODELOCATIONS.RUNTIME.ne(true))
+                        .fetch { record ->
+                            PersistentByteCodeLocation(
+                                jcdb,
+                                PersistentByteCodeLocationData.fromSqlRecord(record)
+                            )
+                        }
                 },
-                noSqlAction = { txn ->
-                    txn.find(
+                noSqlAction = {
+                    context.txn.find(
                         type = BytecodeLocationEntity.BYTECODE_LOCATION_ENTITY_TYPE,
                         propertyName = BytecodeLocationEntity.IS_RUNTIME,
                         value = false
@@ -140,13 +141,14 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
         val ids = locations.map { it.id }
         persistence.write { context ->
             context.execute(
-                sqlAction = { jooq ->
-                    jooq.update(BYTECODELOCATIONS)
+                sqlAction = {
+                    context.dslContext.update(BYTECODELOCATIONS)
                         .set(BYTECODELOCATIONS.STATE, LocationState.PROCESSED.ordinal)
                         .where(BYTECODELOCATIONS.ID.`in`(ids))
                         .execute()
                 },
-                noSqlAction = { txn ->
+                noSqlAction = {
+                    val txn = context.txn
                     ids.forEach { id ->
                         val entity = txn.getEntityOrNull(BytecodeLocationEntity.BYTECODE_LOCATION_ENTITY_TYPE, id)
                         entity?.set(BytecodeLocationEntity.STATE, LocationState.PROCESSED.ordinal)
@@ -164,12 +166,14 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
             val toAdd = arrayListOf<JcByteCodeLocation>()
             val fsIds = uniqueLocations.map { it.fileSystemId }
             val existing = context.execute(
-                sqlAction = { jooq ->
-                    jooq.selectFrom(BYTECODELOCATIONS).where(BYTECODELOCATIONS.UNIQUEID.`in`(fsIds)).map { record ->
-                        PersistentByteCodeLocationData.fromSqlRecord(record)
-                    }
+                sqlAction = {
+                    context.dslContext.selectFrom(BYTECODELOCATIONS).where(BYTECODELOCATIONS.UNIQUEID.`in`(fsIds))
+                        .map { record ->
+                            PersistentByteCodeLocationData.fromSqlRecord(record)
+                        }
                 },
-                noSqlAction = { txn ->
+                noSqlAction = {
+                    val txn = context.txn
                     fsIds.flatMap { fsId ->
                         txn.find(
                             type = BytecodeLocationEntity.BYTECODE_LOCATION_ENTITY_TYPE,
@@ -189,11 +193,11 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
                 }
             }
             val records = context.execute(
-                sqlAction = { jooq ->
+                sqlAction = {
                     val records = toAdd.map { add ->
                         idGen!!.incrementAndGet() to add
                     }
-                    jooq.connection {
+                    context.dslContext.connection {
                         it.insertElements(BYTECODELOCATIONS, records) { (id, location) ->
                             setLong(1, id)
                             setString(2, location.path)
@@ -205,7 +209,8 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
                     }
                     records
                 },
-                noSqlAction = { txn ->
+                noSqlAction = {
+                    val txn = context.txn
                     toAdd.map { location ->
                         val entity = txn.newEntity(BytecodeLocationEntity.BYTECODE_LOCATION_ENTITY_TYPE)
                         entity[BytecodeLocationEntity.PATH] = location.path
@@ -235,10 +240,10 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
         }
         val locationIds = locations.map { it.id }.toSet()
         execute(
-            sqlAction = { jooq ->
-                jooq.deleteFrom(BYTECODELOCATIONS).where(BYTECODELOCATIONS.ID.`in`(locationIds)).execute()
+            sqlAction = {
+                dslContext.deleteFrom(BYTECODELOCATIONS).where(BYTECODELOCATIONS.ID.`in`(locationIds)).execute()
             },
-            noSqlAction = { txn ->
+            noSqlAction = {
                 txn.all(BytecodeLocationEntity.BYTECODE_LOCATION_ENTITY_TYPE)
                     .filter { it.id.instanceId in locationIds }
                     .forEach { it.delete() }
@@ -280,13 +285,14 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
                 val toUpdate = updated[location]
                 if (toUpdate != null) {
                     context.execute(
-                        sqlAction = { jooq ->
-                            jooq.update(BYTECODELOCATIONS)
+                        sqlAction = {
+                            context.dslContext.update(BYTECODELOCATIONS)
                                 .set(BYTECODELOCATIONS.UPDATED_ID, refreshed.id)
                                 .set(BYTECODELOCATIONS.STATE, LocationState.OUTDATED.ordinal)
                                 .where(BYTECODELOCATIONS.ID.eq(toUpdate.id)).execute()
                         },
-                        noSqlAction = { txn ->
+                        noSqlAction = {
+                            val txn = context.txn
                             txn.getEntityOrNull(BytecodeLocationEntity.BYTECODE_LOCATION_ENTITY_TYPE, toUpdate.id)
                                 ?.let {
                                     it.addLink(
@@ -316,13 +322,13 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
     override fun cleanup(): CleanupResult {
         return persistence.write { context ->
             val deprecated = context.execute(
-                sqlAction = { jooq ->
-                    jooq.selectFrom(BYTECODELOCATIONS)
+                sqlAction = {
+                    context.dslContext.selectFrom(BYTECODELOCATIONS)
                         .where(BYTECODELOCATIONS.UPDATED_ID.isNotNull).fetch()
                         .map { PersistentByteCodeLocationData.fromSqlRecord(it) }
                 },
-                noSqlAction = { txn ->
-                    txn.all(BytecodeLocationEntity.BYTECODE_LOCATION_ENTITY_TYPE)
+                noSqlAction = {
+                    context.txn.all(BytecodeLocationEntity.BYTECODE_LOCATION_ENTITY_TYPE)
                         .filter { it.getLinks(BytecodeLocationEntity.UPDATED_LINK).isNotEmpty }
                         .map { PersistentByteCodeLocationData.fromErsEntity(it) }.toList()
                 }
@@ -350,16 +356,17 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
             return existing
         }
         return context.execute(
-            sqlAction = { jooq ->
+            sqlAction = {
                 val record = BytecodelocationsRecord().also {
                     it.path = path
                     it.uniqueid = fileSystemId
                     it.runtime = type == LocationType.RUNTIME
                 }
-                jooq.insertInto(BYTECODELOCATIONS).set(record)
+                context.dslContext.insertInto(BYTECODELOCATIONS).set(record)
                 PersistentByteCodeLocationData.fromSqlRecord(record)
             },
-            noSqlAction = { txn ->
+            noSqlAction = {
+                val txn = context.txn
                 val entity =
                     txn.find(
                         type = BytecodeLocationEntity.BYTECODE_LOCATION_ENTITY_TYPE,
@@ -376,13 +383,14 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
 
     private fun JcByteCodeLocation.findOrNull(context: StorageContext): PersistentByteCodeLocationData? {
         return context.execute(
-            sqlAction = { jooq ->
-                jooq.selectFrom(BYTECODELOCATIONS)
+            sqlAction = {
+                context.dslContext.selectFrom(BYTECODELOCATIONS)
                     .where(BYTECODELOCATIONS.PATH.eq(path).and(BYTECODELOCATIONS.UNIQUEID.eq(fileSystemId)))
                     .fetchAny()
                     ?.let { PersistentByteCodeLocationData.fromSqlRecord(it) }
             },
-            noSqlAction = { txn ->
+            noSqlAction = {
+                val txn = context.txn
                 txn.find(
                     type = BytecodeLocationEntity.BYTECODE_LOCATION_ENTITY_TYPE,
                     propertyName = BytecodeLocationEntity.PATH,
@@ -395,7 +403,6 @@ class PersistentLocationsRegistry(private val jcdb: JcDatabaseImpl) : LocationsR
             }
         )
     }
-
 }
 
 object BytecodeLocationEntity {

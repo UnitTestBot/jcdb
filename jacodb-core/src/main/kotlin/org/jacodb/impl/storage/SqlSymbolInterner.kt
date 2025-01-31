@@ -20,12 +20,12 @@ import org.jacodb.api.jvm.JcDatabasePersistence
 import org.jacodb.api.storage.ConcurrentSymbolInterner
 import org.jacodb.api.storage.StorageContext
 import org.jacodb.impl.storage.jooq.tables.references.SYMBOLS
-import org.jooq.DSLContext
 
 class SqlSymbolInterner : ConcurrentSymbolInterner() {
 
     fun setup(persistence: JcDatabasePersistence) = persistence.read { context ->
-        context.execute { jooq ->
+        context.execute {
+            val jooq = context.dslContext
             jooq.selectFrom(SYMBOLS).fetch().forEach {
                 val (id, name) = it
                 if (name != null && id != null) {
@@ -56,7 +56,7 @@ class SqlSymbolInterner : ConcurrentSymbolInterner() {
         }
     }
 
-    private fun StorageContext.execute(action: (DSLContext) -> Unit) {
+    private fun StorageContext.execute(action: () -> Unit) {
         execute(sqlAction = action, noSqlAction = { error("Can't execute NoSql action in SqlSymbolInterner") })
     }
 }
