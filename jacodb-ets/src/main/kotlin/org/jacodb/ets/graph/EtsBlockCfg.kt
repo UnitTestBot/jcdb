@@ -158,6 +158,10 @@ class EtsBlockCfgBuilder(
             }
         }
 
+        if (etsStatements.isEmpty()) {
+            etsStatements += EtsNopStmt(location = stub)
+        }
+
         return EtsBasicBlock(
             id = id,
             statements = etsStatements,
