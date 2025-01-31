@@ -87,10 +87,9 @@ class PersistentByteCodeLocation(
         }
     }
 
-    override val jcLocation: JcByteCodeLocation?
-        get() {
-            return cachedLocation ?: data.toJcLocation()
-        }
+    override val jcLocation: JcByteCodeLocation? by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        cachedLocation ?: data.toJcLocation()
+    }
 
     override val path: String
         get() = data.path
@@ -138,4 +137,3 @@ class PersistentByteCodeLocation(
         }
     }
 }
-
