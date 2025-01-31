@@ -22,6 +22,7 @@ import org.jacodb.ets.dto.toEtsFile
 import org.jacodb.ets.model.EtsFile
 import org.jacodb.ets.model.EtsScene
 import java.nio.file.Path
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.extension
 import kotlin.io.path.inputStream
 import kotlin.io.path.relativeTo
@@ -66,6 +67,7 @@ fun loadEtsFileFromResource(jsonPath: String): EtsFile {
  * val files: Sequence<EtsFile> = loadMultipleEtsFilesFromResourceDirectory("/project")
  * ```
  */
+@OptIn(ExperimentalPathApi::class)
 fun loadMultipleEtsFilesFromResourceDirectory(dirPath: String): Sequence<EtsFile> {
     val rootPath = getResourcePath(dirPath)
     return rootPath.walk().filter { it.extension == "json" }.map { path ->
@@ -128,6 +130,7 @@ fun loadEtsFile(path: Path): EtsFile {
  * val files: Sequence<EtsFile> = loadMultipleEtsFilesFromDirectory(Path("data"))
  * ```
  */
+@OptIn(ExperimentalPathApi::class)
 fun loadMultipleEtsFilesFromDirectory(dirPath: Path): Sequence<EtsFile> {
     return dirPath.walk().filter { it.extension == "json" }.map { loadEtsFile(it) }
 }
