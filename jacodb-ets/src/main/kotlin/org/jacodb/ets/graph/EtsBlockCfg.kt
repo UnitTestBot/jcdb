@@ -126,7 +126,7 @@ class EtsBlockCfgBuilder(
 
         for (stmt in statements) {
             when (stmt) {
-                org.jacodb.ets.dsl.BlockNop -> {
+                BlockNop -> {
                     etsStatements += EtsNopStmt(location = stub)
                 }
 
