@@ -1,0 +1,13 @@
+name: Trigger Jitpack Build
+on:
+  push:
+    branches: [ develop, neo ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Jitpack Build
+        run: |
+          JITPACK_URL="https://jitpack.io/com/github/${{ github.repository }}/${GITHUB_SHA:0:10}/build.log"
+          curl -s -m 300 ${JITPACK_URL}
