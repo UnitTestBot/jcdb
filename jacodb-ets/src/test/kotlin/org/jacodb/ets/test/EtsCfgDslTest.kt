@@ -20,7 +20,6 @@ import org.jacodb.ets.base.EtsAssignStmt
 import org.jacodb.ets.base.EtsLocal
 import org.jacodb.ets.base.EtsNumberType
 import org.jacodb.ets.base.EtsUnknownType
-import org.jacodb.ets.graph.EtsBlockCfgBuilder
 import org.jacodb.ets.dsl.add
 import org.jacodb.ets.dsl.const
 import org.jacodb.ets.dsl.local
@@ -31,6 +30,7 @@ import org.jacodb.ets.dsl.toBlockCfg
 import org.jacodb.ets.dsl.toDot
 import org.jacodb.ets.graph.linearize
 import org.jacodb.ets.graph.toDot
+import org.jacodb.ets.graph.toEtsBlockCfg
 import org.jacodb.ets.model.EtsClassSignature
 import org.jacodb.ets.model.EtsFileSignature
 import org.jacodb.ets.model.EtsMethodImpl
@@ -79,7 +79,7 @@ class EtsCfgDslTest {
             locals = locals,
         )
 
-        val etsBlockCfg = EtsBlockCfgBuilder(method).build(blockCfg)
+        val etsBlockCfg = blockCfg.toEtsBlockCfg(method)
         println("etsBlockCfg:\n${etsBlockCfg.toDot()}")
         val etsCfg = etsBlockCfg.linearize()
         println("etsCfg:\n${etsCfg.toDot()}")

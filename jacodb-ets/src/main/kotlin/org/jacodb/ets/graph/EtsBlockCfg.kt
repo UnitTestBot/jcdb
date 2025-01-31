@@ -86,6 +86,10 @@ class EtsBlockCfg(
     val successors: Map<Int, List<Int>>, // for 'if-stmt' block, successors are (true, false) branches
 )
 
+fun BlockCfg.toEtsBlockCfg(method: EtsMethod): EtsBlockCfg {
+    return EtsBlockCfgBuilder(method).build(this)
+}
+
 class EtsBlockCfgBuilder(
     val method: EtsMethod,
 ) {
@@ -399,7 +403,7 @@ private fun main() {
         ret(const(0.0))
     }
     val blockCfg = p.toBlockCfg()
-    val etsBlockCfg = EtsBlockCfgBuilder(method).build(blockCfg)
+    val etsBlockCfg = blockCfg.toEtsBlockCfg(method)
     println(etsBlockCfg.toDot())
     view(etsBlockCfg.toDot(), name = "etsBlockCfg")
     val etsCfg = etsBlockCfg.linearize()
