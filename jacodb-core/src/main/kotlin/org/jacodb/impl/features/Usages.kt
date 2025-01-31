@@ -45,6 +45,7 @@ import org.jacodb.impl.storage.longHash
 import org.jacodb.impl.storage.runBatch
 import org.jacodb.impl.storage.setNullableLong
 import org.jacodb.impl.storage.sqlScript
+import org.jacodb.impl.storage.txn
 import org.jacodb.impl.storage.withoutAutoCommit
 import org.jacodb.impl.util.interned
 import org.objectweb.asm.Type
@@ -111,7 +112,8 @@ class UsagesIndexer(private val jcdb: JcDatabase, private val location: Register
 
     override fun flush(context: StorageContext) {
         context.execute(
-            sqlAction = { jooq ->
+            sqlAction = {
+                val jooq = context.dslContext
                 jooq.withoutAutoCommit { conn ->
                     conn.runBatch(CALLS) {
                         usages.forEach { (calleeClass, calleeEntry) ->
@@ -133,7 +135,8 @@ class UsagesIndexer(private val jcdb: JcDatabase, private val location: Register
                     }
                 }
             },
-            noSqlAction = { txn ->
+            noSqlAction = {
+                val txn = context.txn
                 val locationValue = location.id.compressed
                 with(jcdb.persistence) {
                     usages.forEach { (calleeClass, calleeEntry) ->
@@ -218,7 +221,8 @@ object Usages : JcFeature<UsageFeatureRequest, UsageFeatureResponse> {
 
         return persistence.read { context ->
             context.execute(
-                sqlAction = { jooq ->
+                sqlAction = {
+                    val jooq = context.dslContext
                     val calls = jooq.select(CLASSES.ID, CALLS.CALLER_METHOD_OFFSETS, SYMBOLS.NAME, CLASSES.LOCATION_ID)
                         .from(CALLS)
                         .join(SYMBOLS).on(SYMBOLS.ID.eq(CLASSES.NAME))
@@ -260,7 +264,8 @@ object Usages : JcFeature<UsageFeatureRequest, UsageFeatureResponse> {
                         }
                     }
                 },
-                noSqlAction = { txn ->
+                noSqlAction = {
+                    val txn = context.txn
                     val classNameIds =
                         classNames.mapTo(mutableSetOf()) { className -> className.asSymbolId(symbolInterner) }
                     txn.find("Callee", "calleeNameId", name.asSymbolId(symbolInterner).compressed)
@@ -274,7 +279,7 @@ object Usages : JcFeature<UsageFeatureRequest, UsageFeatureResponse> {
                             val locationId = callee.getCompressed<Long>("locationId")!!
                             callee.getLinks("calls").map { it to locationId }
                         }
-                        .map { (call, locationId) ->
+                        .map { (call, _) ->
                             val callerId = call.getCompressedBlob<Long>("callerId")!!
                             val caller = symbolInterner.findSymbolName(callerId)!!
                             val clazz = txn.find("Class", "nameId", callerId.compressed)
@@ -300,10 +305,11 @@ object Usages : JcFeature<UsageFeatureRequest, UsageFeatureResponse> {
 
     private fun drop(context: StorageContext) {
         context.execute(
-            sqlAction = { jooq ->
-                jooq.deleteFrom(CALLS).execute()
+            sqlAction = {
+                context.dslContext.deleteFrom(CALLS).execute()
             },
-            noSqlAction = { txn ->
+            noSqlAction = {
+                val txn = context.txn
                 txn.all("Callee").deleteAll()
                 txn.all("Call").deleteAll()
             }
@@ -312,10 +318,11 @@ object Usages : JcFeature<UsageFeatureRequest, UsageFeatureResponse> {
 
     private fun removeLocation(context: StorageContext, locationId: Long) {
         context.execute(
-            sqlAction = { jooq ->
-                jooq.deleteFrom(CALLS).where(CALLS.LOCATION_ID.eq(locationId)).execute()
+            sqlAction = {
+                context.dslContext.deleteFrom(CALLS).where(CALLS.LOCATION_ID.eq(locationId)).execute()
             },
-            noSqlAction = { txn ->
+            noSqlAction = {
+                val txn = context.txn
                 txn.find("Callee", "locationId", locationId.compressed).forEach { callee ->
                     callee.getLinks("calls").deleteAll()
                     callee.delete()
