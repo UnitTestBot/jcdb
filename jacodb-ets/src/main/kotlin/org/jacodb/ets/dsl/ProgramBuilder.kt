@@ -19,12 +19,13 @@
 package org.jacodb.ets.dsl
 
 interface ProgramBuilder {
-    fun assign(target: Local, expr: Expr)
-    fun ret(expr: Expr)
-    fun ifStmt(condition: Expr, block: IfBuilder.() -> Unit)
     fun nop()
     fun label(name: String)
     fun goto(label: String)
+    fun assign(target: Local, expr: Expr)
+    fun ret(expr: Expr)
+    fun ifStmt(condition: Expr, block: IfBuilder.() -> Unit)
+    fun call(instance: Local, function: String, args: List<Value>)
 }
 
 fun ProgramBuilder.local(name: String): Local = Local(name)
@@ -48,6 +49,10 @@ fun ProgramBuilder.div(left: Expr, right: Expr): Expr = BinaryExpr(BinaryOperato
 fun ProgramBuilder.not(expr: Expr): Expr = UnaryExpr(UnaryOperator.NOT, expr)
 fun ProgramBuilder.neg(expr: Expr): Expr = UnaryExpr(UnaryOperator.NEG, expr)
 
+fun ProgramBuilder.call(instance: Local, function: String, vararg args: Value): Call {
+    return Call(InstanceCall(instance, function, args.toList()))
+}
+
 class ProgramBuilderImpl : ProgramBuilder {
     private val _nodes: MutableList<Node> = mutableListOf()
     val nodes: List<Node> get() = _nodes
@@ -68,17 +73,25 @@ class ProgramBuilderImpl : ProgramBuilder {
         _nodes += Goto(label)
     }
 
-    override fun ret(expr: Expr) {
-        _nodes += Return(expr)
-    }
-
     override fun assign(target: Local, expr: Expr) {
         _nodes += Assign(target, expr)
+    }
+
+    override fun ret(expr: Expr) {
+        _nodes += Return(expr)
     }
 
     override fun ifStmt(condition: Expr, block: IfBuilder.() -> Unit) {
         val builder = IfBuilder().apply(block)
         _nodes += If(condition, builder.thenNodes, builder.elseNodes)
+    }
+
+    override fun call(
+        instance: Local,
+        function: String,
+        args: List<Value>,
+    ) {
+        _nodes += Call(InstanceCall(instance, function, args))
     }
 }
 
@@ -96,10 +109,11 @@ class IfBuilder : ProgramBuilder {
         elseBuilder.apply(block)
     }
 
-    override fun assign(target: Local, expr: Expr) = thenBuilder.assign(target, expr)
-    override fun ifStmt(condition: Expr, block: IfBuilder.() -> Unit) = thenBuilder.ifStmt(condition, block)
-    override fun ret(expr: Expr) = thenBuilder.ret(expr)
     override fun nop() = thenBuilder.nop()
-    override fun goto(label: String) = thenBuilder.goto(label)
     override fun label(name: String) = thenBuilder.label(name)
+    override fun goto(label: String) = thenBuilder.goto(label)
+    override fun assign(target: Local, expr: Expr) = thenBuilder.assign(target, expr)
+    override fun ret(expr: Expr) = thenBuilder.ret(expr)
+    override fun ifStmt(condition: Expr, block: IfBuilder.() -> Unit) = thenBuilder.ifStmt(condition, block)
+    override fun call(instance: Local, function: String, args: List<Value>) = thenBuilder.call(instance, function, args)
 }

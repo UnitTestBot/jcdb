@@ -19,6 +19,8 @@ package org.jacodb.ets.graph
 import org.jacodb.ets.base.EtsAddExpr
 import org.jacodb.ets.base.EtsAndExpr
 import org.jacodb.ets.base.EtsAssignStmt
+import org.jacodb.ets.base.EtsCallExpr
+import org.jacodb.ets.base.EtsCallStmt
 import org.jacodb.ets.base.EtsClassType
 import org.jacodb.ets.base.EtsDivExpr
 import org.jacodb.ets.base.EtsEntity
@@ -27,6 +29,7 @@ import org.jacodb.ets.base.EtsGtEqExpr
 import org.jacodb.ets.base.EtsGtExpr
 import org.jacodb.ets.base.EtsIfStmt
 import org.jacodb.ets.base.EtsInstLocation
+import org.jacodb.ets.base.EtsInstanceCallExpr
 import org.jacodb.ets.base.EtsLocal
 import org.jacodb.ets.base.EtsLtEqExpr
 import org.jacodb.ets.base.EtsLtExpr
@@ -39,6 +42,7 @@ import org.jacodb.ets.base.EtsNumberConstant
 import org.jacodb.ets.base.EtsOrExpr
 import org.jacodb.ets.base.EtsParameterRef
 import org.jacodb.ets.base.EtsReturnStmt
+import org.jacodb.ets.base.EtsStaticCallExpr
 import org.jacodb.ets.base.EtsStmt
 import org.jacodb.ets.base.EtsSubExpr
 import org.jacodb.ets.base.EtsThis
@@ -49,17 +53,22 @@ import org.jacodb.ets.dsl.BinaryExpr
 import org.jacodb.ets.dsl.BinaryOperator
 import org.jacodb.ets.dsl.Block
 import org.jacodb.ets.dsl.BlockAssign
+import org.jacodb.ets.dsl.BlockCall
 import org.jacodb.ets.dsl.BlockCfg
 import org.jacodb.ets.dsl.BlockIf
 import org.jacodb.ets.dsl.BlockNop
 import org.jacodb.ets.dsl.BlockReturn
 import org.jacodb.ets.dsl.Constant
 import org.jacodb.ets.dsl.Expr
+import org.jacodb.ets.dsl.FnCall
+import org.jacodb.ets.dsl.InstanceCall
 import org.jacodb.ets.dsl.Local
 import org.jacodb.ets.dsl.Parameter
+import org.jacodb.ets.dsl.StaticCall
 import org.jacodb.ets.dsl.ThisRef
 import org.jacodb.ets.dsl.UnaryExpr
 import org.jacodb.ets.dsl.UnaryOperator
+import org.jacodb.ets.dsl.Value
 import org.jacodb.ets.dsl.add
 import org.jacodb.ets.dsl.and
 import org.jacodb.ets.dsl.const
@@ -68,6 +77,7 @@ import org.jacodb.ets.dsl.param
 import org.jacodb.ets.dsl.program
 import org.jacodb.ets.dsl.toBlockCfg
 import org.jacodb.ets.model.EtsClassSignature
+import org.jacodb.ets.model.EtsFileSignature
 import org.jacodb.ets.model.EtsMethod
 import org.jacodb.ets.model.EtsMethodImpl
 import org.jacodb.ets.model.EtsMethodParameter
@@ -131,7 +141,7 @@ class EtsBlockCfgBuilder(
                 }
 
                 is BlockAssign -> {
-                    val lhv = stmt.target.toEtsEntity() as EtsLocal // safe cast
+                    val lhv = stmt.target.toEtsValue() as EtsLocal // safe cast
                     val rhv = stmt.expr.toEtsEntity()
                     etsStatements += EtsAssignStmt(
                         location = stub,
@@ -155,6 +165,14 @@ class EtsBlockCfgBuilder(
                         condition = condition,
                     )
                 }
+
+                is BlockCall -> {
+                    val callExpr = stmt.expr.toEtsEntity() as EtsCallExpr // safe cast
+                    etsStatements += EtsCallStmt(
+                        location = stub,
+                        expr = callExpr,
+                    )
+                }
             }
         }
 
@@ -171,19 +189,7 @@ class EtsBlockCfgBuilder(
     private val stub = EtsInstLocation(method, -1)
 
     private fun Expr.toEtsEntity(): EtsEntity = when (this) {
-        is Local -> EtsLocal(
-            name = name,
-            type = EtsUnknownType,
-        )
-
-        is Parameter -> EtsParameterRef(
-            index = index,
-            type = method.parameters[index].type,
-        )
-
-        ThisRef -> EtsThis(type = EtsClassType(EtsClassSignature.DEFAULT))
-
-        is Constant -> EtsNumberConstant(value = value)
+        is Value -> toEtsValue()
 
         is UnaryExpr -> when (operator) {
             UnaryOperator.NOT -> {
@@ -262,6 +268,66 @@ class EtsBlockCfgBuilder(
                 type = EtsUnknownType,
             )
         }
+
+        is FnCall -> TODO("what should it be?")
+
+        is InstanceCall -> {
+            val args = args.map { it.toEtsValue() }
+            EtsInstanceCallExpr(
+                instance = instance.toEtsValue() as EtsLocal, // safe cast
+                method = EtsMethodSignature(
+                    enclosingClass = EtsClassSignature.DEFAULT,
+                    name = name,
+                    parameters = args.mapIndexed { index, arg ->
+                        EtsMethodParameter(
+                            index = index,
+                            name = "arg$index",
+                            type = arg.type,
+                        )
+                    },
+                    returnType = EtsUnknownType,
+                ),
+                args = args,
+            )
+        }
+
+        is StaticCall -> {
+            val args = args.map { it.toEtsValue() }
+            EtsStaticCallExpr(
+                method = EtsMethodSignature(
+                    enclosingClass = EtsClassSignature(
+                        name = className,
+                        file = EtsFileSignature.DEFAULT,
+                    ),
+                    name = name,
+                    parameters = args.mapIndexed { index, arg ->
+                        EtsMethodParameter(
+                            index = index,
+                            name = "arg$index",
+                            type = arg.type,
+                        )
+                    },
+                    returnType = EtsUnknownType,
+                ),
+                args = args,
+            )
+        }
+    }
+
+    private fun Value.toEtsValue(): EtsValue = when (this) {
+        is Local -> EtsLocal(
+            name = name,
+            type = EtsUnknownType,
+        )
+
+        is Parameter -> EtsParameterRef(
+            index = index,
+            type = method.parameters[index].type,
+        )
+
+        ThisRef -> EtsThis(type = EtsClassType(method.enclosingClass))
+
+        is Constant -> EtsNumberConstant(value = value)
     }
 }
 
@@ -287,6 +353,7 @@ fun EtsBlockCfg.linearize(): EtsCfg {
                 is EtsAssignStmt -> stmt.copy(location = stmt.location.copy(index = linearized.size))
                 is EtsReturnStmt -> stmt.copy(location = stmt.location.copy(index = linearized.size))
                 is EtsIfStmt -> stmt.copy(location = stmt.location.copy(index = linearized.size))
+                is EtsCallStmt -> stmt.copy(location = stmt.location.copy(index = linearized.size))
                 else -> error("Unsupported statement type: $stmt")
             }
             stmtMap[stmt] = newStmt
@@ -404,6 +471,7 @@ private fun main() {
         ifStmt(and(local("x"), local("y"))) {
             ret(add(local("x"), local("y")))
         }
+        call(local("this"), "bar", listOf(local("x"), local("y")))
         ret(const(0.0))
     }
     val blockCfg = p.toBlockCfg()

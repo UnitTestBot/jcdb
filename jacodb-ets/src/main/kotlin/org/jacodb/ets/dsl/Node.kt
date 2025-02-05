@@ -20,6 +20,14 @@ sealed interface Node
 
 data object Nop : Node
 
+data class Label(
+    val name: String,
+) : Node
+
+data class Goto(
+    val targetLabel: String,
+) : Node
+
 data class Assign(
     val target: Local,
     val expr: Expr,
@@ -35,10 +43,6 @@ data class If(
     val elseBranch: List<Node>,
 ) : Node
 
-data class Label(
-    val name: String,
-) : Node
-
-data class Goto(
-    val targetLabel: String,
+data class Call(
+    val expr: CallExpr,
 ) : Node

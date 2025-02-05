@@ -32,6 +32,9 @@ data class Program(
                     is Nop -> line("nop")
                     is Assign -> line("${node.target} := ${node.expr}")
                     is Return -> line("return ${node.expr}")
+                    is Label -> line("label ${node.name}")
+                    is Goto -> line("goto ${node.targetLabel}")
+
                     is If -> {
                         line("if (${node.condition}) {")
                         process(node.thenBranch, currentIndent + indent)
@@ -42,8 +45,7 @@ data class Program(
                         line("}")
                     }
 
-                    is Label -> line("label ${node.name}")
-                    is Goto -> line("goto ${node.targetLabel}")
+                    is Call -> line("${node.expr}")
                 }
             }
         }

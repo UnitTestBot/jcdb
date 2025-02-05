@@ -18,19 +18,21 @@ package org.jacodb.ets.dsl
 
 sealed interface Expr
 
-data class Local(val name: String) : Expr {
+sealed interface Value : Expr
+
+data class Local(val name: String) : Value {
     override fun toString() = name
 }
 
-data class Parameter(val index: Int) : Expr {
+data class Parameter(val index: Int) : Value {
     override fun toString() = "param($index)"
 }
 
-object ThisRef : Expr {
+object ThisRef : Value {
     override fun toString() = "this"
 }
 
-data class Constant(val value: Double) : Expr {
+data class Constant(val value: Double) : Value {
     override fun toString() = "const($value)"
 }
 
@@ -57,4 +59,38 @@ data class UnaryExpr(
     val expr: Expr,
 ) : Expr {
     override fun toString() = "${operator.name.lowercase()}($expr)"
+}
+
+sealed interface CallExpr : Expr {
+    val name: String
+    val args: List<Expr>
+}
+
+data class FnCall(
+    override val name: String,
+    override val args: List<Value>,
+) : CallExpr {
+    override fun toString(): String {
+        return "call($name, $args)"
+    }
+}
+
+data class InstanceCall(
+    val instance: Local,
+    override val name: String,
+    override val args: List<Value>,
+) : CallExpr {
+    override fun toString(): String {
+        return "$instance.call($name, $args)"
+    }
+}
+
+data class StaticCall(
+    val className: String,
+    override val name: String,
+    override val args: List<Value>,
+) : CallExpr {
+    override fun toString(): String {
+        return "$className.call($name, $args)"
+    }
 }

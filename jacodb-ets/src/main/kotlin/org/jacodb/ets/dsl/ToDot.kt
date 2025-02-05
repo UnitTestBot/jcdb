@@ -19,12 +19,13 @@ package org.jacodb.ets.dsl
 import java.util.IdentityHashMap
 
 private fun Node.toDotLabel() = when (this) {
-    is Assign -> "$target := $expr"
-    is Return -> "return $expr"
-    is If -> "if ($condition)"
     is Nop -> "nop"
     is Label -> "label $name"
     is Goto -> "goto $targetLabel"
+    is Assign -> "$target := $expr"
+    is Return -> "return $expr"
+    is If -> "if ($condition)"
+    is Call -> "$expr"
 }
 
 fun Program.toDot(): String {
@@ -101,6 +102,7 @@ private fun BlockStmt.toDotLabel() = when (this) {
     is BlockReturn -> "return $expr"
     is BlockIf -> "if ($condition)"
     is BlockNop -> "nop"
+    is BlockCall -> "$expr"
 }
 
 fun BlockCfg.toDot(): String {
@@ -137,6 +139,7 @@ private fun Stmt.toDotLabel() = when (this) {
     is AssignStmt -> "$target := $expr"
     is ReturnStmt -> "return $expr"
     is IfStmt -> "if ($condition)"
+    is CallStmt -> "$expr"
 }
 
 fun LinearizedCfg.toDot(): String {

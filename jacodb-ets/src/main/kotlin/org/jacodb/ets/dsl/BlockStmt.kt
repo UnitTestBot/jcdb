@@ -32,3 +32,7 @@ data class BlockReturn(
 data class BlockIf(
     val condition: Expr,
 ) : BlockStmt
+
+data class BlockCall(
+    val expr: CallExpr,
+) : BlockStmt

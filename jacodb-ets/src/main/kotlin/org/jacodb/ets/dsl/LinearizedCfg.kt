@@ -46,6 +46,10 @@ fun BlockCfg.linearize(): LinearizedCfg {
                 is BlockIf -> {
                     processed += IfStmt(loc++, stmt.condition)
                 }
+
+                is BlockCall -> {
+                    processed += CallStmt(loc++, stmt.expr)
+                }
             }
         }
         if (processed.isEmpty()) {

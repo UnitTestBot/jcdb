@@ -41,3 +41,8 @@ data class IfStmt(
     override val location: StmtLocation,
     val condition: Expr,
 ) : Stmt
+
+data class CallStmt(
+    override val location: StmtLocation,
+    val expr: CallExpr,
+) : Stmt
