@@ -23,7 +23,6 @@ import org.jacodb.ets.base.EtsLocal
 import org.jacodb.ets.base.EtsType
 import org.jacodb.ets.graph.EtsCfg
 
-// TODO: typeParameters
 interface EtsMethod : EtsBaseModel, CommonMethod {
     val signature: EtsMethodSignature
     val typeParameters: List<EtsType>
@@ -61,7 +60,7 @@ class EtsMethodImpl(
     var _cfg: EtsCfg? = null
 
     override val cfg: EtsCfg
-        get() = _cfg ?: EtsCfg.empty()
+        get() = _cfg ?: EtsCfg.EMPTY
 
     override fun toString(): String {
         return signature.toString()
