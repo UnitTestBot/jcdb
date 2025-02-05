@@ -7,7 +7,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Get short Git commit SHA
+        id: sha
+        run: echo "short=${GITHUB_SHA:0:10}" >> $GITHUB_OUTPUT
+
       - name: Trigger Jitpack Build
         run: |
-          JITPACK_URL="https://jitpack.io/com/github/${{ github.repository }}/${GITHUB_SHA:0:10}/build.log"
+          JITPACK_URL="https://jitpack.io/com/github/${{ github.repository }}/${{ steps.sha.outputs.short }}/build.log"
           curl -s -m 300 ${JITPACK_URL}
