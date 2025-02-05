@@ -16,11 +16,31 @@
 
 package org.jacodb.ets.utils
 
+import org.jacodb.ets.base.EtsAssignStmt
 import org.jacodb.ets.base.EtsEntity
+import org.jacodb.ets.base.EtsLocal
 import org.jacodb.ets.base.EtsStmt
+import org.jacodb.ets.model.EtsMethod
 
-fun EtsStmt.getUses(): Sequence<EtsEntity> =
-    getOperands().flatMap { sequenceOf(it) + it.getUses() }
+fun EtsMethod.getDeclaredLocals(): Set<EtsLocal> =
+    cfg.stmts.mapNotNullTo(mutableSetOf()) {
+        if (it is EtsAssignStmt && it.lhv is EtsLocal) {
+            it.lhv
+        } else {
+            null
+        }
+    }
 
-fun EtsEntity.getUses(): Sequence<EtsEntity> =
-    getOperands().flatMap { sequenceOf(it) + it.getUses() }
+fun EtsMethod.getLocals(): Set<EtsLocal> {
+    val result = mutableSetOf<EtsLocal>()
+    cfg.stmts.forEach { it.collectEntitiesTo(result) { it as? EtsLocal } }
+    return result
+}
+
+fun EtsStmt.getLocals(): Set<EtsLocal> {
+    return collectEntitiesTo(mutableSetOf()) { it as? EtsLocal }
+}
+
+fun EtsEntity.getLocals(): Set<EtsLocal> {
+    return collectEntitiesTo(mutableSetOf()) { it as? EtsLocal }
+}

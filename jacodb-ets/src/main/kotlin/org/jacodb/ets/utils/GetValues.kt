@@ -20,8 +20,10 @@ import org.jacodb.ets.base.EtsEntity
 import org.jacodb.ets.base.EtsStmt
 import org.jacodb.ets.base.EtsValue
 
-fun EtsStmt.getValues(): Sequence<EtsValue> =
-    getOperands().filterIsInstance<EtsValue>()
+fun EtsStmt.getValues(): Set<EtsValue> {
+    return collectEntitiesTo(mutableSetOf()) { it as? EtsValue }
+}
 
-fun EtsEntity.getValues(): Sequence<EtsValue> =
-    getOperands().filterIsInstance<EtsValue>()
+fun EtsEntity.getValues(): Set<EtsValue> {
+    return collectEntitiesTo(mutableSetOf()) { it as? EtsValue }
+}
