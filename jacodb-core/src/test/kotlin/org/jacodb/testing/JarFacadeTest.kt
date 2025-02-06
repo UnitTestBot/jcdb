@@ -16,9 +16,14 @@
 
 package org.jacodb.testing
 
+import kotlinx.coroutines.runBlocking
+import org.jacodb.impl.JcRamErsSettings
 import org.jacodb.impl.fs.JarFacade
 import org.jacodb.impl.fs.parseRuntimeVersion
-import org.junit.jupiter.api.Assertions.*
+import org.jacodb.impl.jacodb
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledOnJre
 import org.junit.jupiter.api.condition.JRE
@@ -92,5 +97,16 @@ class JarFacadeTest {
         assertTrue(javaBase.classes.all { !it.key.contains("META-INF") })
         assertTrue(javaBase.classes.contains("java.lang.String"))
         assertNotNull(javaBase.inputStreamOf("java.lang.String"))
+    }
+
+    @Test
+    fun `load bouncycastle`(): Unit = runBlocking {
+        val jar = cookJar("https://repo1.maven.org/maven2/org/bouncycastle/bcpg-jdk18on/1.78.1/bcpg-jdk18on-1.78.1.jar")
+        val db = jacodb {
+            persistenceImpl(JcRamErsSettings)
+            loadByteCode(listOf(jar.toFile()))
+        }.apply { awaitBackgroundJobs() }
+        val cp = db.classpath(listOf(jar.toFile()))
+        assertTrue(cp.locations.flatMap { location -> location.classes.values }.isNotEmpty())
     }
 }

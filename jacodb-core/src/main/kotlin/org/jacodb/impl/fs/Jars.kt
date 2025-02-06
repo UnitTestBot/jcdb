@@ -17,6 +17,7 @@
 package org.jacodb.impl.fs
 
 import jetbrains.exodus.util.LightByteArrayOutputStream
+import org.jacodb.impl.util.asSequence
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.jar.Attributes
@@ -43,9 +44,9 @@ class JarFacade(private val runtimeVersion: Int, private val getter: () -> JarFi
         getter().use { jarFile ->
             isJmod = jarFile?.name?.endsWith(".jmod") ?: false
             isMultiReleaseEnabledInManifest = jarFile?.manifest?.mainAttributes?.getValue(MULTI_RELEASE).toBoolean()
-            entries = jarFile?.entries()?.toList()?.filter {
+            entries = jarFile?.entries()?.asSequence()?.filter {
                 it.name.endsWith(".class") && !it.name.contains("module-info")
-            }?.associateBy { it.name }
+            }?.associate { it.name to JarEntry(it) }
         }
     }
 
@@ -85,8 +86,8 @@ class JarFacade(private val runtimeVersion: Int, private val getter: () -> JarFi
             val jarFile = getter() ?: return emptyMap()
             return jarFile.use {
                 val buffer = ByteArray(DEFAULT_BUFFER_SIZE * 8)
-                classes.map { it.key to jarFile.getInputStream(it.value).use { it.readBytes(buffer) } }
-            }.toMap()
+                classes.entries.associate { it.key to jarFile.getInputStream(it.value).use { it.readBytes(buffer) } }
+            }
         }
 
 }

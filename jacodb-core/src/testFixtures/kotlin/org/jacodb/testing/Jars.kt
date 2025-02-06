@@ -14,20 +14,24 @@
  *  limitations under the License.
  */
 
-package org.jacodb.impl.util
+package org.jacodb.testing
 
-import java.util.*
+import java.net.URL
+import java.nio.file.Files
+import java.nio.file.Files.createDirectories
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import kotlin.io.path.Path
+import kotlin.io.path.createTempDirectory
 
-inline fun <T> Sequence(crossinline it: () -> Iterable<T>): Sequence<T> = object : Sequence<T> {
-    override fun iterator(): Iterator<T> = it().iterator()
+fun cookJar(link: String): Path {
+    val url = URL(link)
+    val result = createTempJar(url.file)
+    Files.copy(url.openStream(), result, StandardCopyOption.REPLACE_EXISTING)
+    return result
 }
 
-fun <T> Enumeration<T>?.asSequence(): Sequence<T> {
-    if (this == null) return emptySequence()
-    return object : Sequence<T> {
-        override fun iterator(): Iterator<T> = object : Iterator<T> {
-            override fun hasNext() = this@asSequence.hasMoreElements()
-            override fun next(): T = this@asSequence.nextElement()
-        }
+fun createTempJar(name: String) =
+    Path(createTempDirectory("jcdb-temp-jar").toString(), name).also {
+        createDirectories(it.parent)
     }
-}

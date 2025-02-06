@@ -19,15 +19,12 @@ package org.jacodb.testing.persistence.incrementality
 import kotlinx.coroutines.runBlocking
 import org.jacodb.api.jvm.ext.findClass
 import org.jacodb.testing.WithDb
+import org.jacodb.testing.cookJar
+import org.jacodb.testing.createTempJar
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import java.net.URL
 import java.nio.file.Files
-import java.nio.file.Files.createDirectories
-import java.nio.file.Path
 import java.nio.file.StandardCopyOption
-import kotlin.io.path.Path
-import kotlin.io.path.createTempDirectory
 
 class IncrementalDbTest {
 
@@ -55,16 +52,4 @@ class IncrementalDbTest {
         db.awaitBackgroundJobs()
         Assertions.assertTrue(bc1 contentEquals cp.findClass("com.github.penemue.keap.PriorityQueue").bytecode())
     }
-
-    private fun cookJar(link: String): Path {
-        val url = URL(link)
-        val result = createTempJar(url.file)
-        Files.copy(url.openStream(), result, StandardCopyOption.REPLACE_EXISTING)
-        return result
-    }
-
-    private fun createTempJar(name: String) =
-        Path(createTempDirectory("jcdb-temp-jar").toString(), name).also {
-            createDirectories(it.parent)
-        }
 }
