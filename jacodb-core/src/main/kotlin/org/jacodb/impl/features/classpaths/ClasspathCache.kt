@@ -17,6 +17,9 @@
 package org.jacodb.impl.features.classpaths
 
 import mu.KLogging
+import org.jacodb.api.caches.PluggableCache
+import org.jacodb.api.caches.PluggableCacheProvider
+import org.jacodb.api.caches.PluggableCacheStats
 import org.jacodb.api.jvm.JcCacheSegmentSettings
 import org.jacodb.api.jvm.JcCacheSettings
 import org.jacodb.api.jvm.JcClassType
@@ -35,9 +38,6 @@ import org.jacodb.api.jvm.cfg.JcInst
 import org.jacodb.api.jvm.cfg.JcInstList
 import org.jacodb.api.jvm.cfg.JcRawInst
 import org.jacodb.api.jvm.ext.JAVA_OBJECT
-import org.jacodb.impl.caches.PluggableCache
-import org.jacodb.impl.caches.PluggableCacheProvider
-import org.jacodb.impl.caches.PluggableCacheStats
 import org.jacodb.impl.caches.xodus.XODUS_CACHE_PROVIDER_ID
 import org.jacodb.impl.features.classpaths.AbstractJcInstResult.JcFlowGraphResultImpl
 import org.jacodb.impl.features.classpaths.AbstractJcInstResult.JcInstListResultImpl

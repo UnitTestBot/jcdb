@@ -18,12 +18,11 @@ package org.jacodb.impl.caches.guava
 
 import com.google.common.cache.Cache
 import com.google.common.cache.CacheBuilder
-import org.jacodb.api.jvm.ValueStoreType
-import org.jacodb.impl.caches.PluggableCache
-import org.jacodb.impl.caches.PluggableCacheBuilder
-import org.jacodb.impl.caches.PluggableCacheProvider
-import org.jacodb.impl.caches.PluggableCacheStats
-import java.time.Duration
+import org.jacodb.api.caches.PluggableCache
+import org.jacodb.api.caches.PluggableCacheBuilder
+import org.jacodb.api.caches.PluggableCacheProvider
+import org.jacodb.api.caches.PluggableCacheStats
+import org.jacodb.api.caches.ValueStoreType
 
 const val GUAVA_CACHE_PROVIDER_ID = "org.jacodb.impl.caches.guava.GuavaCacheProvider"
 
@@ -42,7 +41,7 @@ private class GuavaCacheBuilder<K : Any, V : Any> : PluggableCacheBuilder<K, V>(
                 .maximumSize(maximumSize.toLong())
                 .apply {
                     expirationDuration.let {
-                        if (it != Duration.ZERO) {
+                        if (it != java.time.Duration.ZERO) {
                             expireAfterAccess(it)
                         }
                     }

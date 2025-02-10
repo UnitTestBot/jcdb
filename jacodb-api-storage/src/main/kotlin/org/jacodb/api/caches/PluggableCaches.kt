@@ -14,10 +14,11 @@
  *  limitations under the License.
  */
 
-package org.jacodb.impl.caches
+package org.jacodb.api.caches
 
-import org.jacodb.api.jvm.ValueStoreType
 import java.time.Duration
+
+enum class ValueStoreType { WEAK, SOFT, STRONG }
 
 class PluggableCacheException(message: String) : RuntimeException(message)
 

@@ -16,7 +16,7 @@
 
 package org.jacodb.testing.caches
 
-import org.jacodb.impl.caches.PluggableCache
+import org.jacodb.api.caches.PluggableCache
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach

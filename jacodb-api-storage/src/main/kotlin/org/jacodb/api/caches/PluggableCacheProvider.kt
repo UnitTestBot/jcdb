@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-package org.jacodb.impl.caches
+package org.jacodb.api.caches
 
 import org.jacodb.api.spi.CommonSPI
 import org.jacodb.api.spi.SPILoader
