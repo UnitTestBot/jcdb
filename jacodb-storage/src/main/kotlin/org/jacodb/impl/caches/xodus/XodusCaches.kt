@@ -19,12 +19,12 @@ package org.jacodb.impl.caches.xodus
 import jetbrains.exodus.core.dataStructures.ConcurrentObjectCache
 import jetbrains.exodus.core.dataStructures.ObjectCacheBase
 import jetbrains.exodus.core.dataStructures.SoftConcurrentObjectCache
-import org.jacodb.api.jvm.ValueStoreType
-import org.jacodb.impl.caches.PluggableCache
-import org.jacodb.impl.caches.PluggableCacheBuilder
-import org.jacodb.impl.caches.PluggableCacheException
-import org.jacodb.impl.caches.PluggableCacheProvider
-import org.jacodb.impl.caches.PluggableCacheStats
+import org.jacodb.api.caches.PluggableCache
+import org.jacodb.api.caches.PluggableCacheBuilder
+import org.jacodb.api.caches.PluggableCacheException
+import org.jacodb.api.caches.PluggableCacheProvider
+import org.jacodb.api.caches.PluggableCacheStats
+import org.jacodb.api.caches.ValueStoreType
 
 const val XODUS_CACHE_PROVIDER_ID = "org.jacodb.impl.caches.xodus.XodusCacheProvider"
 
@@ -51,7 +51,7 @@ private class XodusCacheBuilder<K : Any, V : Any> : PluggableCacheBuilder<K, V>(
 }
 
 /**
- * Generally, Xodus' [ObjectCacheBase] is not synchronized, but [XodusCacheBuilder] creates
+ * Generally, Xodus' [jetbrains.exodus.core.dataStructures.ObjectCacheBase] is not synchronized, but [XodusCacheBuilder] creates
  * its "concurrent" implementations which do not require synchronization. If this ever changes,
  * [XodusCache] should be synchronized.
  */

@@ -16,12 +16,12 @@
 
 package org.jacodb.impl.storage
 
+import org.jacodb.api.caches.PluggableCache
+import org.jacodb.api.caches.PluggableCacheProvider
 import org.jacodb.api.jvm.JcByteCodeLocation
 import org.jacodb.api.jvm.JcDatabasePersistence
 import org.jacodb.api.jvm.RegisteredLocation
 import org.jacodb.api.storage.ers.getEntityOrNull
-import org.jacodb.impl.caches.PluggableCache
-import org.jacodb.impl.caches.PluggableCacheProvider
 import org.jacodb.impl.caches.xodus.XODUS_CACHE_PROVIDER_ID
 import org.jacodb.impl.fs.JavaRuntime
 import org.jacodb.impl.fs.asByteCodeLocation
@@ -73,7 +73,7 @@ abstract class AbstractJcDbPersistence(
                 ).mapNotNull {
                     try {
                         File(it.path).asByteCodeLocation(javaRuntime.version, isRuntime = it.runtime)
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         null
                     }
                 }.flatten().distinct()
@@ -131,7 +131,7 @@ abstract class AbstractJcDbPersistence(
     override fun close() {
         try {
             symbolInterner.close()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // ignore
         }
     }

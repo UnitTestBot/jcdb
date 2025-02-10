@@ -18,6 +18,7 @@ package org.jacodb.api.jvm
 
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
+import org.jacodb.api.caches.ValueStoreType
 import java.io.File
 import java.time.Duration
 
@@ -185,8 +186,6 @@ data class JcCacheSegmentSettings(
     val maxSize: Long = 10_000,
     val expiration: Duration = Duration.ofMinutes(1)
 )
-
-enum class ValueStoreType { WEAK, SOFT, STRONG }
 
 class JcCacheSettings {
     var cacheSpiId: String? = null
