@@ -65,17 +65,4 @@ class EtsMethodImpl(
     override fun toString(): String {
         return signature.toString()
     }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as EtsMethodImpl
-
-        return signature == other.signature
-    }
-
-    override fun hashCode(): Int {
-        return signature.hashCode()
-    }
 }
