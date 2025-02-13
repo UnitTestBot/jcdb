@@ -19,7 +19,7 @@ The `npm run build` command will generate the `out` directory, which contains th
 Most probably, you will have to use our fork of ArkAnalyzer (https://gitee.com/Lipenx/arkanalyzer) and checkout a specific branch that is consistent with the current state of jacodb.
 For this, replace the repo url in the commands above and use `git switch <branch>` to checkout the desired branch.
 
-> Latest supported AA branch is `neo/2025-02-15`.
+> Latest supported AA branch is `neo/2025-02-13`.
 
 ## Serialize TS to JSON
 
